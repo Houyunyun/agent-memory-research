@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light"><title>LEGOMem: Modular Procedural Memory for Multi-agent LLM Systems for Workflow Automation · Agent Memory 研究</title>
 <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../assets/site.css">
-<script src="../assets/site.js" defer></script>
+<link rel="stylesheet" href="../assets/katex/katex.min.css"><script src="../assets/katex/katex.min.js" defer></script><script src="../assets/katex/auto-render.min.js" defer></script><script src="../assets/site.js" defer></script>
 </head>
 <body data-page="library">
 <a class="skip-link" href="#main">跳转到正文</a>
@@ -17,19 +17,286 @@
 <nav class="site-nav" aria-label="主导航"><a href="../index.html">研究总览</a><a href="../library.html" aria-current="page">文献库</a><a href="../reports/survey.html">综述全文</a><a href="../reports/multi-agent.html">多智能体专题</a><a href="../sources.html">阅读指南</a></nav>
 </div></header>
 <main id="main"><div class="page-wrap"><div class="breadcrumb"><a href="../library.html">文献库</a><span>/</span><a href="../library.html?topic=multi-agent">多智能体记忆</a></div>
-<header class="paper-hero"><div class="paper-badges"><span class="muted">2025 · 2510.04851</span></div><h1>LEGOMem: Modular Procedural Memory for Multi-agent LLM Systems for Workflow Automation</h1><p class="paper-authors full-authors">Dongge Han, Camille Couturier, Daniel Madrigal Diaz, Xuchao Zhang, Victor Rühle, Saravan Rajmohan</p>
+<header class="paper-hero"><div class="paper-badges"><span class="badge expanded">含详细解读</span><span class="muted">2025 · 2510.04851</span></div><h1>LEGOMem: Modular Procedural Memory for Multi-agent LLM Systems for Workflow Automation</h1><p class="paper-authors full-authors">Dongge Han, Camille Couturier, Daniel Madrigal Diaz, Xuchao Zhang, Victor Rühle, Saravan Rajmohan</p>
 <div class="hero-actions paper-actions"><a href="https://arxiv.org/abs/2510.04851" target="_blank" rel="noopener noreferrer">论文原文 <span aria-hidden="true">↗</span></a><a href="../downloads/notes/2510.04851.md">下载文献卡片 Markdown</a></div></header>
 <div class="detail-layout"><article class="prose"><h2 id="_1">核心机制</h2>
 <p>把历史任务轨迹拆为模块化程序记忆，分配给调度者与执行 Agent，分别支持规划、委派和具体操作。</p>
 <h2 id="_2">适用范围与局限</h2>
 <p>OfficeBench 中调度者与执行者的记忆收益不同；不能据此认定所有团队都应采用同一分配结构。</p>
-<h2 id="_3">原文摘要</h2>
+<h2 id="_3">详细解读</h2>
+<h3 id="legomem-llm">LEGOMem：面向多智能体 LLM 系统的模块化程序性记忆框架</h3>
+<p>这篇论文提出了 <strong>LEGOMem</strong>，一个专为多智能体大语言模型（LLM）系统设计的模块化程序性记忆框架，核心思想是将历史任务的执行轨迹分解为可复用的记忆单元，并在推理时灵活地分配给编排者（orchestrator）和任务智能体（task agents），从而让多智能体系统能够从过去的经验中学习、提升规划与执行能力，并使小模型团队通过记忆辅助显著缩小与大模型团队之间的性能差距。</p>
+<hr />
+<h3 id="_4">一、背景与动机</h3>
+<h4 id="11">1.1 多智能体系统的崛起</h4>
+<p>近年来，LLM 被广泛部署为自动化复杂工作流的智能体，尤其在办公自动化场景（文档编辑、邮件处理、日历管理）中表现突出。为了处理任务的多样性与组合性，系统设计逐渐转向<strong>多智能体架构</strong>：由一个中央编排者负责规划与分配，多个专业化任务智能体负责具体执行。</p>
+<p>典型代表是微软的 <strong>Magentic-One</strong> 框架，其结构如下：</p>
+<ul>
+<li><strong>编排者（Orchestrator）</strong>：接收用户任务，生成高层计划，动态地将子任务分派给合适的任务智能体。</li>
+<li><strong>任务智能体（Task Agents）</strong>：接收子任务，通过调用工具 API（如操作 Excel、Calendar、Email 等）与环境交互，返回执行结果给编排者。</li>
+</ul>
+<h4 id="12">1.2 现有系统的根本缺陷：无状态性</h4>
+<p>当前多智能体系统几乎都是<strong>无状态的（stateless）</strong>：每个新任务从零开始，无法利用历史执行经验。这意味着：</p>
+<ul>
+<li>同样的错误可能一再重复；</li>
+<li>无法积累执行技能；</li>
+<li>较小的模型在没有先验知识的情况下表现很差。</li>
+</ul>
+<h4 id="13">1.3 已有记忆方案的局限</h4>
+<p>已有的记忆研究大多面向<strong>单智能体</strong>场景：</p>
+<ul>
+<li><strong>Synapse</strong>：将历史成功轨迹的原始动作序列作为样本（exemplar）直接提供给智能体，适合能力强的大模型，但对小模型不友好，因为原始序列噪音大、难以解析。</li>
+<li><strong>AWM（Agent Workflow Memory）</strong>：从轨迹中归纳出常用的子任务序列作为可复用技能，但同样只针对单智能体，没有考虑多智能体中编排者与任务智能体的角色差异。</li>
+</ul>
+<p>这两者都<strong>没有解决多智能体系统中记忆应该放在哪里、如何分配的问题</strong>。</p>
+<hr />
+<h3 id="legomem">二、LEGOMem 框架详解</h3>
+<h4 id="21">2.1 问题形式化</h4>
+<p>论文将多智能体工作流执行形式化如下：</p>
+<p>系统由编排者 $A_\text{orch}$、任务智能体集合 $\mathcal{A} = \{A_1, \ldots, A_k\}$ 和外部环境 $\mathcal{E}$ 构成。给定一个用自然语言描述的任务 $T$（描述为 $d$），编排循环如下：</p>
+<p>在每个编排步骤 $t$：</p>
+<ol>
+<li>编排者根据当前状态 $\sigma_t$ 生成下一个子任务：$s_t = \pi_\text{orch}(\sigma_t)$</li>
+<li>将 $s_t$ 分派给合适的任务智能体 $A_j$</li>
+<li>$A_j$ 执行 $s_t$，返回观察 $o_t$ 和执行摘要 $r_t$</li>
+<li>编排者更新状态：$\sigma_{t+1} = f(\sigma_t, r_t)$</li>
+</ol>
+<p>若进度停滞（如反复进入相同状态），编排者会进行<strong>重新规划</strong>，生成修订计划 $\pi'$。当最终环境状态 $\sigma_\text{final} \in \mathcal{E}$ 满足任务目标时，任务成功。</p>
+<p><strong>记忆库 $\mathcal{M}$</strong> 被定义为从历史成功执行中提炼出的模块化记忆单元的集合，包含：</p>
+<ul>
+<li><strong>完整任务记忆（full-task memory）</strong>：捕获任务描述、高层计划、执行轨迹摘要</li>
+<li><strong>子任务记忆（subtask memory）</strong>：捕获具体智能体执行的子任务描述、工具调用步骤、观察结果</li>
+</ul>
+<h4 id="22">2.2 两个阶段</h4>
+<p>LEGOMem 的运作分为两个阶段：</p>
+<h5 id="offline-memory-construction">阶段一：离线记忆构建（Offline Memory Construction）</h5>
+<p>这是一个类似"训练"的预处理阶段：</p>
+<ol>
+<li>在不带记忆的情况下，用全 LLM 团队运行训练集任务；</li>
+<li>筛选成功完成的任务轨迹（execution logs）；</li>
+<li>用 LLM 将这些轨迹转化为结构化的 LEGOMem 记忆单元（见论文 Prompt 1）；</li>
+<li>生成的记忆单元存入<strong>向量数据库</strong>，使用 OpenAI <code>text-embedding-3-large</code> 模型对任务描述 $d$ 计算稠密嵌入 $\phi(d)$，用 <strong>FAISS</strong> 库进行相似度索引。</li>
+</ol>
+<p>每条记忆单元的结构包含：</p>
+<ul>
+<li><code>high_level_plan</code>：高层步骤列表，说明哪个智能体执行哪个子任务</li>
+<li><code>subtasks</code>：每个子任务的详情，包含负责智能体名称、子任务描述、执行步骤（think-action 格式）、观察摘要</li>
+<li><code>final_answer</code>：最终答案</li>
+<li><code>reflections</code>：对成功与失败的简要反思</li>
+</ul>
+<h5 id="online-memory-augmented-inference">阶段二：在线记忆增强推理（Online Memory-Augmented Inference）</h5>
+<p>对于新任务 $d_\text{new}$：</p>
+<ol>
+<li>计算 $\phi(d_\text{new})$，从记忆库 $\mathcal{M}$ 中检索 top-$K$ 个语义相似的完整任务记忆</li>
+<li>将完整任务记忆分配给编排者（提供端到端的工作流参考）</li>
+<li>从检索到的完整任务记忆中提取子任务记忆，分配给对应的任务智能体（提供局部执行指导）</li>
+<li>执行过程中，编排者和任务智能体均可参考各自的记忆来规划和执行</li>
+</ol>
+<p><strong>关键设计理念（LEGO 比喻）</strong>：记忆单元如同乐高积木，可以灵活拆分和重组——同一条完整任务记忆中的子任务记忆可以被分配给不同的任务智能体，这种模块化设计允许跨任务的灵活复用。</p>
+<hr />
+<h3 id="legomem_1">三、三种 LEGOMem 变体</h3>
+<p>论文提出三种变体，主要区别在于<strong>子任务记忆的检索方式</strong>：</p>
+<h4 id="31-vanilla-legomem">3.1 Vanilla LEGOMem（基础版）</h4>
+<ul>
+<li>维护一个全局记忆库 $\mathcal{M}$</li>
+<li>推理时用任务描述 $d_\text{new}$ 检索完整任务记忆，分配给编排者</li>
+<li>子任务记忆直接从检索到的完整任务记忆中静态提取，分配给对应智能体</li>
+<li><strong>优点</strong>：简单高效，整体性能最佳</li>
+<li><strong>缺点</strong>：若检索到的完整任务记忆与当前任务的子任务结构不一致，某些智能体可能拿不到相关的子任务记忆</li>
+</ul>
+<h4 id="32-legomem-dynamic">3.2 LEGOMem-Dynamic（动态检索版）</h4>
+<ul>
+<li>在全局记忆库基础上，<strong>为每个任务智能体维护独立的子任务记忆库</strong> $\{\mathcal{M}_{A_j} | A_j \in \mathcal{A}\}$，每个库用子任务描述 $\phi(d_\text{subtask})$ 索引</li>
+<li>编排者记忆与基础版相同</li>
+<li><strong>每次编排者生成子任务 $s_t$ 分派给 $A_t$ 时</strong>，实时计算 $\phi(s_t)$，从 $\mathcal{M}_{A_t}$ 中检索最相关的子任务轨迹</li>
+<li><strong>优点</strong>：检索更精准，减少无关记忆的噪音，在任务智能体能力较弱时特别有益</li>
+<li><strong>缺点</strong>：每个编排步骤都要做一次嵌入计算和检索，有额外的运行时开销</li>
+</ul>
+<h4 id="33-legomem-queryrewrite">3.3 LEGOMem-QueryRewrite（查询重写版）</h4>
+<ul>
+<li>同样维护分智能体的子任务记忆库</li>
+<li>与 Dynamic 版的区别：<strong>将检索前移到规划阶段</strong>，通过<strong>查询重写（query rewriting）</strong> 避免运行时的重复检索</li>
+<li>具体流程：
+  1. 先用任务描述检索完整任务记忆（与基础版相同）
+  2. 用一个查询重写 LLM $\psi$ 基于检索到的记忆生成当前任务的草稿计划 $\pi'_\text{draft} = \{s'_1, s'_2, \ldots, s'_n\}$
+  3. 对每个草稿子任务 $s'_j$ 计算 $\phi(s'_j)$，从对应智能体的记忆库 $\mathcal{M}_{A_j}$ 中预先检索相关子任务记忆
+  4. 任务执行前，所有智能体已分配好记忆</li>
+<li><strong>优点</strong>：兼具 Dynamic 版的精细检索优势，同时避免了运行时的重复查询，执行更流畅</li>
+<li>查询重写的 Prompt（论文 Prompt 2）引导 LLM 基于相似样本，将新任务分解为 3-5 个高层步骤</li>
+</ul>
+<hr />
+<h3 id="_5">四、实验设置</h3>
+<h4 id="41-officebench">4.1 基准测试：OfficeBench</h4>
+<p>OfficeBench 包含 300 个多步骤办公自动化任务，涵盖三个难度等级：</p>
+<ul>
+<li><strong>Level 1</strong>：单应用任务（如仅操作 Calendar）</li>
+<li><strong>Level 2</strong>：双应用任务（如 Calendar + Excel）</li>
+<li><strong>Level 3</strong>：多应用跨工作流任务（最复杂）</li>
+</ul>
+<p>数据划分：148 个训练任务用于记忆构建，152 个测试任务用于评估。</p>
+<p><strong>评估指标</strong>：任务成功率（success rate），即正确完成任务的百分比。成功的判定基于环境最终状态，包括精确匹配或模糊关键词匹配。</p>
+<p>实验中从 148 个训练任务的成功轨迹中提取了 <strong>93 条完整任务记忆</strong>，进一步提取了 <strong>250 条子任务记忆</strong>。推理时，编排者使用 top-5 记忆，每个任务智能体使用 top-3 记忆。</p>
+<h4 id="42">4.2 智能体团队配置</h4>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>团队</th>
+<th>编排者</th>
+<th>任务智能体</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LLM 团队</td>
+<td>GPT-4o</td>
+<td>GPT-4o</td>
+</tr>
+<tr>
+<td>混合（Hybrid）团队</td>
+<td>GPT-4o</td>
+<td>GPT-4o-mini</td>
+</tr>
+<tr>
+<td>SLM 团队</td>
+<td>GPT-4o-mini</td>
+<td>GPT-4o-mini</td>
+</tr>
+</tbody>
+</table></div>
+<h4 id="43">4.3 基线方法</h4>
+<ul>
+<li><strong>No memory</strong>：无记忆基线</li>
+<li><strong>Synapse</strong>：用原始完整轨迹作为样本，同时增强编排者和任务智能体</li>
+<li><strong>AWM</strong>：对成功轨迹聚类，提取子任务记忆增强任务智能体，用提取的子任务记忆列表增强编排者</li>
+</ul>
+<hr />
+<h3 id="_6">五、主要实验结果</h3>
+<h4 id="51">5.1 整体性能提升</h4>
+<p>所有 LEGOMem 变体在所有团队配置下均<strong>持续超越</strong>基线方法，绝对成功率提升幅度如下：</p>
+<ul>
+<li>LLM 团队：$+12.61\%$（45.83% → 58.44%）</li>
+<li>混合团队：$+12.72\%$（35.31% → 48.03%）</li>
+<li>SLM 团队：$+13.38\%$（24.78% → 38.16%）</li>
+</ul>
+<h4 id="52">5.2 小模型追平大模型</h4>
+<p>LEGOMem 展现出一个令人印象深刻的特性——使小模型团队的能力接近甚至超越更大的无记忆团队：</p>
+<ul>
+<li>混合团队 + LEGOMem-QueryRewrite 达到 <strong>50.22%</strong>，超过无记忆 LLM 团队（45.83%）</li>
+<li>SLM 团队 + Vanilla LEGOMem 达到 <strong>38.16%</strong>，超过无记忆混合团队（35.31%）</li>
+</ul>
+<h4 id="53-synapse">5.3 与 Synapse 的对比</h4>
+<p>Synapse 在 LLM 团队中表现具有竞争力（58.11%，与 LEGOMem 的 58.44% 相近），这说明强大的 LLM 能够从原始轨迹中提取有用信息。但 Synapse 在混合和 SLM 团队中<strong>优势不一致</strong>，说明其依赖于模型自身解析原始轨迹的能力。LEGOMem 的<strong>结构化、模块化</strong>记忆表示在各类团队中均保持稳定的性能优势。</p>
+<hr />
+<h3 id="_7">六、消融实验分析</h3>
+<h4 id="61">6.1 记忆放置位置的影响</h4>
+<p>这是论文中最核心的发现之一。实验比较了四种记忆分配策略（以 Vanilla LEGOMem 为例，LLM 团队）：</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>记忆分配方式</th>
+<th>LLM 团队整体成功率</th>
+<th>混合团队整体成功率</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>编排者 + 任务智能体记忆</td>
+<td><strong>58.44%</strong></td>
+<td><strong>48.03%</strong></td>
+</tr>
+<tr>
+<td>仅编排者规划阶段 + 任务智能体记忆</td>
+<td>53.51%</td>
+<td>44.96%</td>
+</tr>
+<tr>
+<td>仅编排者记忆</td>
+<td>53.29%</td>
+<td>47.59%</td>
+</tr>
+<tr>
+<td>仅任务智能体记忆</td>
+<td>49.78%</td>
+<td>35.31%</td>
+</tr>
+<tr>
+<td>无记忆</td>
+<td>45.83%</td>
+<td>35.31%</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>关键结论</strong>：</p>
+<ul>
+<li><strong>编排者记忆是核心</strong>：仅任务智能体有记忆时，性能仅比无记忆略有提升；一旦加入编排者记忆，性能大幅跃升。这说明高层规划的质量对整体表现至关重要。</li>
+<li><strong>联合分配效果最佳</strong>：编排者记忆负责有效的任务分解和子任务编排，任务智能体记忆负责执行层面的精度，两者相辅相成。</li>
+<li><strong>局部记忆不足以代替全局协调</strong>：仅任务智能体记忆虽能改善工具使用准确性，但缺乏全局规划支撑，效果有限。</li>
+</ul>
+<p>在仅有任务智能体记忆的条件下，Dynamic 和 QueryRewrite 变体比 Vanilla 高出约 4-5%（混合团队），印证了在编排者支持较弱时，精细化子任务检索的价值。</p>
+<h4 id="62">6.2 记忆中是否加入推理的影响</h4>
+<p>论文测试了在记忆单元中是否包含 <code>&amp;lt;think&gt;</code> 推理步骤对性能的影响（表 3）：</p>
+<p>结果显示差异很小，变化幅度不超过 2 个百分点，且方向不一致（LLM 团队有微弱正效果，混合团队反而略有下降）。这表明 <strong>LEGOMem 的模块化结构本身已经提供了足够的程序性指导</strong>，额外的推理步骤并非必要。</p>
+<h4 id="63">6.3 执行效率的提升</h4>
+<p>带有 LEGOMem 的团队不仅成功率更高，执行也更高效：</p>
+<ul>
+<li><strong>执行步骤减少</strong>：Level 3 任务从平均 26.5 步降至 22.2 步，减少约 <strong>16.2%</strong></li>
+<li><strong>步骤失败率降低</strong>：Level 3 任务的步骤失败率从 0.275（无记忆）降至 0.225（LEGOMem），减少约 <strong>18.2%</strong></li>
+</ul>
+<p>编排者记忆在步骤减少方面贡献最大——仅有任务智能体记忆时，步骤数反而比有编排者记忆时更多，再次印证了编排者记忆对规划效率的关键作用。</p>
+<hr />
+<h3 id="_8">七、定性案例分析</h3>
+<p>论文给出了一个具体案例（图 3）：任务是找到最早的一封邮件。</p>
+<ul>
+<li><strong>无记忆团队</strong>：规划不完整，读取第一封邮件后就停止，返回错误答案。</li>
+<li><strong>LEGOMem 团队</strong>：系统性地读取所有邮件，比较时间戳，正确识别出最早的邮件。</li>
+</ul>
+<p>这个案例直观展示了程序性记忆如何改善<strong>推理一致性</strong>和<strong>任务完整性</strong>——智能体知道"需要遍历所有候选项再做比较"这一执行模式，而不是读到第一个就停下。</p>
+<hr />
+<h3 id="_9">八、框架的实现细节</h3>
+<h4 id="81-prompt">8.1 记忆构建 Prompt 设计</h4>
+<p>论文附录提供了完整的记忆构建 Prompt（Prompt 1），要求 LLM：</p>
+<ul>
+<li>从原始轨迹中提取结构化的 think-action 对</li>
+<li>只保留成功的动作，剔除出错的动作</li>
+<li>如果有过多相似的重复动作，截断合并</li>
+<li>将编排者协调步骤与任务智能体执行步骤分开</li>
+</ul>
+<p>这种设计确保了记忆的质量和简洁性，避免将噪音引入记忆库。</p>
+<h4 id="82-prompt">8.2 查询重写 Prompt 设计</h4>
+<p>Prompt 2 用于 LEGOMem-QueryRewrite 变体，输入相似任务样本和新任务描述，要求输出 3-5 个高层步骤的编号列表。这些步骤随后被用作子任务记忆检索的查询，实现精细化的预检索。</p>
+<hr />
+<h3 id="_10">九、总结与展望</h3>
+<p>LEGOMem 的核心贡献可以归纳为：</p>
+<ol>
+<li><strong>提出了第一个面向多智能体系统的模块化程序性记忆框架</strong>，区分了编排者记忆和任务智能体记忆的不同角色；</li>
+<li><strong>系统性研究了多智能体系统中记忆设计空间</strong>，明确了记忆放置位置（编排者 vs 任务智能体）比检索策略更关键；</li>
+<li><strong>实证证明程序性记忆可以赋能小模型</strong>，使混合/SLM 团队逼近甚至超越更大无记忆团队；</li>
+<li><strong>三种变体在整体性能上相近</strong>，轻量级的 Vanilla 版已足够有竞争力，而 Dynamic/QueryRewrite 在特定场景（弱编排者、小模型任务智能体）下更有优势。</li>
+</ol>
+<p>论文指出的未来方向包括：从失败轨迹中学习（而非只用成功轨迹）、持续学习机制，以及将 LEGOMem 扩展到开放性环境和更大规模的工具生态系统。</p>
+<h2 id="_11">研究要点表</h2>
+<p>我已准备好帮助您分析学术论文并填写表格。请提供需要分析的论文内容，我将严格按照模板格式为您填写每个维度的信息。</p>
+<h2 id="_12">原文摘要</h2>
 <p>We introduce LEGOMem, a modular procedural memory framework for multi-agent large language model (LLM) systems in workflow automation. LEGOMem decomposes past task trajectories into reusable memory units and flexibly allocates them across orchestrators and task agents to support planning and execution. To explore the design space of memory in multi-agent systems, we use LEGOMem as a lens and conduct a systematic study of procedural memory in multi-agent systems, examining where memory should be placed, how it should be retrieved, and which agents benefit most. Experiments on the OfficeBench benchmark show that orchestrator memory is critical for effective task decomposition and delegation, while fine-grained agent memory improves execution accuracy. We find that even teams composed of smaller language models can benefit substantially from procedural memory, narrowing the performance gap with stronger agents by leveraging prior execution traces for more accurate planning and tool use. These results position LEGOMem as both a practical framework for memory-augmented agent systems and a research tool for understanding memory design in multi-agent workflow automation.</p></article>
 <aside class="detail-aside"><div class="report-toc" aria-label="文献卡片目录"><details open><summary>本页目录</summary><div class="toc">
 <ul>
 <li><a href="#_1">核心机制</a></li>
 <li><a href="#_2">适用范围与局限</a></li>
-<li><a href="#_3">原文摘要</a></li>
+<li><a href="#_3">详细解读</a><ul>
+<li><a href="#legomem-llm">LEGOMem：面向多智能体 LLM 系统的模块化程序性记忆框架</a></li>
+<li><a href="#_4">一、背景与动机</a></li>
+<li><a href="#legomem">二、LEGOMem 框架详解</a></li>
+<li><a href="#legomem_1">三、三种 LEGOMem 变体</a></li>
+<li><a href="#_5">四、实验设置</a></li>
+<li><a href="#_6">五、主要实验结果</a></li>
+<li><a href="#_7">六、消融实验分析</a></li>
+<li><a href="#_8">七、定性案例分析</a></li>
+<li><a href="#_9">八、框架的实现细节</a></li>
+<li><a href="#_10">九、总结与展望</a></li>
+</ul>
+</li>
+<li><a href="#_11">研究要点表</a></li>
+<li><a href="#_12">原文摘要</a></li>
 </ul>
 </div>
 </details></div><section><h2>引用这篇论文</h2><p id="citation-text" class="citation-text">Dongge Han, Camille Couturier, Daniel Madrigal Diaz, et al.. LEGOMem: Modular Procedural Memory for Multi-agent LLM Systems for Workflow Automation. arXiv:2510.04851, 2025.</p><button class="button secondary" type="button" data-copy-citation>复制引用</button><p class="meta-note">延伸阅读</p></section><section><h2>同方向继续阅读</h2><ul class="related-list"><li><a href="../papers/2404.09982.html">INMS: Memory Sharing for Large Language Model based Agents</a></li><li><a href="../papers/2506.07398.html">G-Memory: Tracing Hierarchical Memory for Multi-Agent Systems</a></li><li><a href="../papers/2602.03036.html">LatentMem: Customizing Latent Memory for Multi-Agent Systems</a></li><li><a href="../papers/2604.03295.html">Scaling Teams or Scaling Time? Memory Enabled Lifelong Learning in LLM Multi-Agent Systems</a></li></ul></section></aside></div></div></main>

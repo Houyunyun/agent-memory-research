@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="以形式、功能和动态三个可组合维度组织 Agent Memory：从事实、经验与工作记忆，连接记忆形成、演化和检索。">
+<meta name="color-scheme" content="light"><title>Memory in the Age of AI Agents · Agent Memory 研究</title>
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/katex/katex.min.css"><script src="../assets/katex/katex.min.js" defer></script><script src="../assets/katex/auto-render.min.js" defer></script><script src="../assets/site.js" defer></script>
+</head>
+<body data-page="library">
+<a class="skip-link" href="#main">跳转到正文</a>
+<header class="site-header"><div class="header-inner">
+<a class="brand" href="../index.html" aria-label="Agent Memory 研究首页">
+<svg viewBox="0 0 36 36" width="32" height="32" aria-hidden="true"><path d="M9 9h18v18H9zM9 9l18 18M27 9L9 27" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="9" r="4"/><circle cx="27" cy="9" r="4"/><circle cx="9" cy="27" r="4"/><circle cx="27" cy="27" r="4"/></svg>
+<span>Agent Memory<small>研究文献站</small></span></a>
+<nav class="site-nav" aria-label="主导航"><a href="../index.html">研究总览</a><a href="../library.html" aria-current="page">文献库</a><a href="../reports/survey.html">综述全文</a><a href="../reports/multi-agent.html">多智能体专题</a><a href="../sources.html">阅读指南</a></nav>
+</div></header>
+<main id="main"><div class="page-wrap"><div class="breadcrumb"><a href="../library.html">文献库</a><span>/</span><a href="../library.html?topic=foundations">基础与综述</a></div>
+<header class="paper-hero"><div class="paper-badges"><span class="badge expanded">含详细解读</span><span class="muted">2025 · 2512.13564</span></div><h1>Memory in the Age of AI Agents</h1><p class="paper-authors full-authors">Yuyang Hu, Shichun Liu, Yanwei Yue, Guibin Zhang, Boyang Liu, Fangyi Zhu, Jiahang Lin, Honglin Guo, Shihan Dou, Zhiheng Xi, Senjie Jin, Jiejun Tan, Yanbin Yin, Jiongnan Liu, Zeyu Zhang, Zhongxiang Sun, Yutao Zhu, Hao Sun, Boci Peng, Zhenrong Cheng, Xuanbo Fan, Jiaxin Guo, Xinlei Yu, Zhenhong Zhou, Zewen Hu, Jiahao Huo, Junhao Wang, Yuwei Niu, Yu Wang, Zhenfei Yin, Xiaobin Hu, Yue Liao, Qiankun Li, Kun Wang, Wangchunshu Zhou, Yixin Liu, Dawei Cheng, Qi Zhang, Tao Gui, Shirui Pan, Yan Zhang, Philip Torr, Zhicheng Dou, Ji-Rong Wen, Xuanjing Huang, Yu-Gang Jiang, Shuicheng Yan</p>
+<div class="hero-actions paper-actions"><a href="https://arxiv.org/abs/2512.13564v2" target="_blank" rel="noopener noreferrer">论文原文 <span aria-hidden="true">↗</span></a><a href="../downloads/notes/2512.13564.md">下载文献卡片 Markdown</a></div></header>
+<div class="detail-layout"><article class="prose"><h2 id="_1">核心机制</h2>
+<p>以形式、功能和动态三个可组合维度组织 Agent Memory：从事实、经验与工作记忆，连接记忆形成、演化和检索。</p>
+<h2 id="_2">适用范围与局限</h2>
+<p>分类框架用于定位研究，不构成方法性能排序；潜在表示不可读不等于隐私保证，处理长序列也不等于无限信息容量。具体方法的效果与保证仍需结合原论文条件。</p>
+<h2 id="_3">详细解读</h2>
+<p>这篇综述论文系统地梳理了基于大语言模型（LLM）的AI智能体（Agent）的记忆系统研究，提出了一个统一的"形式—功能—动态"三维分类框架：从<strong>形式</strong>上将记忆分为Token级、参数级和潜在表示三类；从<strong>功能</strong>上区分事实记忆、经验记忆和工作记忆；从<strong>动态</strong>上分析记忆的形成、演化和检索三个过程，并对当前领域的碎片化现状进行了全面的梳理与整合，同时指出了多模态记忆、强化学习与记忆结合、多智能体共享记忆等前沿方向。</p>
+<hr />
+<h3 id="_4">一、背景与动机</h3>
+<h4 id="ai">为什么记忆对AI智能体至关重要？</h4>
+<p>大语言模型（LLM）本质上是"无状态的条件生成器"——每次推理时只能看到当前上下文窗口内的内容，没有跨对话、跨任务的持久记忆。但真正有用的AI智能体（Agent）需要：</p>
+<ul>
+<li>在长期交互中保持一致性（比如记住用户偏好）</li>
+<li>从过去的成功和失败中学习，持续进化</li>
+<li>在复杂长任务中维持对目标和中间状态的追踪</li>
+</ul>
+<p>因此，<strong>记忆机制</strong>是将静态LLM转变为动态、自适应智能体的核心要素。</p>
+<h4 id="_5">现有分类的问题</h4>
+<p>过去的研究常用"长期记忆/短期记忆"来分类，但这种框架已经跟不上技术发展的步伐。2025年涌现的大量新方法——比如把过往经验提炼成可复用工具的记忆框架、与测试时扩展（test-time scaling）结合的记忆方法——都无法被旧分类体系很好地描述。加之"情景记忆""语义记忆""参数记忆"等术语在不同文献中含义混乱，这篇论文因此提出了一套全新的、更精细的分类体系。</p>
+<hr />
+<h3 id="_6">二、基本概念的形式化定义</h3>
+<h4 id="21-llm">2.1 LLM智能体系统</h4>
+<p>论文把智能体系统形式化为：在时间步 $t$，环境状态 $s_t$ 按照转移模型 $s_{t+1} \sim \Psi(s_{t+1} | s_t, a_t)$ 演进，智能体 $i$ 观察到：</p>
+<p>$$o_i^t = O_i(s_t, h_i^t, Q)$$</p>
+<p>其中 $h_i^t$ 是该智能体可见的历史，$Q$ 是任务说明。智能体的决策策略为：</p>
+<p>$$a_t = \pi_i(o_i^t, m_i^t, Q)$$</p>
+<p>$m_i^t$ 是从记忆系统中检索出的记忆信号，这个信号正是记忆系统的核心输出。</p>
+<h4 id="22">2.2 记忆系统的生命周期</h4>
+<p>记忆系统被抽象为一个随时间演化的状态 $M_t$，其动态由三个算子刻画：</p>
+<p><strong>记忆形成（Memory Formation）：</strong></p>
+<p>$$M_{t+1}^{\text{form}} = F(M_t, \phi_t)$$</p>
+<p>将智能体当前步产生的信息 $\phi_t$（工具输出、推理轨迹、环境反馈等）有选择地转化为记忆候选项。</p>
+<p><strong>记忆演化（Memory Evolution）：</strong></p>
+<p>$$M_{t+1} = E(M_{t+1}^{\text{form}})$$</p>
+<p>将新形成的记忆整合进已有记忆库，可能进行合并、去冲突、剪枝等操作。</p>
+<p><strong>记忆检索（Memory Retrieval）：</strong></p>
+<p>$$m_i^t = R(M_t, o_i^t, Q)$$</p>
+<p>根据当前观察和任务，从记忆库中检索相关内容，供智能体决策使用。</p>
+<p>值得注意的是，"长期记忆"和"短期记忆"的区别并非来自两个分离的架构模块，而是来自上述三个算子被调用的<strong>时间模式</strong>——在任务内部频繁调用就是短期记忆效果，跨任务持久保存就是长期记忆效果。</p>
+<h4 id="23-vs">2.3 智能体记忆 vs. 相关概念</h4>
+<p>论文花了相当篇幅区分容易混淆的几个概念：</p>
+<ul>
+<li><strong>智能体记忆 vs. LLM记忆</strong>：KV 缓存和注意力机制主要涉及模型内部的上下文处理，而 Agent Memory 更强调记忆如何参与智能体的持续决策。不能简单按“内部/外部”或“是否跨任务”划线：本综述同时讨论 Token、参数和潜在表示，参数知识也可能持久存在。</li>
+<li><strong>智能体记忆 vs. RAG</strong>：采用预建文档库的经典 RAG 设置侧重检索支撑回答，Agent Memory 更强调持续交互中的记忆形成、演化和调用。RAG 也可以使用动态知识库，两者并非互斥；评测数据集能提示任务重点，但不是定义边界。</li>
+<li><strong>智能体记忆 vs. 上下文工程（Context Engineering）</strong>：上下文工程把上下文窗口当作有限计算资源来优化（指令格式化、工具调用调度等），是接口层的资源管理；智能体记忆则是认知层的持久状态，管理的是智能体"知道什么、经历过什么"，范围远超单个上下文窗口。</li>
+</ul>
+<hr />
+<h3 id="form">三、形式（Form）：记忆存储在哪里？</h3>
+<p>这是论文分类框架的第一个维度：记忆以什么形式被承载？</p>
+<h4 id="31-tokentoken-level-memory">3.1 Token级记忆（Token-level Memory）</h4>
+<p>这是最直观也是研究最多的记忆形式：记忆以离散的、可读的、可编辑的文本单元（或视觉/音频token）存储在模型外部，可以被直接检索、修改和调试。</p>
+<p>论文按照存储单元之间的<strong>拓扑结构</strong>，将Token级记忆分为三类：</p>
+<h5 id="311-flat-memory1d">3.1.1 平坦记忆（Flat Memory，1D）</h5>
+<p>单元之间没有显式的语义或关系连接，就像一个列表或集合。</p>
+<p>典型内容包括：</p>
+<ul>
+<li><strong>对话历史</strong>：最直接的形式，MemGPT把它类比成操作系统的虚拟内存，设计了主存（上下文窗口）和外存（数据库）的分层管理。Mem0建立了标准化的记忆增删改查操作。</li>
+<li><strong>用户画像</strong>：MemoryBank存储带时间戳的对话历史和用户个人信息；RoleLLM则把角色特定的知识压缩成问答对。</li>
+<li><strong>经验轨迹</strong>：Reflexion把过去的反馈作为长期记忆，把当前轨迹作为短期记忆；ExpeL从成功/失败案例中自动提取洞见。</li>
+<li><strong>多模态条目</strong>：MovieChat维护视频帧的短期/长期记忆；KARMA在具身场景中用3D场景图存储长期记忆、用目标状态变化存储短期记忆。</li>
+</ul>
+<p><strong>优点</strong>：简单、可扩展，易于增删，相似度搜索可灵活访问。<br />
+<strong>缺点</strong>：缺乏结构，随记忆增长，冗余和噪声累积；检索到的单元之间的关系不清晰，不利于组合推理。</p>
+<h5 id="312-planar-memory2d">3.1.2 平面记忆（Planar Memory，2D）</h5>
+<p>在单一层面内引入了显式的拓扑关系（图、树、表格），能够捕捉记忆单元之间的关联、因果和时间关系。</p>
+<ul>
+<li><strong>树结构</strong>：HAT把长对话分段后逐级聚合成层次树，支持从粗到细的检索；MemTree动态推断对话日志的层次结构，把具体事件逐步汇总成更高层概念。</li>
+<li><strong>图结构</strong>：这是平面记忆中最主流的形式。Ret-LLM把外部记忆抽象成可寻址的三元组（主语-谓语-宾语）；A-MEM把知识标准化为"卡片"式单元，按相关性链接成记忆网络；M3-Agent把图像、音频、文本统一成以实体为中心的记忆图。</li>
+</ul>
+<p><strong>优点</strong>：通过节点间链接捕捉更丰富的上下文，支持结构化检索（键值查找、图遍历）。<br />
+<strong>缺点</strong>：没有层次存储机制，所有记忆都压缩在单一平面，随任务复杂性增加会显得力不从心；构建和搜索成本较高。</p>
+<h5 id="313-hierarchical-memory3d">3.1.3 层次记忆（Hierarchical Memory，3D）</h5>
+<p>跨多个抽象层次组织信息，形成"体积式"记忆空间，可以在层内横向关联也可以跨层纵向抽象。</p>
+<ul>
+<li><strong>金字塔结构</strong>：HiAgent维护以子目标为中心的层次工作记忆，当前活跃子目标保留详细轨迹，已完成子目标压缩为高层摘要；GraphRAG通过社区检测算法在实体子图上递归聚合，形成从实体到社区的多层摘要。</li>
+<li><strong>多层结构</strong>：HippoRAG受海马体启发，将记忆分为联想索引（开放知识图谱）和底层段落存储两层；AriGraph在统一图中分离语义知识图（世界模型）和事件级组件（具体观察）；SGMem在原始对话之上增加一个句子图层次。</li>
+</ul>
+<p><strong>优点</strong>：不同抽象层次的记忆可以互动，支持复杂多路径查询，兼具精度和全面性。<br />
+<strong>缺点</strong>：结构复杂，如何确保所有存储记忆的语义有效性、如何设计最优三维布局，都是尚待解决的难题。</p>
+<hr />
+<h4 id="32-parametric-memory">3.2 参数级记忆（Parametric Memory）</h4>
+<p>信息直接编码在模型参数中，通过前向计算隐式访问，不依赖外部存储。分为：</p>
+<h5 id="321">3.2.1 内部参数记忆</h5>
+<p>信息编码在原始模型权重中，通过不同阶段的训练注入：</p>
+<ul>
+<li><strong>预训练阶段</strong>：LMLM和HierMemLM在预训练时就把知识检索能力内置入模型，知识本身存在外部库，但检索先验被编码进权重。StreamingLLM等通过优化注意力机制提升长窗口记忆能力。</li>
+<li><strong>中间训练阶段</strong>：将可泛化的经验（如Agent交互轨迹）通过持续预训练注入模型，代表工作有Early Experience。</li>
+<li><strong>后训练阶段</strong>：Character-LM、CharacterGLM等通过SFT让模型学会特定角色风格；KnowledgeEditor、MEND等专注于知识编辑，在不影响其他知识的前提下精准修改特定事实；Room用RL让模型内化具身任务经验。</li>
+</ul>
+<p><strong>优点</strong>：无额外推理开销，适合大规模领域知识或任务先验的存储。<br />
+<strong>缺点</strong>：更新困难，需要重新训练，容易遗忘旧知识；不适合短期个性化记忆。</p>
+<h5 id="322">3.2.2 外部参数记忆</h5>
+<p>在冻结的基础模型之外引入额外的可训练模块（如适配器、LoRA）来承载记忆，是一种折中方案。</p>
+<ul>
+<li><strong>适配器类</strong>：K-Adapter通过独立训练的任务特定适配器注入新知识，不干扰原始预训练表示；WISE维护双参数内存（预训练知识 + 编辑知识），用路由机制动态选择；MemLoRA用LoRA来存储和检索记忆。</li>
+<li><strong>辅助语言模型类</strong>：MAC用摊销网络把新文档信息压缩为紧凑调制，存入记忆库；Retroformer专门学习记忆过去任务成功/失败经验的范式。</li>
+</ul>
+<hr />
+<h4 id="33-latent-memory">3.3 潜在记忆（Latent Memory）</h4>
+<p>记忆隐含在模型内部的连续表示中（KV缓存、激活、隐藏状态、潜在嵌入），而非可读文本或独立参数集。论文按潜在状态的<strong>来源</strong>分为三类：</p>
+<h5 id="331-generate">3.3.1 生成式（Generate）</h5>
+<p>通过专门的编码器或辅助模块<strong>主动生成</strong>紧凑的潜在表示作为记忆单元：</p>
+<ul>
+<li>Gist：训练语言模型在处理长提示后生成一组"要旨token"。</li>
+<li>AutoCompressor：把整篇长文档编码成少量摘要向量，作为软提示重用。</li>
+<li>MemoryLLM：在模型潜在空间中嵌入专用记忆token，形成可持久更新的记忆。</li>
+<li>Titans：将长程信息压缩进在线更新的MLP权重，在推理时动态产生潜在向量。</li>
+</ul>
+<p>多模态场景下（CoMem、XMem等），将图像、视频帧等压缩为连续嵌入。</p>
+<h5 id="332-reuse">3.3.2 复用式（Reuse）</h5>
+<p>直接将过去推理的<strong>KV缓存</strong>作为记忆重用，不加任何修改：</p>
+<ul>
+<li>Memorizing Transformers：显式存储历史KV对，通过K近邻搜索检索。</li>
+<li>FOT（Focused Transformer）：在标准注意力之外加入记忆注意力层，对额外KV记忆做KNN检索。</li>
+<li>LONGMEM：用轻量级残差侧网络把历史KV嵌入作为持久记忆。</li>
+</ul>
+<p><strong>优点</strong>：完全保真，无信息损失，实现简单。<br />
+<strong>缺点</strong>：KV缓存随上下文长度快速增长，索引效率依赖于检索策略的设计。</p>
+<h5 id="333-transform">3.3.3 变换式（Transform）</h5>
+<p>对已有的KV缓存或隐藏激活进行<strong>压缩、选择或重构</strong>，而不是生成全新表示：</p>
+<ul>
+<li>Scissorhands：基于注意力分数剪枝token。</li>
+<li>SnapKV：通过头级投票机制聚合高重要度前缀KV表示。</li>
+<li>PyramidKV：按层分配不同的KV预算。</li>
+<li>H2O：保留"重击"token（heavy hitter）和最近token，减少内存占用。</li>
+</ul>
+<hr />
+<h4 id="34">3.4 三种形式的适用场景对比</h4>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>记忆形式</th>
+<th>主要特征</th>
+<th>典型适用场景</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Token级</td>
+<td>符号化、可寻址、透明、易于增删改</td>
+<td>多轮对话、个性化agent、推荐系统、高风险领域（法律、医疗）</td>
+</tr>
+<tr>
+<td>参数级</td>
+<td>隐式、抽象、可泛化，更新较慢</td>
+<td>角色扮演、推理密集任务、人类价值对齐</td>
+</tr>
+<tr>
+<td>潜在级</td>
+<td>机器原生、对齐模型内部计算、支持多模态</td>
+<td>多模态agent、边缘端部署、隐私敏感场景</td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+<h3 id="function">四、功能（Function）：为什么智能体需要记忆？</h3>
+<p>这一维度问的是记忆服务于什么目的。论文提出三大功能支柱：</p>
+<h4 id="41-factual-memory">4.1 事实记忆（Factual Memory）</h4>
+<p>事实记忆存储和检索与用户、环境相关的<strong>声明性事实</strong>，回答"智能体知道什么"。</p>
+<p>对应认知科学中的陈述性记忆（declarative memory），进一步区分两个子类：</p>
+<h5 id="411">4.1.1 用户事实记忆</h5>
+<p>跨会话持久化关于特定用户的可验证事实（身份、偏好、历史承诺、惯常习惯）。核心功能是防止无状态交互的典型失败模式：重复提问、前后矛盾、主题漂移。</p>
+<p>两类主要机制：</p>
+<ul>
+<li><strong>对话连贯性</strong>：通过排名检索（按相关性、时效性、重要性筛选）和语义抽象（把原始对话片段转化为高层表示），维护跨轮次的一致性。例如Think-in-Memory把对话转化为"思考"表示；COMEDY用单一模型生成、压缩、复用记忆并更新紧凑用户画像。</li>
+<li><strong>目标一致性</strong>：跟踪并更新任务状态，确保智能体的行动始终与主目标对齐，防止意图漂移。RecurrentGPT在保留已确认信息的同时突出未解决要素。</li>
+</ul>
+<h5 id="412">4.1.2 环境事实记忆</h5>
+<p>记录与外部世界（文档、代码库、工具能力、其他智能体状态）相关的事实。分为：</p>
+<ul>
+<li><strong>知识持久化</strong>：在多会话中维护对外部知识的可访问性。HippoRAG用知识图谱支持证据传播；MemoryLLM直接把可训练记忆池嵌入模型架构，支持在不重训的情况下动态注入新知识。</li>
+<li><strong>多智能体共享访问</strong>：建立多智能体协作的公共事实基础，消除重复劳动、避免矛盾结论。MetaGPT使用共享消息池作为中央工作空间；Generative Agents（斯坦福"小镇"实验）把全局环境和公共交互日志作为所有智能体的共享记忆。</li>
+</ul>
+<hr />
+<h4 id="42-experiential-memory">4.2 经验记忆（Experiential Memory）</h4>
+<p>经验记忆积累历史轨迹、提炼策略、内化交互结果，回答"智能体如何进化"。对应认知科学中的程序性记忆（procedural memory）。</p>
+<p>与生物程序性记忆不同，智能体的经验记忆通常以<strong>显式数据结构</strong>存储，因此可以被自省、编辑和推理——这是AI相比人类的独特优势。</p>
+<p>按存储知识的<strong>抽象层次</strong>，分为四类：</p>
+<h5 id="421-case-based-memory">4.2.1 基于案例的记忆（Case-based Memory）</h5>
+<p>存储最小处理的历史事件记录，优先保持高保真度，支持直接回放或作为上下文示例。</p>
+<ul>
+<li><strong>轨迹</strong>：保存完整的交互序列。Memento用软Q-learning动态调整选择高价值历史轨迹的概率；Early Experience范式把智能体生成的无奖励交互轨迹通过中间训练整合进模型参数。</li>
+<li><strong>解决方案</strong>：把记忆作为已验证方案的仓库。ExpeL通过试错自动收集经验，成功轨迹作为示例，同时提取文本洞见；Synapse把抽象的状态-动作片段作为上下文示例注入。</li>
+</ul>
+<h5 id="422-strategy-based-memory">4.2.2 基于策略的记忆（Strategy-based Memory）</h5>
+<p>从过去轨迹中提取可迁移的推理模式、工作流程和高层洞见，指导未来规划。分为三个粒度：</p>
+<ul>
+<li><strong>原子洞见（Insights）</strong>：粒度最细的离散决策规则。H2R把规划级和执行级洞见解耦分别存储；Reflexion通过自我反思把失败转化为长期记忆中的反馈文本。</li>
+<li><strong>工作流程（Workflows）</strong>：把策略封装为结构化动作序列。AWM（Agent Workflow Memory）从成功轨迹中归纳可复用工作流，无需更新基础模型权重即可提升成功率。</li>
+<li><strong>模式（Patterns）</strong>：最高抽象层次，作为认知模板捕捉问题求解结构。Buffer of Thoughts维护思维模板元缓冲区；PRINCIPLES通过离线自我博弈构建策略记忆。</li>
+</ul>
+<h5 id="423-skill-based-memory">4.2.3 基于技能的记忆（Skill-based Memory）</h5>
+<p>把程序性能力（代码片段、函数、API、MCP协议）封装为可调用、可验证、可组合的执行单元，回答"智能体能做什么"。</p>
+<ul>
+<li><strong>代码片段</strong>：Voyager在Minecraft中维护持续增长的技能库；Darwin Gödel Machine在实证验证下安全重写自身代码，实现自我递归进化。</li>
+<li><strong>函数与脚本</strong>：SkillWeaver、LearnAct等从执行轨迹中提炼可检索脚本；RepairAgent把复杂调试行为模块化为可复用函数。</li>
+<li><strong>API</strong>：Gorilla微调模型正确调用工具；ToolLLM构建大规模工具调用训练数据；COLT、DRAFT等研究API的检索与重排。</li>
+<li><strong>MCP协议</strong>：Alita、Alita-G等利用Model Context Protocol统一工具发现和调用接口，减少协议碎片化。</li>
+</ul>
+<h5 id="424-hybrid-memory">4.2.4 混合记忆（Hybrid Memory）</h5>
+<p>同时维护案例、策略、技能多种形式，动态选择最合适的记忆格式。典型代表：G-Memory（三层图层次结构，从原始交互到查询到洞见）、LARP（世界知识+交互案例+程序性技能）。</p>
+<hr />
+<h4 id="43-working-memory">4.3 工作记忆（Working Memory）</h4>
+<p>工作记忆是单个任务/会话内对活动上下文的动态管理机制，回答"智能体现在在想什么"。对应认知科学中的工作记忆模型（Baddeley, 2012），强调有限容量下的主动控制。</p>
+<p>标准LLM上下文窗口只是被动的只读缓冲区，缺乏动态选择、维持、转换任务相关信息的能力。工作记忆研究的目标是把上下文窗口变成一个<strong>可控、可更新、抗干扰的工作空间</strong>。</p>
+<h5 id="431-single-turn-working-memory">4.3.1 单轮工作记忆（Single-turn Working Memory）</h5>
+<p>处理单次前向传播中面对海量输入（长文档、多模态流）的挑战。两类机制：</p>
+<ul>
+<li>
+<p><strong>输入凝缩（Input Condensation）</strong>：</p>
+</li>
+<li>
+<p>硬凝缩：基于重要性指标离散选择token。LLMLingua通过token困惑度丢弃可预测内容；LongLLMLingua面向多文档QA优化。</p>
+</li>
+<li>软凝缩：把变长上下文编码为密集潜在向量。Gist、ICAE（In-Context AutoEncoder）、AutoCompressors把提示压缩为摘要token。</li>
+<li>混合方法：HyCo2结合全局语义适配器（软）和token级保留概率（硬）。</li>
+<li><strong>观察抽象（Observation Abstraction）</strong>：把高维观察空间映射到固定大小的记忆状态。Synapse把HTML DOM树改写为面向任务的状态摘要；VideoAgent把视频流转化为时间事件描述和实体跨帧追踪。</li>
+</ul>
+<h5 id="432-multi-turn-working-memory">4.3.2 多轮工作记忆（Multi-turn Working Memory）</h5>
+<p>解决长期交互中历史积累导致注意力预算饱和、延迟增加、目标漂移的问题。三类状态管理策略：</p>
+<ul>
+<li><strong>状态合并（State Consolidation）</strong>：把持续增长的轨迹映射到固定大小的状态空间。MemAgent和MemSearcher用循环机制更新固定预算的记忆；MEM1维护一个合并新观察与先前记忆的共享内部状态；ReSum用RL优化摘要条件下的行为，以支持持续长程探索；处理更长的输入流不意味着有限状态具有无限信息容量。</li>
+<li><strong>层次折叠（Hierarchical Folding）</strong>：按子目标分解任务轨迹，完成的子轨迹折叠为简洁摘要。HiAgent以子目标为记忆单元，活跃动作-观察对保留细节，子目标完成后写回摘要；Context-Folding和AgentFold把折叠操作学习为可训练策略。</li>
+<li><strong>认知规划（Cognitive Planning）</strong>：在最高抽象层次上创建并维护外部化计划或世界模型作为工作记忆核心。SayPlan用3D场景图作为可查询环境记忆；Agent-S和KARMA通过记忆增强检索把长期知识与短期执行桥接起来。</li>
+</ul>
+<hr />
+<h3 id="dynamics">五、动态（Dynamics）：记忆如何运作和演化？</h3>
+<p>这是论文第三个维度，研究记忆的生命周期。</p>
+<h4 id="51-memory-formation">5.1 记忆形成（Memory Formation）</h4>
+<p>将原始上下文（对话、图像等）编码为紧凑知识的过程。按照信息压缩的粒度和编码逻辑，分为五类：</p>
+<h5 id="511-semantic-summarization">5.1.1 语义摘要（Semantic Summarization）</h5>
+<p>将冗长原始数据转化为保留全局语义的紧凑摘要，过滤冗余，保留高层信息。</p>
+<ul>
+<li>
+<p><strong>增量语义摘要</strong>：新信息与已有摘要持续融合，形成演化的全局语义表示。早期方法（MemGPT、Mem0）直接融合，依赖LLM内在摘要能力；后续方法引入外部评估器过滤不连贯内容；最新方法（Mem1、MemAgent）用强化学习（PPO、GRPO）训练模型提升自身摘要能力。</p>
+</li>
+<li>
+<p>计算复杂度：增量处理避免了 $O(n^2)$ 的全序列计算，但串行更新存在瓶颈。</p>
+</li>
+<li><strong>分区语义摘要</strong>：按天/会话/话题等将信息分区后分别生成摘要，再层次聚合。ReadAgent和LightMem在分区前做语义聚类提升跨块连贯性；LangRepo对长视频分片后多源信号集成生成全局叙事。</li>
+</ul>
+<h5 id="512-knowledge-distillation">5.1.2 知识蒸馏（Knowledge Distillation）</h5>
+<p>在更细粒度上提取可复用知识（声明性事实或经验性策略）：</p>
+<ul>
+<li><strong>蒸馏事实记忆</strong>：TiM把对话轮转化为高层"思考"；MemGuide提取用户意图描述；M3-Agent把以自我为中心的视觉观察压缩为关于物体位置和用户习惯的文本事实。</li>
+<li><strong>蒸馏经验记忆</strong>：AWM从成功案例提炼任务计划；ExpeL对比成功/失败经验提取整体洞见；Mem-α显式训练模型"应该提取什么洞见以及如何保留"。</li>
+</ul>
+<h5 id="513-structured-construction">5.1.3 结构化构建（Structured Construction）</h5>
+<p>将无结构数据转化为显式拓扑表示（知识图谱、层次树），增强可解释性和多跳推理能力。</p>
+<ul>
+<li><strong>实体级构建</strong>：以三元组（主-谓-宾）为基本单元构建知识图谱。Mem0g利用LLM提取实体和关系三元组；D-SMART先把内容提炼为断言式语句再用神经符号流水线提取OWL兼容图；Zep形式化为三层时序图（情景子图 $G_e$、语义子图 $G_s$、社区子图 $G_c$）。</li>
+<li><strong>块级构建</strong>：以完整文本段落为节点构建结构。RAPTOR用UMAP降维 + 高斯混合模型软聚类递归归纳树；MemTree用自底向上插入策略动态维护对话树；CAM建立语义相关性边后迭代摘要ego图，处理新记忆插入时显式解耦重叠聚簇。</li>
+</ul>
+<h5 id="514-latent-representation">5.1.4 潜在表示（Latent Representation）</h5>
+<p>直接把原始经验编码为模型原生的潜在嵌入，减少文本解码过程中的信息损失。</p>
+<p>文本端：MemoryLLM和M+把记忆表示为可自更新的潜在嵌入，在推理时注入Transformer层；MemGen引入记忆触发器判断何时调用记忆，记忆编织器构建潜在token序列。</p>
+<p>多模态端：CoMem通过Q-Former把视觉-语言输入压缩为固定长度token；KARMA把物体信息编码为多模态嵌入，混合长短期记忆形式。</p>
+<h5 id="515-parametric-internalization">5.1.5 参数内化（Parametric Internalization）</h5>
+<p>把外部记忆通过参数更新固化进模型权重，彻底消除外部存储和检索开销。分为：</p>
+<ul>
+<li><strong>知识内化</strong>：通过模型编辑把事实直接写入权重。ROME用因果追踪定位编码特定事实的MLP层，执行秩-1更新（rank-one update）；MEMIT支持批量编辑，通过多层残差分布一次性更新上千条事实；CoLoR用LoRA适配器而非直接修改全参数，降低代价。</li>
+<li><strong>能力内化</strong>：把程序性专长（解题模式、规划策略）内化进模型。通过SFT（监督微调）、DPO或GRPO从推理轨迹中学习；Memory Decoder是一个即插即用方法，不修改基础模型，同时获得参数内化推理的速度优势。</li>
+</ul>
+<hr />
+<h4 id="52-memory-evolution">5.2 记忆演化（Memory Evolution）</h4>
+<p>记忆形成之后，如何将新记忆整合进已有记忆库——这是记忆演化要解决的问题。分三类机制：</p>
+<h5 id="521-consolidation">5.2.1 记忆整合（Consolidation）</h5>
+<p>将新获得的短期轨迹转化为结构化、可泛化的长期知识，形成更高层次的抽象。</p>
+<ul>
+<li><strong>局部整合</strong>：处理高度相似的记忆片段。RMM检索最相似的top-K候选后由LLM判断是否合并；VLN在容量满时识别最相似/冗余记忆对并压缩为高层抽象。</li>
+<li><strong>聚类级融合</strong>：捕捉跨实例规律性。PREMem把新记忆聚簇与相似已有聚簇对齐，应用泛化/细化等融合模式形成高阶推理单元；CAM把目标聚簇内所有节点合并为代表性摘要。</li>
+<li><strong>全局整合</strong>：维护全局连贯性，从积累经验中提炼系统级洞见。MOOM通过规则处理、嵌入方法和LLM驱动的抽象构建稳定角色画像；AgentFold和Context Folding把压缩工作记忆的能力内化为可学习策略。</li>
+</ul>
+<h5 id="522-updating">5.2.2 记忆更新（Updating）</h5>
+<p>当新信息与已有记忆冲突时，修正或替换已有记忆，维护事实一致性，支持持续适应。</p>
+<p>外部记忆更新的演进路径：规则触发的检测+替换（MemGPT、D-SMART）→ 软删除（Zep用无效时间戳代替物理删除，保留时序完整性）→ 双阶段更新（MOOM、LightMem：在线软更新保证实时响应，离线反思整合阶段解决冲突）→ RL优化更新策略（Mem-α将记忆更新决策建模为策略学习问题）。</p>
+<p>模型编辑（内部参数更新）：ROME定位+秩-1更新；MEMIT批量多层更新。MemoryLLM 的潜在记忆池更新则应与基础模型权重编辑区分。</p>
+<h5 id="523-forgetting">5.2.3 记忆遗忘（Forgetting）</h5>
+<p>主动删除过时、冗余或低价值信息，释放容量，防止知识过载。</p>
+<ul>
+<li><strong>基于时间的遗忘</strong>：MemGPT在上下文溢出时驱逐最旧消息；MAICC通过随时间衰减权重实现软遗忘。</li>
+<li><strong>基于频率的遗忘</strong>：XMem用LFU（最少使用频率）策略；KARMA用计数布隆过滤器追踪访问频率；MemOS用LRU策略。</li>
+<li><strong>基于重要性的遗忘</strong>：综合时间衰减、访问频率和语义信号评估重要性。TiM和MemTool利用LLM判断记忆重要性，进行有意识的选择性遗忘。</li>
+</ul>
+<blockquote>
+<p><strong>注意</strong>：过激剪枝可能删除罕见但关键的长尾知识。因此很多系统在存储成本不是瓶颈时，倾向于不直接删除记忆，而是给低优先级记忆降权。</p>
+</blockquote>
+<hr />
+<h4 id="53-memory-retrieval">5.3 记忆检索（Memory Retrieval）</h4>
+<p>本节仅作导航：检索部分涵盖检索时机与意图、查询构建、检索策略和检索后处理。完整讨论见原论文 §5.3。</p>
+<p>检索是记忆"被使用"的关键环节，核心问题是：<strong>何时检索、检索什么、如何检索、检索后如何处理</strong>。</p>
+<ul>
+<li><strong>检索时机与意图</strong>：可以是任务初始化时一次性检索，也可以是在交互过程中基于上下文触发器动态检索，或持续检索。</li>
+<li><strong>查询构建</strong>：如何从当前观察和任务说明中构建有效的检索查询，包括查询扩展、查询重写等。</li>
+<li><strong>检索策略</strong>：向量相似度搜索（密集检索）、图遍历、关键词匹配、混合策略等，以及多跳检索。</li>
+<li><strong>检索后处理</strong>：对检索结果做重排序、过滤、压缩，再送入LLM推理。</li>
+</ul>
+<hr />
+<h3 id="_7">六、资源与框架</h3>
+<h4 id="61">6.1 基准与数据集</h4>
+<p>论文整理了针对记忆/终身学习/自进化智能体的专用评测基准，包括：</p>
+<ul>
+<li><strong>长对话记忆</strong>：LoCoMo（超长对话一致性）、LongMemEval（多会话记忆能力）</li>
+<li><strong>深度研究</strong>：GAIA、XBench、BrowseComp</li>
+<li><strong>代码智能体</strong>：SWE-bench Verified</li>
+<li><strong>终身学习</strong>：StreamBench</li>
+</ul>
+<h4 id="62">6.2 开源框架</h4>
+<p>代表性的开源记忆框架包括Mem0（标准化记忆操作）、MemOS（操作系统式记忆管理）、Zep（时序知识图谱）、A-MEM（卡片式关联记忆网络）等。</p>
+<hr />
+<h3 id="_8">七、前沿方向与展望</h3>
+<h4 id="71-vs">7.1 记忆检索 vs. 记忆生成</h4>
+<p>传统记忆依赖检索（在已有库中搜索相关内容），但当记忆库为空或任务需要创造新知识时，需要依靠模型自身生成记忆内容。未来方向是检索与生成的有机融合：检索提供锚点，生成进行推断补全。</p>
+<h4 id="72">7.2 自动化记忆管理</h4>
+<p>从手工设计记忆结构（固定Schema、人工设定规则）走向完全自动化的记忆系统构建。MemEvolve提出了元演化框架，让智能体不仅进化知识内容，也进化记忆架构本身。未来目标是让智能体自主决定存什么、用什么结构、何时遗忘。</p>
+<h4 id="73">7.3 强化学习与记忆的深度融合</h4>
+<p>RL可以训练智能体学会更好的记忆操作策略——何时写入、写什么、何时检索、如何遗忘。代表工作：MemAgent（GRPO优化记忆摘要）、Mem-α（RL训练记忆更新策略）、MEM1（RL优化单步记忆状态转移）。未来方向是将记忆管理完全内化为智能体RL策略的一部分。</p>
+<h4 id="74">7.4 多模态记忆</h4>
+<p>现有记忆研究以文本为主，但真实世界中智能体需要跨图像、视频、音频、3D点云等模态存储和检索知识。挑战在于：跨模态的统一表示空间、不同模态记忆的对齐机制、以及多模态记忆的有效压缩。</p>
+<h4 id="75">7.5 多智能体共享记忆</h4>
+<p>单体智能体记忆需要扩展到多智能体协作场景：多个智能体如何共享、读写、冲突解决共同记忆库，避免信息孤岛，同时防止共享记忆被恶意智能体污染。</p>
+<h4 id="76">7.6 记忆与世界模型</h4>
+<p>智能体的记忆可以被视为其对世界运作规律的隐式模型。如何让记忆系统不只存储过去发生的事，还能支持对未来状态的预测（世界模型），是一个重要的研究方向。</p>
+<h4 id="77-trustworthy-memory">7.7 可信记忆（Trustworthy Memory）</h4>
+<p>记忆系统引入了新的安全和隐私风险：</p>
+<ul>
+<li><strong>记忆投毒</strong>：恶意输入可以污染记忆库，影响后续推理。</li>
+<li><strong>记忆泄露</strong>：用户私人信息可能通过记忆检索被未授权访问。</li>
+<li><strong>幻觉传播</strong>：错误记忆一旦写入会持续影响推理。</li>
+<li><strong>版权问题</strong>：记忆中存储的内容可能涉及版权。</li>
+</ul>
+<h4 id="78">7.8 与人类认知的深层联系</h4>
+<p>认知科学对情景记忆、语义记忆、工作记忆、遗忘曲线、记忆巩固等的研究，为AI记忆系统设计提供了丰富的灵感。未来值得借鉴的方向包括：记忆的情绪标注（情绪显著性影响记忆强度）、睡眠期记忆巩固的离线优化机制等。</p>
+<hr />
+<h3 id="_9">八、总结</h3>
+<p>这篇综述的核心贡献是提出了<strong>"形式—功能—动态"三维统一框架</strong>，克服了"长期/短期"二分法的局限，系统性地整合了当前AI智能体记忆研究的庞杂文献，清晰区分了Token级、参数级、潜在三类记忆形式，细化了事实、经验、工作三类功能，并深入分析了形成、演化、检索三个动态过程。这一框架既是现有工作的分类工具，也为未来设计"记忆优先"的智能体系统提供了概念基础。</p>
+<h2 id="_10">研究要点表</h2>
+<div class="table-scroll"><table class="key-value">
+<thead>
+<tr>
+<th>维度</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>论文标题</td>
+<td>Memory in the Age of AI Agents: A Survey — Forms, Functions and Dynamics</td>
+</tr>
+<tr>
+<td>作者</td>
+<td>Yuyang Hu、Shichun Liu、Yanwei Yue、Guibin Zhang 等（共数十位作者），来自新加坡国立大学、中国人民大学、复旦大学、北京大学等多所机构</td>
+</tr>
+<tr>
+<td>发表年份</td>
+<td>2025年（arXiv预印本 arXiv:2512.13564v2，更新于2026年1月13日）</td>
+</tr>
+<tr>
+<td>研究问题</td>
+<td>如何为AI智能体的记忆系统建立统一、系统的分类框架？具体涵盖：记忆的定义与边界、记忆的表现形式、记忆的功能目的，以及记忆的动态运作机制。</td>
+</tr>
+<tr>
+<td>研究方法</td>
+<td>综述方法：以"形式—功能—动态"（Forms–Functions–Dynamics）三维框架对现有文献进行系统梳理与分类，辅以形式化的数学定义、对比分析（与RAG、上下文工程等概念的区分），并汇总基准测试与开源框架资源。</td>
+</tr>
+<tr>
+<td>主要发现</td>
+<td>记忆形式可分为词元级（Token-level）、参数化（Parametric）和潜在（Latent）三类；记忆功能可细分为事实记忆、经验记忆和工作记忆；记忆动态涵盖记忆形成、记忆演化（整合、更新、遗忘）和记忆检索三个阶段，三者构成相互依存的闭环。</td>
+</tr>
+<tr>
+<td>创新点</td>
+<td>提出超越传统"长期/短期"二分法的细粒度新分类体系，明确区分智能体记忆与LLM记忆、RAG及上下文工程的概念边界，并归纳了自动化记忆管理、强化学习与记忆融合、多模态记忆、多智能体共享记忆及可信记忆等前沿方向。</td>
+</tr>
+<tr>
+<td>局限性</td>
+<td>论文文本因字符截断未完整呈现第5.3节（记忆检索）及后续章节内容；此外，作者自述受限于文献的快速增长，部分相关工作可能存在遗漏。</td>
+</tr>
+<tr>
+<td>与本研究的关联</td>
+<td>该综述为研究基于LLM的智能体记忆机制提供了全面的理论框架和文献基础，适合作为智能体系统设计、长期对话、个性化推荐、持续学习等相关研究的重要参考文献。</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="_11">原文摘要</h2>
+<p>Memory has emerged, and will continue to remain, a core capability of foundation model-based agents. As research on agent memory rapidly expands and attracts unprecedented attention, the field has also become increasingly fragmented. Existing works that fall under the umbrella of agent memory often differ substantially in their motivations, implementations, and evaluation protocols, while the proliferation of loosely defined memory terminologies has further obscured conceptual clarity. Traditional taxonomies such as long/short-term memory have proven insufficient to capture the diversity of contemporary agent memory systems. This work aims to provide an up-to-date landscape of current agent memory research. We begin by clearly delineating the scope of agent memory and distinguishing it from related concepts such as LLM memory, retrieval augmented generation (RAG), and context engineering. We then examine agent memory through the unified lenses of forms, functions, and dynamics. From the perspective of forms, we identify three dominant realizations of agent memory, namely token-level, parametric, and latent memory. From the perspective of functions, we propose a finer-grained taxonomy that distinguishes factual, experiential, and working memory. From the perspective of dynamics, we analyze how memory is formed, evolved, and retrieved over time. To support practical development, we compile a comprehensive summary of memory benchmarks and open-source frameworks. Beyond consolidation, we articulate a forward-looking perspective on emerging research frontiers, including memory automation, reinforcement learning integration, multimodal memory, multi-agent memory, and trustworthiness issues. We hope this survey serves not only as a reference for existing work, but also as a conceptual foundation for rethinking memory as a first-class primitive in the design of future agentic intelligence.</p></article>
+<aside class="detail-aside"><div class="report-toc" aria-label="文献卡片目录"><details open><summary>本页目录</summary><div class="toc">
+<ul>
+<li><a href="#_1">核心机制</a></li>
+<li><a href="#_2">适用范围与局限</a></li>
+<li><a href="#_3">详细解读</a><ul>
+<li><a href="#_4">一、背景与动机</a></li>
+<li><a href="#_6">二、基本概念的形式化定义</a></li>
+<li><a href="#form">三、形式（Form）：记忆存储在哪里？</a></li>
+<li><a href="#function">四、功能（Function）：为什么智能体需要记忆？</a></li>
+<li><a href="#dynamics">五、动态（Dynamics）：记忆如何运作和演化？</a></li>
+<li><a href="#_7">六、资源与框架</a></li>
+<li><a href="#_8">七、前沿方向与展望</a></li>
+<li><a href="#_9">八、总结</a></li>
+</ul>
+</li>
+<li><a href="#_10">研究要点表</a></li>
+<li><a href="#_11">原文摘要</a></li>
+</ul>
+</div>
+</details></div><section><h2>引用这篇论文</h2><p id="citation-text" class="citation-text">Yuyang Hu, Shichun Liu, Yanwei Yue, et al.. Memory in the Age of AI Agents. arXiv:2512.13564, 2025.</p><button class="button secondary" type="button" data-copy-citation>复制引用</button><p class="meta-note">延伸阅读</p></section><section><h2>同方向继续阅读</h2><ul class="related-list"><li><a href="../papers/2005.11401.html">Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks</a></li><li><a href="../papers/2309.02427.html">Cognitive Architectures for Language Agents</a></li><li><a href="../papers/2602.06052.html">A Survey of Agent Memory in the Second Half: Towards Self-Evolving and Long-Horizon Agents</a></li><li><a href="../papers/2604.08224.html">Externalization in LLM Agents: A Unified Review of Memory, Skills, Protocols and Harness Engineering</a></li></ul></section></aside></div></div></main>
+<footer class="site-footer"><div><strong>Agent Memory 研究</strong><p>从保存历史，到有依据地更新长期状态。</p></div>
+<div><span>内容更新 · 2026-09-08</span><p>理解方法，比较条件，关注长期影响。</p><a href="../sources.html">阅读指南</a></div></footer>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body></html>

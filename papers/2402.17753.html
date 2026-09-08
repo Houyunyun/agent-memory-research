@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light"><title>Evaluating Very Long-Term Conversational Memory of LLM Agents · Agent Memory 研究</title>
 <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../assets/site.css">
-<script src="../assets/site.js" defer></script>
+<link rel="stylesheet" href="../assets/katex/katex.min.css"><script src="../assets/katex/katex.min.js" defer></script><script src="../assets/katex/auto-render.min.js" defer></script><script src="../assets/site.js" defer></script>
 </head>
 <body data-page="library">
 <a class="skip-link" href="#main">跳转到正文</a>
@@ -17,19 +17,293 @@
 <nav class="site-nav" aria-label="主导航"><a href="../index.html">研究总览</a><a href="../library.html" aria-current="page">文献库</a><a href="../reports/survey.html">综述全文</a><a href="../reports/multi-agent.html">多智能体专题</a><a href="../sources.html">阅读指南</a></nav>
 </div></header>
 <main id="main"><div class="page-wrap"><div class="breadcrumb"><a href="../library.html">文献库</a><span>/</span><a href="../library.html?topic=evaluation">评测与反证</a></div>
-<header class="paper-hero"><div class="paper-badges"><span class="muted">2024 · 2402.17753</span></div><h1>Evaluating Very Long-Term Conversational Memory of LLM Agents</h1><p class="paper-authors full-authors">Adyasha Maharana, Dong-Ho Lee, Sergey Tulyakov, Mohit Bansal, Francesco Barbieri, Yuwei Fang</p>
+<header class="paper-hero"><div class="paper-badges"><span class="badge expanded">含详细解读</span><span class="muted">2024 · 2402.17753</span></div><h1>Evaluating Very Long-Term Conversational Memory of LLM Agents</h1><p class="paper-authors full-authors">Adyasha Maharana, Dong-Ho Lee, Sergey Tulyakov, Mohit Bansal, Francesco Barbieri, Yuwei Fang</p>
 <div class="hero-actions paper-actions"><a href="https://arxiv.org/abs/2402.17753" target="_blank" rel="noopener noreferrer">论文原文 <span aria-hidden="true">↗</span></a><a href="../downloads/notes/2402.17753.md">下载文献卡片 Markdown</a></div></header>
 <div class="detail-layout"><article class="prose"><h2 id="_1">核心机制</h2>
 <p>长多会话对话的问答、事件与多模态交互评测</p>
 <h2 id="_2">适用范围与局限</h2>
 <p>不直接测试长期工具执行；后续论文数据处理和长度可能不同</p>
-<h2 id="_3">原文摘要</h2>
+<h2 id="_3">详细解读</h2>
+<h3 id="_4">论文核心总结</h3>
+<p>这篇论文研究的是<strong>大语言模型（LLM）智能体在超长期对话中的记忆能力评估</strong>。现有的长期对话研究仅关注不超过5个聊天会话、约1K token的对话上下文，而本文将评估范围扩展到平均300轮、9K token、最多35个会话的"超长期"对话。作者提出了一个"机器+人工"混合流水线来生成高质量的超长期对话数据集LOCOMO，并基于此设计了一个综合评估框架，包含问答（QA）、事件摘要和多模态对话生成三个任务。实验表明，即使使用长上下文LLM或检索增强生成（RAG），模型在理解超长对话方面仍远落后于人类，尤其在时间推理和对抗性问题上表现极差。</p>
+<hr />
+<h3 id="_5">一、研究动机与问题定义</h3>
+<h4 id="11">1.1 背景</h4>
+<p>当前的对话系统研究，尤其是<strong>长期开放域对话（long-term open-domain dialogue）</strong>领域，评估模型时通常只考虑很短的对话上下文。例如，MSC数据集（Xu et al., 2022）平均只有53轮对话、约1.2K token，分布在4个会话中；Conversation Chronicles（Jang et al., 2023）也仅有5个会话。这些规模远不能反映真实世界中人与人之间可能持续数月甚至数年的在线交互。</p>
+<p>尽管近年来出现了<strong>长上下文LLM</strong>（如支持16K甚至更长上下文窗口的模型）和<strong>检索增强生成（RAG）</strong>技术，但它们在处理超长对话场景中的效果尚未被系统评估。</p>
+<h4 id="12">1.2 核心问题</h4>
+<p>论文要回答的核心问题是：<strong>在超长期对话（数百轮、跨越数十个会话、持续数月）场景下，现有的LLM及其增强技术（长上下文、RAG）能否有效地理解和记忆对话内容？</strong></p>
+<hr />
+<h3 id="locomo">二、LOCOMO数据集的构建</h3>
+<h4 id="21">2.1 总体流水线设计</h4>
+<p>作者设计了一个<strong>"机器生成+人工校验"</strong>的混合流水线来创建LOCOMO数据集。核心思路是：</p>
+<ol>
+<li>使用<strong>基于LLM的生成式智能体</strong>（generative agents）自动生成超长对话</li>
+<li>然后由<strong>人类标注员</strong>检查并修正对话中的长距离不一致性</li>
+</ol>
+<p>最终生成了<strong>50段超长期对话</strong>，每段对话平均包含约<strong>300轮</strong>、<strong>9K token</strong>，分布在最多<strong>35个会话（session）</strong>中，时间跨度为数月。</p>
+<h4 id="22-persona">2.2 人物设定（Persona）</h4>
+<p>每个对话涉及两个虚拟智能体 $\mathcal{L}_1$ 和 $\mathcal{L}_2$，各自被赋予独特的人物设定 $p$。具体做法是：</p>
+<ul>
+<li>从MSC数据集中选取4-5句初始人物描述 $p_c$</li>
+<li>使用 <code>gpt-3.5-turbo</code> 将其扩展为完整的人物设定 $p$，包含姓名、年龄、性别、职业、兴趣爱好、人际关系等详细信息</li>
+</ul>
+<p>例如，一个人物可能是"Ellen是一位55岁的女性，住在维多利亚式房屋中，喜欢收集古董和娃娃，爱看K-pop和上爵士课"。</p>
+<h4 id="23-temporal-event-graph">2.3 时间事件图（Temporal Event Graph）</h4>
+<p>为了模拟真实生活中的经历，作者为每个智能体构建了一个<strong>时间事件图</strong> $\mathcal{G}$。这个图的特点是：</p>
+<ul>
+<li>由一系列事件 $e_i$ 组成，每个事件关联一个发生日期 $t_i$</li>
+<li>事件之间有<strong>因果连接</strong> $l = (e_i, e_j)$，表示事件之间的因果关系</li>
+<li>每个图包含最多25个事件，时间跨度6-12个月</li>
+</ul>
+<p>生成过程是迭代式的：先基于人物设定用 <code>text-davinci-003</code> 生成3个初始独立事件，然后以已有事件为输入，迭代生成后续的因果相关事件。</p>
+<p>例如，对于一个想成为酒店经理的人物Jack：他7月报名了酒店管理课程 → 9月他录制了一个推广该课程的视频 → 10月他收到了一家游戏公司的邀请（源于他的游戏爱好）。这些事件之间形成了因果链条。</p>
+<h4 id="24">2.4 虚拟智能体架构</h4>
+<p>每个智能体 $\mathcal{L}_i$ 借鉴了Park et al. (2023)的<strong>生成式智能体架构</strong>，具备两个核心功能：</p>
+<h5 id="1reflect-respond">（1）反思与回复（Reflect &amp; Respond）</h5>
+<p>这个机制模拟了人类的短期和长期记忆：</p>
+<ul>
+<li><strong>短期记忆</strong> $\mathcal{H}_s$：每个会话 $k$ 结束后，智能体生成一个该会话的摘要 $w_k$，存入短期记忆。摘要 $w_k$ 的生成条件是当前会话的对话历史 $h_k$ 和上一个会话的摘要 $w_{k-1}$</li>
+<li><strong>长期记忆</strong> $\mathcal{H}_l$：每轮对话 $h_{k_j}$ 被转化为一条<strong>观察（observation）</strong> $o_{k_j}$（关于说话者的陈述性事实），存入长期记忆</li>
+</ul>
+<p>当智能体在会话 $k+1$ 中生成回复时，它会综合考虑：</p>
+<ul>
+<li>最近的摘要 $w_k$</li>
+<li>从长期记忆中检索的相关观察 $o \in \mathcal{H}_s$</li>
+<li>当前会话的对话历史 $h_{k+1}$</li>
+<li>人物设定 $p$</li>
+<li>两个会话之间发生的事件 $\{e \in \mathcal{G} \mid t^s_k &lt; t^e_i &lt; t^s_{k+1}\}$</li>
+</ul>
+<h5 id="2image-sharing-image-reaction">（2）图片分享与图片反应（Image Sharing &amp; Image Reaction）</h5>
+<p>为对话引入<strong>多模态维度</strong>：</p>
+<ul>
+<li><strong>图片分享</strong>：智能体决定发送图片时，先用LLM生成图片描述 → 转换为关键词 → 通过网络搜索找到对应图片 → 分享</li>
+<li><strong>图片反应</strong>：接收到图片后，用BLIP-2生成图片描述 → 基于描述生成回复</li>
+</ul>
+<h4 id="25">2.5 人工校验与编辑</h4>
+<p>最后，人类标注员负责：</p>
+<ol>
+<li>修正对话中的<strong>长距离不一致性</strong>（如前后矛盾的信息）</li>
+<li><strong>删除或替换</strong>不相关的图片</li>
+<li>验证对话内容与事件图的<strong>对齐关系</strong></li>
+</ol>
+<p>统计显示，标注员编辑了约<strong>15%的对话轮次</strong>，删除或替换了约<strong>19%的图片</strong>。</p>
+<h4 id="26">2.6 与现有数据集的比较</h4>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>数据集</th>
+<th>平均轮数</th>
+<th>平均会话数</th>
+<th>平均token数</th>
+<th>多模态</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MSC</td>
+<td>53.3</td>
+<td>4</td>
+<td>1,225.9</td>
+<td>✗</td>
+</tr>
+<tr>
+<td>Conversation Chronicles</td>
+<td>58.5</td>
+<td>5</td>
+<td>1,054.7</td>
+<td>✗</td>
+</tr>
+<tr>
+<td><strong>LOCOMO</strong></td>
+<td><strong>304.9</strong></td>
+<td><strong>19.3</strong></td>
+<td><strong>9,209.2</strong></td>
+<td><strong>✓</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>LOCOMO的对话长度是MSC的<strong>9倍</strong>，轮数是<strong>6倍</strong>，会话数是<strong>4倍</strong>，且是唯一同时支持多模态和超长期的对话数据集。</p>
+<hr />
+<h3 id="locomo_1">三、LOCOMO评估基准</h3>
+<p>基于LOCOMO数据集，作者设计了三个评估任务来全面衡量模型的长期记忆能力。</p>
+<h4 id="31-question-answering">3.1 问答任务（Question Answering）</h4>
+<p>这是对模型"记忆"的直接检验。问题分为五个推理类别：</p>
+<ol>
+<li><strong>单跳问题（Single-hop）</strong>：答案仅基于单个会话中的信息。例如"X庆祝了谁的生日？"</li>
+<li><strong>多跳问题（Multi-hop）</strong>：需要综合多个不同会话的信息。例如"X去过哪些地方？"（需要从不同会话中收集旅行信息）</li>
+<li><strong>时间推理问题（Temporal Reasoning）</strong>：需要理解对话中的时间线索。例如"X花了多长时间写完那本书？"（需要根据两个不同日期的对话推算时间差）</li>
+<li><strong>开放域知识问题（Open-domain Knowledge）</strong>：需要将对话中的信息与外部常识或世界知识结合。例如某人喜欢巴赫和莫扎特等古典音乐，问"X会喜欢维瓦尔第的《四季》吗？"</li>
+<li><strong>对抗性问题（Adversarial）</strong>：设计用来误导模型给出错误答案，正确回答应该是"无法回答"。例如某人2020年9月开始学钢琴，问"X是什么时候开始学小提琴的？"</li>
+</ol>
+<p>评估指标使用<strong>F1分数</strong>（对预测答案和标准答案进行归一化后计算部分匹配）。每个QA样本还标注了答案所在的轮次ID，以便评估RAG模型的检索准确率。</p>
+<p>总共收集了<strong>7,512个问题</strong>。</p>
+<h4 id="32-event-summarization">3.2 事件摘要任务（Event Summarization）</h4>
+<p>这个任务评估模型对对话中<strong>长距离因果和时间关系</strong>的理解能力。模型被要求在指定时间范围内总结某个说话者生活中发生的重要事件，然后将模型的摘要与事件图 $\mathcal{G}$ 进行比较。</p>
+<p>由于传统的BLEU和ROUGE指标只关注词汇相似性，不适合评估事实准确性，作者采用了<strong>FactScore</strong>（Min et al., 2023）指标。该方法将参考摘要和生成摘要都分解为<strong>原子事实（atomic facts）</strong>，然后计算：</p>
+<ul>
+<li><strong>精确率（Precision）</strong>：生成内容中有多少原子事实与 $\mathcal{G}$ 一致</li>
+<li><strong>召回率（Recall）</strong>：$\mathcal{G}$ 中的原子事实被生成内容覆盖了多少</li>
+<li>最终报告F1分数</li>
+</ul>
+<h4 id="33-multi-modal-dialogue-generation">3.3 多模态对话生成任务（Multi-Modal Dialogue Generation）</h4>
+<p>评估对话智能体能否在长期对话中保持<strong>人物一致性和叙事连贯性</strong>。例如，如果一个说话者最近受了伤，后续对话应该围绕康复展开，而不是冒险活动。</p>
+<p>使用<strong>MMRelevance</strong>（Feng et al., 2023）等指标衡量生成的多模态对话与真实对话的对齐程度。</p>
+<hr />
+<h3 id="_6">四、实验设置</h3>
+<h4 id="41">4.1 问答任务的模型配置</h4>
+<p>三类模型：</p>
+<ol>
+<li><strong>Base LLM</strong>（有限上下文长度）：Mistral-7B、LLama-70B-chat、gpt-3.5-turbo（4K）、gpt-4-turbo（4K）。早期对话因上下文窗口限制被截断</li>
+<li><strong>长上下文LLM</strong>：gpt-3.5-turbo-16k，分别测试4K、8K、12K、16K上下文</li>
+<li><strong>RAG</strong>：使用DRAGON作为检索器，gpt-3.5-turbo-16k作为阅读器。检索单元分三种：
+   - <strong>对话原文（Dialog）</strong>：直接检索对话片段
+   - <strong>观察（Observation）</strong>：检索关于说话者的陈述性事实
+   - <strong>会话摘要（Summary）</strong>：检索会话级别的摘要</li>
+</ol>
+<h4 id="42">4.2 事件摘要任务的模型配置</h4>
+<p>使用Base和长上下文两种设置，采用<strong>增量式摘要（incremental summarization）</strong>：先对前面的会话生成摘要，再以此为基础摘要后续会话。不使用RAG，因为摘要需要对整体对话的全面理解。</p>
+<h4 id="43">4.3 多模态对话生成的模型配置</h4>
+<p>训练三个版本的<strong>MiniGPT-5</strong>：</p>
+<ol>
+<li><strong>Base</strong>：仅基于前面的对话轮次训练</li>
+<li><strong>+ summary</strong>：加上全局对话摘要</li>
+<li><strong>+ observation</strong>：加上从对话历史中检索的观察</li>
+</ol>
+<hr />
+<h3 id="_7">五、实验结果</h3>
+<h4 id="51">5.1 问答任务</h4>
+<p><strong>表2</strong>展示了Base和长上下文模型的结果：</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>模型</th>
+<th>单跳</th>
+<th>多跳</th>
+<th>时间</th>
+<th>开放域</th>
+<th>对抗</th>
+<th>总体</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>人类</td>
+<td>95.1</td>
+<td>85.8</td>
+<td>92.6</td>
+<td>75.4</td>
+<td>89.4</td>
+<td><strong>87.9</strong></td>
+</tr>
+<tr>
+<td>GPT-4-turbo (4K)</td>
+<td>23.4</td>
+<td>23.4</td>
+<td>10.4</td>
+<td>24.6</td>
+<td>70.2</td>
+<td>32.1</td>
+</tr>
+<tr>
+<td>GPT-3.5-turbo-16K (16K)</td>
+<td>56.4</td>
+<td>42.0</td>
+<td>20.3</td>
+<td>37.2</td>
+<td>2.1</td>
+<td>37.8</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>关键发现</strong>：</p>
+<p><strong>(1) 有限上下文的LLM难以理解超长对话。</strong> 即使是表现最好的gpt-4-turbo（32.1），也远低于人类水平（87.9），差距达56%。</p>
+<p><strong>(2) 长上下文LLM能理解更长的叙事，但极易产生幻觉。</strong> gpt-3.5-turbo-16k在整体上表现最好（37.8），但在<strong>对抗性问题上性能暴跌至2.1%</strong>，而使用4K上下文的GPT-4-turbo能达到70.2%。这说明当LLM接触到更长的上下文时，更容易被误导产生幻觉——<strong>上下文越长，模型越容易"编造"答案而非承认无法回答</strong>。</p>
+<p><strong>(3) RAG在观察（observations）作为检索单元时效果最好。</strong> 表3显示，当使用top-5观察作为输入时，整体F1达到41.4%，比不用RAG的22.4%提升了约19个百分点。但随着检索数量增加，性能反而下降，说明<strong>降低检索上下文中的信噪比很重要</strong>。使用会话摘要作为检索上下文的效果不佳，尽管检索召回率很高，可能是因为摘要过程中丢失了关键信息。</p>
+<p><strong>(4) 时间推理和开放域知识是最具挑战性的场景。</strong> LLM在时间推理上表现极差（与人类差距达73%），这与其他时间推理基准上的发现一致。开放域知识问题在RAG设置下反而退化，因为不准确的检索引入了错误上下文。</p>
+<h4 id="52">5.2 事件摘要任务</h4>
+<p><strong>表4</strong>的结果：</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>模型</th>
+<th>ROUGE-1</th>
+<th>FactScore F1</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPT-3.5-turbo (4K)</td>
+<td><strong>41.1</strong></td>
+<td><strong>45.9</strong></td>
+</tr>
+<tr>
+<td>GPT-4-turbo (4K)</td>
+<td>38.8</td>
+<td>45.1</td>
+</tr>
+<tr>
+<td>GPT-3.5-turbo-16K (16K)</td>
+<td>36.2</td>
+<td>39.9</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>关键发现</strong>：</p>
+<p><strong>长上下文模型在此任务上反而不如Base模型。</strong> gpt-3.5-turbo-16k的精确率比gpt-3.5-turbo低3.0%，召回率低8.7%。这说明<strong>长上下文模型可能无法恰当地利用其上下文</strong>，虽然看到了更多内容，但反而理解得更差——它们可能能抓住事实元素，但无法准确理解上下文中的因果和时间关系。</p>
+<p>通过对生成摘要的<strong>人工错误分析</strong>，作者归纳了五类典型错误：</p>
+<ol>
+<li><strong>信息缺失</strong>：模型未能建立跨长距离的因果/时间关联</li>
+<li><strong>幻觉</strong>：添加了对话中不存在的细节或混淆了不同事件的细节</li>
+<li><strong>对话线索误解</strong>：将幽默或讽刺等表达当作严肃陈述</li>
+<li><strong>说话者归属错误</strong>：将事件归给了错误的说话者</li>
+<li><strong>显著性错误</strong>：将不重要的寒暄对话误认为重要事件</li>
+</ol>
+<h4 id="53">5.3 多模态对话生成任务</h4>
+<p>实验表明：</p>
+<ul>
+<li>将<strong>观察作为上下文</strong>加入训练能显著提升性能（BLEU-1从57.1提升到59.7，MMRelevance从56.1提升到57.8）</li>
+<li><strong>对话历史越长，MMRelevance分数越低</strong>，说明随着对话长度增加，模型越难保持一致性</li>
+<li>RAG能在一定程度上缓解这种性能下降</li>
+</ul>
+<hr />
+<h3 id="_8">六、主要贡献总结</h3>
+<ol>
+<li><strong>提出了首个超长期多模态对话研究</strong>，将评估范围从之前的~~5个会话扩展到~~20个会话、300轮对话</li>
+<li><strong>设计了一个"机器+人工"流水线</strong>，利用LLM智能体架构（人物设定+时间事件图+反思与回复机制+多模态能力）生成对话，并经人工校验</li>
+<li><strong>构建了LOCOMO数据集和评估基准</strong>，包含三个互补任务（问答、事件摘要、多模态对话生成），从不同角度评估长期记忆能力</li>
+<li><strong>揭示了当前LLM的核心不足</strong>：长上下文LLM虽然能看到更多内容，但容易产生幻觉且无法正确理解因果时间关系；RAG有帮助但仍远低于人类；时间推理能力是最大的短板</li>
+</ol>
+<hr />
+<h3 id="_9">七、局限性</h3>
+<ol>
+<li><strong>数据来源</strong>：数据主要由LLM生成，虽经人工校验，但可能无法完全反映真实在线对话的细微差别</li>
+<li><strong>多模态能力有限</strong>：图片来自网络搜索，缺乏真实个人照片中的视觉长期一致性（如同一个人的外貌、家庭环境等）</li>
+<li><strong>仅支持英语</strong></li>
+<li><strong>依赖闭源LLM</strong>：流水线使用了商业API</li>
+<li><strong>长文本NLG评估的固有挑战</strong>：LLM倾向于生成冗长答案，给自动评估带来困难</li>
+</ol>
+<h2 id="_10">研究要点表</h2>
+<p>我已准备好帮助您分析学术论文。请提供论文内容，我将按照表格模板为您提取和整理信息。</p>
+<h2 id="_11">原文摘要</h2>
 <p>Existing works on long-term open-domain dialogues focus on evaluating model responses within contexts spanning no more than five chat sessions. Despite advancements in long-context large language models (LLMs) and retrieval augmented generation (RAG) techniques, their efficacy in very long-term dialogues remains unexplored. To address this research gap, we introduce a machine-human pipeline to generate high-quality, very long-term dialogues by leveraging LLM-based agent architectures and grounding their dialogues on personas and temporal event graphs. Moreover, we equip each agent with the capability of sharing and reacting to images. The generated conversations are verified and edited by human annotators for long-range consistency and grounding to the event graphs. Using this pipeline, we collect LoCoMo, a dataset of very long-term conversations, each encompassing 300 turns and 9K tokens on avg., over up to 35 sessions. Based on LoCoMo, we present a comprehensive evaluation benchmark to measure long-term memory in models, encompassing question answering, event summarization, and multi-modal dialogue generation tasks. Our experimental results indicate that LLMs exhibit challenges in understanding lengthy conversations and comprehending long-range temporal and causal dynamics within dialogues. Employing strategies like long-context LLMs or RAG can offer improvements but these models still substantially lag behind human performance.</p></article>
 <aside class="detail-aside"><div class="report-toc" aria-label="文献卡片目录"><details open><summary>本页目录</summary><div class="toc">
 <ul>
 <li><a href="#_1">核心机制</a></li>
 <li><a href="#_2">适用范围与局限</a></li>
-<li><a href="#_3">原文摘要</a></li>
+<li><a href="#_3">详细解读</a><ul>
+<li><a href="#_4">论文核心总结</a></li>
+<li><a href="#_5">一、研究动机与问题定义</a></li>
+<li><a href="#locomo">二、LOCOMO数据集的构建</a></li>
+<li><a href="#locomo_1">三、LOCOMO评估基准</a></li>
+<li><a href="#_6">四、实验设置</a></li>
+<li><a href="#_7">五、实验结果</a></li>
+<li><a href="#_8">六、主要贡献总结</a></li>
+<li><a href="#_9">七、局限性</a></li>
+</ul>
+</li>
+<li><a href="#_10">研究要点表</a></li>
+<li><a href="#_11">原文摘要</a></li>
 </ul>
 </div>
 </details></div><section><h2>引用这篇论文</h2><p id="citation-text" class="citation-text">Adyasha Maharana, Dong-Ho Lee, Sergey Tulyakov, et al.. Evaluating Very Long-Term Conversational Memory of LLM Agents. arXiv:2402.17753, 2024.</p><button class="button secondary" type="button" data-copy-citation>复制引用</button><p class="meta-note">综述参考文献 [41]</p></section><section><h2>同方向继续阅读</h2><ul class="related-list"><li><a href="../papers/2307.03172.html">Lost in the Middle: How Language Models Use Long Contexts</a></li><li><a href="../papers/2410.10813.html">LongMemEval: Benchmarking Chat Assistants on Long-Term Interactive Memory</a></li><li><a href="../papers/2506.21605.html">MemBench: Towards More Comprehensive Evaluation on the Memory of LLM-based Agents</a></li><li><a href="../papers/2507.05257.html">Evaluating Memory in LLM Agents via Incremental Multi-Turn Interactions</a></li></ul></section></aside></div></div></main>

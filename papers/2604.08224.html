@@ -17,22 +17,206 @@
 <nav class="site-nav" aria-label="主导航"><a href="../index.html">研究总览</a><a href="../library.html" aria-current="page">文献库</a><a href="../reports/survey.html">综述全文</a><a href="../reports/multi-agent.html">多智能体专题</a><a href="../sources.html">阅读指南</a></nav>
 </div></header>
 <main id="main"><div class="page-wrap"><div class="breadcrumb"><a href="../library.html">文献库</a><span>/</span><a href="../library.html?topic=foundations">基础与综述</a></div>
-<header class="paper-hero"><div class="paper-badges"><span class="muted">2026 · 2604.08224</span></div><h1>Externalization in LLM Agents: A Unified Review of Memory, Skills, Protocols and Harness Engineering</h1><p class="paper-authors full-authors">Chenyu Zhou, Huacan Chai, Wenteng Chen, Zihan Guo, Rong Shan, Yuanyi Song, Tianyi Xu, Yingxuan Yang, Aofan Yu, Weiming Zhang, Congming Zheng, Jiachen Zhu, Zeyu Zheng, Zhuosheng Zhang, Xingyu Lou, Changwang Zhang, Zhihui Fu, Jun Wang, Weiwen Liu, Jianghao Lin, Weinan Zhang</p>
+<header class="paper-hero"><div class="paper-badges"><span class="badge expanded">含详细解读</span><span class="muted">2026 · 2604.08224</span></div><h1>Externalization in LLM Agents: A Unified Review of Memory, Skills, Protocols and Harness Engineering</h1><p class="paper-authors full-authors">Chenyu Zhou, Huacan Chai, Wenteng Chen, Zihan Guo, Rong Shan, Yuanyi Song, Tianyi Xu, Yingxuan Yang, Aofan Yu, Weiming Zhang, Congming Zheng, Jiachen Zhu, Zeyu Zheng, Zhuosheng Zhang, Xingyu Lou, Changwang Zhang, Zhihui Fu, Jun Wang, Weiwen Liu, Jianghao Lin, Weinan Zhang</p>
 <div class="hero-actions paper-actions"><a href="https://arxiv.org/abs/2604.08224" target="_blank" rel="noopener noreferrer">论文原文 <span aria-hidden="true">↗</span></a><a href="../downloads/notes/2604.08224.md">下载文献卡片 Markdown</a></div></header>
 <div class="detail-layout"><article class="prose"><h2 id="_1">核心机制</h2>
 <p>把记忆、技能、协议与 harness 视为不同形式的能力外部化</p>
 <h2 id="_2">适用范围与局限</h2>
 <p>系统性解释，不是统一架构的实验证明</p>
-<h2 id="_3">原文摘要</h2>
+<h2 id="_3">详细解读</h2>
+<h3 id="_4">论文核心总结</h3>
+<p>这篇论文提出了一个统一的理论框架——<strong>外化（Externalization）</strong>——来解释当前大语言模型（LLM）智能体发展的核心趋势：构建更强大的智能体系统，越来越不依赖于改变模型权重本身，而是依赖于重新组织模型周围的运行时基础设施。论文借用认知科学中"认知工件"（cognitive artifacts）的概念，将智能体的外部基础设施分为四大支柱——<strong>记忆（Memory）</strong>、<strong>技能（Skills）</strong>、<strong>协议（Protocols）</strong>和<strong>治具工程（Harness Engineering）</strong>，并论证这些外部化模块不仅仅是辅助组件，而是将模型难以内部完成的认知负担转化为更可靠解决的形式，从而根本性地提升了智能体的实际能力。</p>
+<hr />
+<h3 id="_5">详细讲解</h3>
+<h4 id="_6">一、问题背景与动机</h4>
+<h5 id="11-llm">1.1 LLM智能体的发展现状</h5>
+<p>近年来，基于大语言模型的智能体（LLM Agents）飞速发展。早期的做法是通过预训练和微调来让模型"内化"各种能力——即希望模型的参数权重中编码足够多的知识和推理能力。但实践表明，纯粹依赖模型权重来完成复杂任务存在严重瓶颈：</p>
+<ul>
+<li><strong>上下文窗口有限</strong>：模型无法记住跨越长时间的交互历史。</li>
+<li><strong>程序性专业知识难以稳定复现</strong>：模型可能"知道"某个工具怎么用，但每次调用时的表现不一致。</li>
+<li><strong>多智能体交互缺乏结构</strong>：当多个智能体协作时，缺乏明确的通信和协调规范。</li>
+<li><strong>可靠性和治理困难</strong>：在实际部署中，模型输出需要被验证、约束和监控。</li>
+</ul>
+<h5 id="12">1.2 从"权重"到"上下文"再到"治具"的历史演进</h5>
+<p>论文追溯了一个关键的历史脉络：</p>
+<ul>
+<li><strong>第一阶段：权重（Weights）</strong>——所有能力都编码在模型参数中，通过预训练和微调实现。</li>
+<li><strong>第二阶段：上下文（Context）</strong>——通过提示工程（prompt engineering）、检索增强生成（RAG）等技术，在推理时向模型提供外部信息，扩展了模型的即时能力。</li>
+<li><strong>第三阶段：治具（Harness）</strong>——在模型外部构建完整的运行时基础设施，包括记忆系统、技能库、通信协议和编排逻辑，形成一个协调层来管理模型的执行。</li>
+</ul>
+<p>论文的核心论点是：<strong>当前实际的智能体进步越来越多地取决于更好的外部认知基础设施，而非仅仅更强的模型。</strong></p>
+<h4 id="externalization">二、理论框架：外化（Externalization）</h4>
+<h5 id="21">2.1 认知工件的概念</h5>
+<p>论文借鉴了认知科学中<strong>认知工件（Cognitive Artifacts）</strong>的思想。认知工件是指人类利用外部工具（如纸笔、计算器、清单）来减轻认知负担的做法。例如，飞行员使用检查清单（checklist）不是因为他们不知道操作步骤，而是因为清单将"记住所有步骤并按顺序执行"这个认知负担外化为一个可靠的外部结构。</p>
+<p>类比到LLM智能体：<strong>外化就是将原本需要模型内部（参数化地）完成的认知任务，转移到外部的、可操作的模块中。</strong> 这种转移不是简单的"添加辅助功能"，而是<strong>从根本上改变了任务的认知形式</strong>——将困难的内部推理问题转化为模型更容易处理的形式。</p>
+<h5 id="22">2.2 四大外化支柱</h5>
+<p>论文将外化分为四个维度：</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>外化维度</th>
+<th>外化的对象</th>
+<th>核心功能</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>记忆（Memory）</strong></td>
+<td>跨时间的状态</td>
+<td>将状态持久化到模型之外，使智能体能跨越上下文窗口限制来维护信息</td>
+</tr>
+<tr>
+<td><strong>技能（Skills）</strong></td>
+<td>程序性专业知识</td>
+<td>将经过验证的操作流程封装为可复用的模块，避免每次从头推理</td>
+</tr>
+<tr>
+<td><strong>协议（Protocols）</strong></td>
+<td>交互结构</td>
+<td>将智能体之间或智能体与环境之间的交互规则明确化和标准化</td>
+</tr>
+<tr>
+<td><strong>治具工程（Harness Engineering）</strong></td>
+<td>统一协调层</td>
+<td>作为将上述三者整合并治理的执行框架</td>
+</tr>
+</tbody>
+</table></div>
+<h4 id="memory-externalization">三、记忆的外化（Memory Externalization）</h4>
+<h5 id="31">3.1 为什么需要外化记忆？</h5>
+<p>LLM有固定的上下文窗口长度。即使是具有极长上下文窗口的模型，也无法无限制地保持所有历史信息。此外，模型在处理长上下文时存在"中间遗忘"（lost in the middle）等问题。因此，将状态管理从模型内部的注意力机制外化到外部的存储系统是必要的。</p>
+<h5 id="32">3.2 记忆的分类</h5>
+<p>论文可能讨论了以下几类外部记忆：</p>
+<ul>
+<li><strong>短期/工作记忆</strong>：对应当前任务的即时上下文，通常以对话历史或scratchpad的形式存在。</li>
+<li><strong>长期记忆</strong>：跨会话、跨任务的持久化存储，可能包含：</li>
+<li><strong>情景记忆（Episodic Memory）</strong>：记录过去的具体经历和事件，如之前完成任务的轨迹。</li>
+<li><strong>语义记忆（Semantic Memory）</strong>：存储经过抽象的知识和事实，如用户偏好的总结。</li>
+<li><strong>程序记忆（Procedural Memory）</strong>：存储操作步骤，与技能外化密切相关。</li>
+</ul>
+<h5 id="33">3.3 记忆的实现机制</h5>
+<p>外部记忆系统通常涉及：</p>
+<ul>
+<li><strong>向量数据库</strong>：通过嵌入（embedding）将信息存储为向量，在需要时通过相似性检索来召回。</li>
+<li><strong>结构化存储</strong>：使用知识图谱、关系数据库等结构化方式存储信息。</li>
+<li><strong>记忆的写入与读取策略</strong>：包括何时存储、存储什么、如何压缩、如何召回等。</li>
+<li><strong>记忆的整理与遗忘</strong>：对记忆进行周期性的整合、摘要、甚至删除，以保持记忆库的质量和可管理性。</li>
+</ul>
+<h5 id="34">3.4 记忆外化的意义</h5>
+<p>外部记忆将"跨时间维护状态"这个对模型来说极其困难的内部任务（因为超出了上下文窗口），转化为"从外部存储中检索相关信息并放入当前提示"这个更可控的任务。模型不需要"记住"所有东西，只需要能够利用检索到的相关记忆。</p>
+<h4 id="skills-externalization">四、技能的外化（Skills Externalization）</h4>
+<h5 id="41">4.1 什么是技能外化？</h5>
+<p>技能外化是将<strong>程序性专业知识</strong>（procedural expertise）封装为可重用的外部模块。与其让模型每次都从头推理"如何使用某个API"或"如何完成某个子任务"，不如将成功的操作模式编码为技能，在需要时直接调用。</p>
+<h5 id="42">4.2 技能的形式</h5>
+<p>外化的技能可以采取多种形式：</p>
+<ul>
+<li><strong>工具描述和API接口</strong>：将外部工具的使用方法以结构化的方式提供给模型。</li>
+<li><strong>代码片段/函数</strong>：将复杂操作封装为可执行的代码模块。</li>
+<li><strong>提示模板</strong>：将成功的提示策略封装为可复用的模板。</li>
+<li><strong>工作流/计划模板</strong>：将常见任务的分解策略和执行步骤封装为可复用的流程。</li>
+</ul>
+<h5 id="43">4.3 技能的习得与演化</h5>
+<p>一个重要的方向是<strong>技能的自动发现和积累</strong>：</p>
+<ul>
+<li>智能体在执行任务过程中发现有效的操作模式。</li>
+<li>将这些模式抽象、验证后存入技能库。</li>
+<li>在面对新任务时，从技能库中检索和组合相关技能。</li>
+<li>技能库可以不断更新和优化。</li>
+</ul>
+<p>这类似于人类从"新手"到"专家"的过程——专家不需要对每个步骤都进行深思熟虑的推理，而是可以调用已经内化的程序性知识。</p>
+<h5 id="44">4.4 技能外化的意义</h5>
+<p>技能外化将"从零推理复杂操作"转化为"选择并调用合适的已验证技能"，大幅提升了操作的可靠性和一致性。这也减轻了模型的推理负担——模型的角色从"什么都要自己想"变成了"规划、选择和编排"。</p>
+<h4 id="protocols-externalization">五、协议的外化（Protocols Externalization）</h4>
+<h5 id="51">5.1 为什么需要协议？</h5>
+<p>当智能体需要与其他智能体交互、与用户交互、或与复杂环境交互时，<strong>交互结构</strong>本身就是一个需要管理的复杂问题。如果让每个模型自行决定如何通信和协作，结果往往是混乱和不可预测的。</p>
+<h5 id="52">5.2 协议的内容</h5>
+<p>协议外化涉及将交互规则明确化：</p>
+<ul>
+<li><strong>消息格式和通信标准</strong>：定义智能体之间交换信息的格式和语义。</li>
+<li><strong>轮次管理（Turn-taking）</strong>：谁在什么时候发言/行动。</li>
+<li><strong>角色分配和职责</strong>：明确每个智能体在协作中的角色。</li>
+<li><strong>协商和冲突解决机制</strong>：当出现分歧时如何处理。</li>
+<li><strong>人机交互协议</strong>：定义用户与智能体之间的交互模式和边界。</li>
+</ul>
+<h5 id="53">5.3 协议的例子</h5>
+<p>这可能包括：</p>
+<ul>
+<li><strong>MCP（Model Context Protocol）</strong> 等新兴的智能体通信协议。</li>
+<li><strong>多智能体系统中的编排模式</strong>：如辩论（debate）、投票（voting）、层级委托（hierarchical delegation）等。</li>
+<li><strong>工具调用的标准化接口</strong>：如函数调用（function calling）格式的统一规范。</li>
+</ul>
+<h5 id="54">5.4 协议外化的意义</h5>
+<p>协议外化将"在交互中即兴决定如何沟通和协作"转化为"遵循预定义的结构化交互流程"。这不仅提升了多智能体系统的可靠性，也使得交互变得可预测、可审计、可治理。</p>
+<h4 id="harness-engineering">六、治具工程（Harness Engineering）——统一协调层</h4>
+<h5 id="61">6.1 什么是治具工程？</h5>
+<p>"治具"（Harness）这个概念来自工程领域，指的是包裹和控制核心组件的外部框架。在LLM智能体的语境中，治具工程是指<strong>围绕模型构建的运行时编排和治理基础设施</strong>。</p>
+<p>治具工程不是第四种独立的外化形式，而是<strong>将记忆、技能和协议整合、协调和治理的统一层</strong>。</p>
+<h5 id="62">6.2 治具的功能</h5>
+<p>治具工程涉及多个方面：</p>
+<ul>
+<li><strong>执行编排（Orchestration）</strong>：管理任务分解、步骤调度、模块调用的顺序和逻辑。</li>
+<li><strong>输出验证与约束</strong>：检查模型输出是否符合格式要求、是否安全合规、是否逻辑一致。</li>
+<li><strong>错误处理与重试</strong>：当模型输出不符合预期时，进行重新生成、回退或替代策略。</li>
+<li><strong>资源管理</strong>：管理API调用、token消耗、计算成本等。</li>
+<li><strong>安全与治理</strong>：权限控制、操作审计、护栏（guardrails）等。</li>
+<li><strong>监控与可观测性</strong>：记录和追踪智能体的决策过程和执行结果。</li>
+</ul>
+<h5 id="63">6.3 治具作为认知基础设施</h5>
+<p>论文强调，治具不仅仅是"工程胶水"，而是具有认知意义的。一个设计良好的治具系统可以：</p>
+<ul>
+<li>将复杂的端到端任务分解为模型可以可靠完成的小步骤。</li>
+<li>通过验证和约束机制降低模型幻觉（hallucination）和错误的影响。</li>
+<li>通过编排逻辑实现超出单次模型调用能力的复杂推理。</li>
+</ul>
+<h5 id="64">6.4 与现有框架的关系</h5>
+<p>治具工程的概念涵盖了当前许多智能体框架的功能，如LangChain、AutoGPT、CrewAI、MetaGPT等框架中的编排逻辑都可以视为治具工程的实例。</p>
+<h4 id="_7">七、参数化能力与外化能力的权衡</h4>
+<h5 id="71">7.1 核心张力</h5>
+<p>论文讨论了一个关键的设计权衡：<strong>参数化能力（Parametric Capability）vs. 外化能力（Externalized Capability）</strong>。</p>
+<ul>
+<li><strong>参数化能力</strong>：通过训练编码在模型权重中的能力。优势是响应快、不需要额外基础设施；劣势是更新慢、可控性低、不透明。</li>
+<li><strong>外化能力</strong>：通过外部模块提供的能力。优势是灵活、可更新、可审计、可控；劣势是增加系统复杂性、引入延迟、需要工程投入。</li>
+</ul>
+<h5 id="72">7.2 动态平衡</h5>
+<p>随着模型变得更强大，一些之前需要外化的能力可能会被重新内化（例如，更强的模型可能不再需要那么复杂的提示模板）。但同时，更强的模型也使得更复杂的外化架构成为可能（例如，更强的模型可以更好地利用工具和遵循协议）。这形成了一种<strong>模型与外部基础设施的共同演化</strong>关系。</p>
+<h4 id="_8">八、新兴方向与开放挑战</h4>
+<h5 id="81">8.1 新兴方向</h5>
+<ul>
+<li><strong>自演化治具（Self-evolving Harnesses）</strong>：治具系统能够根据执行经验自动优化自身的编排逻辑、提示策略和技能库。</li>
+<li><strong>共享智能体基础设施（Shared Agent Infrastructure）</strong>：多个智能体共享记忆、技能和协议资源，形成生态系统级的基础设施。</li>
+<li><strong>记忆-技能-协议的耦合与交互</strong>：三种外化形式不是独立的，它们之间存在复杂的交互关系。例如，技能的选择可能依赖于记忆中的历史经验，协议的执行可能调用特定的技能。</li>
+</ul>
+<h5 id="82">8.2 开放挑战</h5>
+<ul>
+<li><strong>评估（Evaluation）</strong>：如何评估外化基础设施的质量和效果？现有的基准测试主要关注模型本身的能力，缺乏对整个系统（模型+外部基础设施）的系统级评估方法。</li>
+<li><strong>治理（Governance）</strong>：当智能体的行为越来越多地由外部基础设施决定时，如何确保安全性、可问责性和合规性？</li>
+<li><strong>长期共演化</strong>：模型和外部基础设施如何在长期中共同发展？什么样的架构划分是最优的？</li>
+</ul>
+<h4 id="_9">九、论文的系统级贡献</h4>
+<p>这篇论文的主要贡献在于提供了一个<strong>统一的概念框架</strong>来理解LLM智能体系统中围绕模型构建的各种外部模块和基础设施。通过"外化"这个统一的镜头，论文：</p>
+<ol>
+<li><strong>给出了清晰的分类学</strong>：将纷繁复杂的智能体工程实践组织为记忆、技能、协议和治具四个维度。</li>
+<li><strong>提供了理论基础</strong>：借用认知工件的概念，解释了外化为何有效——它不是简单地"帮助"模型，而是改变了任务的认知形式。</li>
+<li><strong>揭示了历史趋势</strong>：从权重到上下文到治具的演进，表明了一个持续的外化进程。</li>
+<li><strong>指出了设计张力</strong>：参数化 vs. 外化的权衡为系统设计提供了思考框架。</li>
+<li><strong>展望了未来方向</strong>：自演化系统、共享基础设施等方向为后续研究指明了道路。</li>
+</ol>
+<p>总的来说，这篇论文的核心信息是：<strong>实际的智能体进步越来越多地取决于更好的外部认知基础设施的设计，而不仅仅是更强的模型本身。理解和优化这些外部基础设施，需要一个系统级的视角。</strong></p>
+<h2 id="_10">原文摘要</h2>
 <p>Large language model (LLM) agents are increasingly built less by changing model weights than by reorganizing the runtime around them. Capabilities that earlier systems expected the model to recover internally are now externalized into memory stores, reusable skills, interaction protocols, and the surrounding harness that makes these modules reliable in practice. This paper reviews that shift through the lens of externalization. Drawing on the idea of cognitive artifacts, we argue that agent infrastructure matters not merely because it adds auxiliary components, but because it transforms hard cognitive burdens into forms that the model can solve more reliably. Under this view, memory externalizes state across time, skills externalize procedural expertise, protocols externalize interaction structure, and harness engineering serves as the unification layer that coordinates them into governed execution. We trace a historical progression from weights to context to harness, analyze memory, skills, and protocols as three distinct but coupled forms of externalization, and examine how they interact inside a larger agent system. We further discuss the trade-off between parametric and externalized capability, identify emerging directions such as self-evolving harnesses and shared agent infrastructure, and discuss open challenges in evaluation, governance, and the long-term co-evolution of models and external infrastructure. The result is a systems-level framework for explaining why practical agent progress increasingly depends not only on stronger models, but on better external cognitive infrastructure.</p></article>
 <aside class="detail-aside"><div class="report-toc" aria-label="文献卡片目录"><details open><summary>本页目录</summary><div class="toc">
 <ul>
 <li><a href="#_1">核心机制</a></li>
 <li><a href="#_2">适用范围与局限</a></li>
-<li><a href="#_3">原文摘要</a></li>
+<li><a href="#_3">详细解读</a><ul>
+<li><a href="#_4">论文核心总结</a></li>
+<li><a href="#_5">详细讲解</a></li>
+</ul>
+</li>
+<li><a href="#_10">原文摘要</a></li>
 </ul>
 </div>
-</details></div><section><h2>引用这篇论文</h2><p id="citation-text" class="citation-text">Chenyu Zhou, Huacan Chai, Wenteng Chen, et al.. Externalization in LLM Agents: A Unified Review of Memory, Skills, Protocols and Harness Engineering. arXiv:2604.08224, 2026.</p><button class="button secondary" type="button" data-copy-citation>复制引用</button><p class="meta-note">综述参考文献 [4]</p></section><section><h2>同方向继续阅读</h2><ul class="related-list"><li><a href="../papers/2005.11401.html">Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks</a></li><li><a href="../papers/2309.02427.html">Cognitive Architectures for Language Agents</a></li><li><a href="../papers/2602.06052.html">A Survey of Agent Memory in the Second Half: Towards Self-Evolving and Long-Horizon Agents</a></li><li><a href="../papers/2604.16548.html">A Survey on Long-Term Memory Security in LLM Agents: Attacks, Defenses, and Governance Across the Memory Lifecycle</a></li></ul></section></aside></div></div></main>
+</details></div><section><h2>引用这篇论文</h2><p id="citation-text" class="citation-text">Chenyu Zhou, Huacan Chai, Wenteng Chen, et al.. Externalization in LLM Agents: A Unified Review of Memory, Skills, Protocols and Harness Engineering. arXiv:2604.08224, 2026.</p><button class="button secondary" type="button" data-copy-citation>复制引用</button><p class="meta-note">综述参考文献 [4]</p></section><section><h2>同方向继续阅读</h2><ul class="related-list"><li><a href="../papers/2005.11401.html">Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks</a></li><li><a href="../papers/2309.02427.html">Cognitive Architectures for Language Agents</a></li><li><a href="../papers/2512.13564.html">Memory in the Age of AI Agents</a></li><li><a href="../papers/2602.06052.html">A Survey of Agent Memory in the Second Half: Towards Self-Evolving and Long-Horizon Agents</a></li></ul></section></aside></div></div></main>
 <footer class="site-footer"><div><strong>Agent Memory 研究</strong><p>从保存历史，到有依据地更新长期状态。</p></div>
 <div><span>内容更新 · 2026-09-08</span><p>理解方法，比较条件，关注长期影响。</p><a href="../sources.html">阅读指南</a></div></footer>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>

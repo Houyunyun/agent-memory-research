@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light"><title>LongMemEval: Benchmarking Chat Assistants on Long-Term Interactive Memory · Agent Memory 研究</title>
 <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../assets/site.css">
-<script src="../assets/site.js" defer></script>
+<link rel="stylesheet" href="../assets/katex/katex.min.css"><script src="../assets/katex/katex.min.js" defer></script><script src="../assets/katex/auto-render.min.js" defer></script><script src="../assets/site.js" defer></script>
 </head>
 <body data-page="library">
 <a class="skip-link" href="#main">跳转到正文</a>
@@ -17,19 +17,257 @@
 <nav class="site-nav" aria-label="主导航"><a href="../index.html">研究总览</a><a href="../library.html" aria-current="page">文献库</a><a href="../reports/survey.html">综述全文</a><a href="../reports/multi-agent.html">多智能体专题</a><a href="../sources.html">阅读指南</a></nav>
 </div></header>
 <main id="main"><div class="page-wrap"><div class="breadcrumb"><a href="../library.html">文献库</a><span>/</span><a href="../library.html?topic=evaluation">评测与反证</a></div>
-<header class="paper-hero"><div class="paper-badges"><span class="muted">2024 · 2410.10813</span></div><h1>LongMemEval: Benchmarking Chat Assistants on Long-Term Interactive Memory</h1><p class="paper-authors full-authors">Di Wu, Hongwei Wang, Wenhao Yu, Yuwei Zhang, Kai-Wei Chang, Dong Yu</p>
+<header class="paper-hero"><div class="paper-badges"><span class="badge expanded">含详细解读</span><span class="muted">2024 · 2410.10813</span></div><h1>LongMemEval: Benchmarking Chat Assistants on Long-Term Interactive Memory</h1><p class="paper-authors full-authors">Di Wu, Hongwei Wang, Wenhao Yu, Yuwei Zhang, Kai-Wei Chang, Dong Yu</p>
 <div class="hero-actions paper-actions"><a href="https://arxiv.org/abs/2410.10813" target="_blank" rel="noopener noreferrer">论文原文 <span aria-hidden="true">↗</span></a><a href="../downloads/notes/2410.10813.md">下载文献卡片 Markdown</a></div></header>
 <div class="detail-layout"><article class="prose"><h2 id="_1">核心机制</h2>
 <p>抽取、多会话、时序、知识更新与拒答五种能力</p>
 <h2 id="_2">适用范围与局限</h2>
 <p>不能误写成只测静态检索；不直接评测技能安全</p>
-<h2 id="_3">原文摘要</h2>
+<h2 id="_3">详细解读</h2>
+<h3 id="_4">论文核心总结</h3>
+<p>这篇发表在ICLR 2025的论文提出了<strong>LongMemEval</strong>，一个全面评估聊天助手长期交互记忆能力的基准测试。该基准包含500个精心设计的问题，测试五项核心记忆能力：信息提取、多会话推理、时间推理、知识更新和拒答。论文发现现有的商业聊天系统（如ChatGPT、Coze）和长上下文LLM在处理持续交互中的记忆任务时准确率下降约30%。在此基础上，作者提出了一个统一的三阶段框架（索引、检索、阅读），并针对每个阶段提出了优化策略——会话分解、事实增强的键扩展、时间感知的查询扩展以及Chain-of-Note阅读策略——这些优化显著提升了记忆召回和下游问答性能。</p>
+<hr />
+<h3 id="_5">一、研究动机与背景</h3>
+<h4 id="11">1.1 为什么需要长期记忆？</h4>
+<p>当前的LLM驱动的聊天助手（如ChatGPT、Microsoft Copilot）在处理依赖于长期用户-AI交互积累的个人知识任务时存在局限性，例如心理咨询、秘书工作等场景。如果助手无法将用户的背景和偏好融入响应中，会降低响应的准确性和用户满意度。因此，<strong>长期记忆</strong>（long-term memory）——即记忆、召回和推理长交互历史的能力——对于个性化LLM助手来说是不可或缺的。</p>
+<h4 id="12">1.2 现有基准的不足</h4>
+<p>虽然已有一些评估LLM理解长聊天历史的基准，但存在两大缺陷：</p>
+<ol>
+<li><strong>不能准确反映用户-AI交互</strong>：很多基准只关注人-人对话（如MSC、LoCoMo），或者忽略了任务导向型对话（这在实际聊天助手使用中占很大比例）。此外，交互历史的长度通常固定且较短（仅几千个token），难度有限。</li>
+<li><strong>记忆能力覆盖不全面</strong>：现有基准的问题只覆盖了动态长期交互所需记忆能力的有限子集。例如，MemoryBank和PerLTQA不能充分评估跨多个会话合成信息的能力，也不能评估时间推理能力。所有现有基准（包括LoCoMo）都未能评估对助手提供的信息的召回，或对用户更新信息的推理。</li>
+</ol>
+<p>Table 1详细对比了LongMemEval与现有基准在对话领域、会话数、问题数、上下文深度以及五项核心能力覆盖上的差异。</p>
+<hr />
+<h3 id="longmemeval">二、LongMemEval基准</h3>
+<h4 id="21">2.1 问题形式化</h4>
+<p>LongMemEval的每个评测实例是一个四元组 $(S, q, t_q, a)$，其中：</p>
+<ul>
+<li>$S \equiv [(t_1, S_1), (t_2, S_2), \ldots, (t_N, S_N)]$ 是按时间排序的 $N$ 个历史聊天会话序列</li>
+<li>$S_i$ 是用户和助手之间的多轮交互，$t_i$ 是会话的时间戳</li>
+<li>每个会话可以进一步分解为<strong>轮次（round）</strong>：一条用户消息接一条助手回复</li>
+<li>$q$ 和 $t_q &gt; t_N$ 分别是用户的问题及其日期</li>
+<li>$a$ 是答案的短语或描述</li>
+</ul>
+<p>测试时，$S$ 会逐个提供给系统（模拟在线交互场景）。</p>
+<h4 id="22">2.2 五项核心记忆能力</h4>
+<p>LongMemEval定义了五项长期记忆能力：</p>
+<ol>
+<li><strong>信息提取（Information Extraction, IE）</strong>：从广泛的交互历史中回忆具体信息，包括用户或助手提到的细节。</li>
+<li><strong>多会话推理（Multi-Session Reasoning, MR）</strong>：综合多个历史会话中的信息，回答涉及聚合和比较的复杂问题。例如"我目前拥有几件乐器？"——需要从多个不同会话中收集乐器信息并计数。</li>
+<li><strong>知识更新（Knowledge Updates, KU）</strong>：识别用户个人信息的变化，动态更新对用户的认知。例如用户先提到家庭旅行去了夏威夷，后来又说去了巴黎，问"我最近的家庭旅行去了哪里？"时应回答巴黎。</li>
+<li><strong>时间推理（Temporal Reasoning, TR）</strong>：对用户信息的时间维度保持感知，包括交互中的显式时间提及和时间戳元数据。例如"距离我上次和朋友参观博物馆过去了多少个月？"</li>
+<li><strong>拒答（Abstention, ABS）</strong>：识别寻求未知信息（即用户在交互历史中未提到的信息）的问题，并回答"我不知道"。例如用户只提到了10加仑和20加仑的鱼缸，但问题问30加仑鱼缸里有多少鱼。</li>
+</ol>
+<h4 id="23">2.3 七种问题类型</h4>
+<p>为全面评估这五项能力，LongMemEval设计了七种问题类型：</p>
+<ul>
+<li><strong>single-session-user</strong>：记忆用户在单个会话中提到的信息</li>
+<li><strong>single-session-assistant</strong>：记忆助手在单个会话中提到的信息</li>
+<li><strong>single-session-preference</strong>：利用用户信息生成个性化响应</li>
+<li><strong>multi-session</strong>：跨两个或更多会话聚合用户信息</li>
+<li><strong>knowledge-update</strong>：识别用户生活状态变化并更新记忆</li>
+<li><strong>temporal-reasoning</strong>：结合元数据时间戳和显式时间引用进行推理</li>
+<li><strong>abstention</strong>：从前面的问题类型中抽取30个问题，修改为"错误前提"问题，测试模型是否能正确拒答</li>
+</ul>
+<p>Figure 1展示了每种问题类型的示例。</p>
+<h4 id="24">2.4 数据构建流程</h4>
+<p>数据构建分为三个阶段（如Figure 2所示）：</p>
+<p><strong>（a）问题构建</strong>：</p>
+<ol>
+<li>定义了一个包含164个用户属性的本体（ontology），分为五大类：生活方式、物品、生活事件、情境上下文和人口统计信息</li>
+<li>利用LLM（Llama 3 70B Instruct）基于每个属性生成用户背景段落</li>
+<li>随机抽取段落，用LLM提议种子问答对</li>
+<li>人类专家手动筛选和改写所有问题（最终保留率约5%）</li>
+<li>手动将答案分解为一个或多个<strong>证据陈述（evidence statements）</strong>，附带可选的时间戳</li>
+</ol>
+<p><strong>（b）证据会话构建</strong>：</p>
+<ul>
+<li>每个证据陈述被嵌入到一个任务导向型的证据会话中，通过LLM自聊（self-chat）创建</li>
+<li>关键设计：用户LLM被指示<strong>间接</strong>传达证据陈述。例如，不是直接说"我上个月买了新车"，而是询问汽车保险并附带提到这个信息</li>
+<li>所有证据会话都经过人工筛选和编辑，确保：(1) 证据包含在内；(2) 证据分布在不同对话位置；(3) 表述自然口语化；(4) 对话自然结束</li>
+<li>约70%的会话经过人工编辑</li>
+</ul>
+<p><strong>（c）历史编译</strong>：</p>
+<ul>
+<li>类似"大海捞针"（needle-in-a-haystack）测试</li>
+<li>采样一些无关的用户-AI聊天会话，将证据会话随机插入中间，给所有会话分配合理的时间戳</li>
+<li>无关会话来自两个来源：(1) 基于其他非冲突属性模拟的自聊会话；(2) 公开发布的用户-AI风格聊天数据（ShareGPT和UltraChat）</li>
+<li>混合比例：25% ShareGPT，25% UltraChat，50%模拟会话</li>
+<li>提供两个标准设置：<strong>LongMemEval$_S$</strong>（约115k token/问题）和<strong>LongMemEval$_M$</strong>（500个会话，约150万token）</li>
+</ul>
+<h4 id="25">2.5 评估指标</h4>
+<p><strong>问答评估</strong>：由于正确答案形式灵活，传统的精确匹配不够准确。论文使用GPT-4o作为评判器（prompt-engineered），为不同问题类型设计了专门的评估提示。元评估显示评判器与人类专家的一致率超过97%。</p>
+<p><strong>记忆召回评估</strong>：由于LongMemEval包含人工标注的答案位置标签，可以计算中间检索指标 Recall@$k$ 和 NDCG@$k$。</p>
+<h4 id="26-longmemeval">2.6 初步评估：LongMemEval的挑战性</h4>
+<p><strong>商业系统评估</strong>：</p>
+<ul>
+<li>评估了ChatGPT和Coze两个商业系统</li>
+<li>由于这些系统仅通过网页界面支持记忆功能，随机选择了97个问题，创建了3-6个会话的短历史（约为LongMemEval$_S$的1/10）</li>
+<li>人工标注员逐会话、逐轮与助手交互</li>
+<li>结果（Figure 3a）：与直接读取完整历史（GPT-4o离线阅读准确率0.918）相比，ChatGPT（GPT-4o）降至0.577（37%下降），Coze（GPT-4o）降至0.330（64%下降）</li>
+<li>ChatGPT倾向于在聊天继续时覆盖关键信息，Coze经常无法记录间接提供的用户信息</li>
+</ul>
+<p><strong>长上下文LLM评估</strong>：</p>
+<ul>
+<li>在LongMemEval$_S$上评估了GPT-4o、Llama 3.1 Instruct（70B/8B）、Phi-3等模型</li>
+<li>与oracle检索设置（仅提供证据会话作为上下文）相比，这些LLM在读取完整历史时性能下降30%~60%（Figure 3b）</li>
+<li>这表明即使是最强的长上下文LLM，如果没有有效的记忆机制，也难以管理不断增长的交互历史</li>
+</ul>
+<hr />
+<h3 id="_6">三、长期记忆助手的统一框架</h3>
+<h4 id="31">3.1 三阶段模型</h4>
+<p>论文将长期记忆建模为一个大规模的键值存储 $[(k_1, v_1), (k_2, v_2), \ldots]$，并将记忆增强助手的操作分为三个阶段（如Figure 4所示）：</p>
+<ol>
+<li><strong>索引（Indexing）</strong>：将每个历史会话 $(t_i, S_i)$ 转换为一个或多个键值对</li>
+<li><strong>检索（Retrieval）</strong>：构造检索查询，收集最相关的 $k$ 个项</li>
+<li><strong>阅读（Reading）</strong>：LLM $\mathcal{M}$ 读取检索结果并生成响应</li>
+</ol>
+<h4 id="32">3.2 四个控制点</h4>
+<p>在这三个阶段中，论文识别了四个关键控制点：</p>
+<p><strong>控制点1：值（Value）</strong>——存储在记忆中的每个会话的格式和粒度。</p>
+<ul>
+<li>用户-AI聊天会话通常很长且涉及多个话题</li>
+<li>将整个会话作为单个项存储会妨碍有效检索和阅读</li>
+<li>但将会话压缩为摘要或用户特定事实会导致信息丢失</li>
+<li>论文比较三种策略：存储整个会话、分解为单独轮次、进一步应用摘要/事实提取</li>
+</ul>
+<p><strong>控制点2：键（Key）</strong>——用于索引的表示。</p>
+<ul>
+<li>即使会话被分解和压缩，每个项仍包含大量信息，只有一部分与查询相关</li>
+<li>使用值本身作为键（先前工作的常见做法）可能不是最优的</li>
+<li>论文引入<strong>键扩展（key expansion）</strong>方法：从值中提取摘要、关键短语、用户事实和带时间戳的事件来增强索引</li>
+</ul>
+<p><strong>控制点3：查询（Query）</strong>——检索时的查询构造。</p>
+<ul>
+<li>对于涉及时间引用的查询（如"你上周末推荐了哪家餐厅？"），朴素的相似度搜索不够</li>
+<li>论文提出<strong>时间感知的索引和查询扩展</strong>策略：值按带时间戳的事件索引，检索限制在相关时间范围内的项</li>
+</ul>
+<p><strong>控制点4：阅读策略（Reading Strategy）</strong>——如何利用检索结果。</p>
+<ul>
+<li>即使检索准确，LLM也不一定能有效地从长上下文中推理</li>
+<li>论文探索了<strong>Chain-of-Note（CoN）</strong>（先提取关键信息再回答）和<strong>结构化JSON格式</strong>提示</li>
+</ul>
+<p>Table 2展示了九个现有记忆增强系统在这个统一框架下的映射。</p>
+<hr />
+<h3 id="_7">四、实验结果</h3>
+<h4 id="41">4.1 实验设置</h4>
+<ul>
+<li><strong>LLM</strong>：GPT-4o、Llama 3.1 70B Instruct、Llama 3.1 8B Instruct</li>
+<li><strong>检索器</strong>：1.5B的Stella V5密集检索模型</li>
+<li><strong>索引阶段</strong>：使用Llama 3.1 8B Instruct提取摘要、关键短语、用户事实和带时间戳的事件</li>
+<li>使用会话或轮次作为键时，仅保留用户侧的发言</li>
+<li>检索结果按时间戳排序</li>
+<li>默认应用CoN和JSON格式</li>
+</ul>
+<h4 id="42-valuerag">4.2 值（Value）：分解提升RAG性能</h4>
+<p>在LongMemEval$_M$上比较不同的值选择（Figure 5）：</p>
+<ul>
+<li><strong>将会话分解为轮次</strong>显著提升了以GPT-4o为阅读器的性能</li>
+<li>用提取的摘要或事实替换会话/轮次会由于<strong>信息丢失</strong>而负面影响QA性能</li>
+<li><strong>唯一例外</strong>：对于多会话推理问题，事实分解一致地提升性能。论文假设这是因为事实分解以更统一、简化的格式提取了跨会话的同类型信息，有助于检索和阅读</li>
+<li>最优的token预算因阅读器能力而异：Llama 3.1 8B在超过3k检索token后性能急剧下降，而GPT-4o即使在超过20k检索token时仍持续改善</li>
+</ul>
+<h4 id="43-keyrag">4.3 键（Key）：多键索引提升检索和RAG</h4>
+<p>Table 3的实验结果显示：</p>
+<ul>
+<li>尽管摘要、关键短语或用户事实具有更聚焦的语义，但<strong>单独使用</strong>它们作为键并不能提升记忆召回</li>
+<li>使用<strong>文档扩展（document expansion）</strong>技术——将压缩信息与原始值拼接形成键——特别是使用用户事实时，带来了平均<strong>9.4%的recall@$k$提升</strong>和<strong>5.4%的最终准确率提升</strong></li>
+<li>这种多路径检索能显著增强记忆召回性能</li>
+</ul>
+<p><strong>为什么键扩展有效？</strong> 论文认为，这是因为它同时利用了压缩后的高亮信息和原始值的完整性，为检索提供了多条路径。</p>
+<h4 id="44-query">4.4 查询（Query）：时间感知查询扩展提升时间推理</h4>
+<p>Table 4的实验结果：</p>
+<ul>
+<li><strong>简单设计</strong>：值额外按其包含事件的日期索引。检索时，LLM $\mathcal{M}_T$ 从时间敏感查询中提取时间范围，用于过滤大量不相关的值</li>
+<li>使用轮次作为值时，平均提升<strong>11.3%的召回率</strong>；使用会话时提升<strong>6.8%</strong></li>
+<li>关键发现：这种方法的有效性<strong>依赖于使用强LLM</strong>作为 $\mathcal{M}_T$</li>
+<li>GPT-4o能准确推断时间范围，并在问题没有时间引用时正确拒绝生成时间范围</li>
+<li>Llama 3.1 8B经常产生幻觉，在问题没有时间引用时错误地提取时间范围（Table 11提供了具体例子）</li>
+</ul>
+<h4 id="45-con">4.5 阅读策略：CoN和结构化格式</h4>
+<p>Figure 6在oracle检索设置下评估了阅读策略：</p>
+<ul>
+<li>即使检索完美，次优的阅读策略也会导致GPT-4o的性能下降多达<strong>10个绝对百分点</strong></li>
+<li><strong>JSON格式 + Chain-of-Note</strong>的组合在所有三个LLM上都显著优于其他组合</li>
+<li>当不使用CoN时，JSON格式并不一致地优于自然语言格式</li>
+<li>但使用CoN后，JSON格式一致地有利于各种能力水平的LLM</li>
+</ul>
+<p><strong>CoN的工作原理</strong>：指示LLM先从每个记忆项中提取信息，然后基于这些笔记进行推理。这有效地将长上下文阅读分解为两个更简单的子任务：复制重要细节和基于更简洁的笔记推理。</p>
+<hr />
+<h3 id="_8">五、误差分析</h3>
+<p>Figure 14分析了最佳记忆设计下不同阅读器模型的错误分布：</p>
+<ul>
+<li><strong>15%~19%</strong>的实例对应于检索正确但生成错误（在错误实例中占40%~50%），使用较弱的阅读器LLM时比例更高</li>
+<li>约<strong>90%</strong>的正确答案需要正确检索作为前提</li>
+<li>剩余约10%的"检索错误但生成正确"案例主要是knowledge-update类型，检索器只能识别更新后的知识但无法检索更新前的信息</li>
+</ul>
+<p>这一分析表明：(1) 阅读策略仍有很大改进空间；(2) LongMemEval的质量很高，模型不能通过捷径在没有正确记忆召回的情况下回答问题。</p>
+<hr />
+<h3 id="_9">六、论文的最终设计方案</h3>
+<p>综合所有实验发现，论文推荐的记忆系统设计为（见Table 2最后一行）：</p>
+<div class="table-scroll"><table class="key-value">
+<thead>
+<tr>
+<th>组件</th>
+<th>设计选择</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>值（Value）</td>
+<td>轮次（round）</td>
+</tr>
+<tr>
+<td>键（Key）</td>
+<td>$K = V + \text{fact}$（原始值拼接提取的用户事实）</td>
+</tr>
+<tr>
+<td>查询（Query）</td>
+<td>问题 + 时间范围</td>
+</tr>
+<tr>
+<td>检索方式</td>
+<td>扁平索引（flat）</td>
+</tr>
+<tr>
+<td>时间感知</td>
+<td>是</td>
+</tr>
+<tr>
+<td>阅读策略</td>
+<td>Chain-of-Note + JSON格式</td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+<h3 id="_10">七、总结与贡献</h3>
+<ol>
+<li><strong>LongMemEval基准</strong>：500个问题、五项核心能力、七种问题类型、可自由扩展的聊天历史长度，比现有基准更全面、更具挑战性</li>
+<li><strong>统一框架</strong>：将长期记忆系统分解为索引-检索-阅读三阶段和四个控制点，统一了九种现有系统的视角</li>
+<li><strong>有效的优化策略</strong>：会话分解为轮次、事实增强键扩展、时间感知查询扩展、CoN+JSON阅读策略，共同大幅提升了性能</li>
+<li><strong>重要发现</strong>：现有商业系统和长上下文LLM在持续交互记忆上存在显著差距，凸显了更精密记忆机制的需求</li>
+</ol>
+<h2 id="_11">研究要点表</h2>
+<p>我准备好帮您分析学术论文并填写表格了。请提供论文内容，我会按照您给定的模板仔细提取信息并填写每个维度。</p>
+<h2 id="_12">原文摘要</h2>
 <p>Recent large language model (LLM)-driven chat assistant systems have integrated memory components to track user-assistant chat histories, enabling more accurate and personalized responses. However, their long-term memory capabilities in sustained interactions remain underexplored. We introduce LongMemEval, a comprehensive benchmark designed to evaluate five core long-term memory abilities of chat assistants: information extraction, multi-session reasoning, temporal reasoning, knowledge updates, and abstention. With 500 meticulously curated questions embedded within freely scalable user-assistant chat histories, LongMemEval presents a significant challenge to existing long-term memory systems, with commercial chat assistants and long-context LLMs showing a 30% accuracy drop on memorizing information across sustained interactions. We then present a unified framework that breaks down the long-term memory design into three stages: indexing, retrieval, and reading. Built upon key experimental insights, we propose several memory design optimizations including session decomposition for value granularity, fact-augmented key expansion for indexing, and time-aware query expansion for refining the search scope. Extensive experiments show that these optimizations greatly improve both memory recall and downstream question answering on LongMemEval. Overall, our study provides valuable resources and guidance for advancing the long-term memory capabilities of LLM-based chat assistants, paving the way toward more personalized and reliable conversational AI. Our benchmark and code are publicly available at  this https URL .</p></article>
 <aside class="detail-aside"><div class="report-toc" aria-label="文献卡片目录"><details open><summary>本页目录</summary><div class="toc">
 <ul>
 <li><a href="#_1">核心机制</a></li>
 <li><a href="#_2">适用范围与局限</a></li>
-<li><a href="#_3">原文摘要</a></li>
+<li><a href="#_3">详细解读</a><ul>
+<li><a href="#_4">论文核心总结</a></li>
+<li><a href="#_5">一、研究动机与背景</a></li>
+<li><a href="#longmemeval">二、LongMemEval基准</a></li>
+<li><a href="#_6">三、长期记忆助手的统一框架</a></li>
+<li><a href="#_7">四、实验结果</a></li>
+<li><a href="#_8">五、误差分析</a></li>
+<li><a href="#_9">六、论文的最终设计方案</a></li>
+<li><a href="#_10">七、总结与贡献</a></li>
+</ul>
+</li>
+<li><a href="#_11">研究要点表</a></li>
+<li><a href="#_12">原文摘要</a></li>
 </ul>
 </div>
 </details></div><section><h2>引用这篇论文</h2><p id="citation-text" class="citation-text">Di Wu, Hongwei Wang, Wenhao Yu, et al.. LongMemEval: Benchmarking Chat Assistants on Long-Term Interactive Memory. arXiv:2410.10813, 2024.</p><button class="button secondary" type="button" data-copy-citation>复制引用</button><p class="meta-note">综述参考文献 [42]</p></section><section><h2>同方向继续阅读</h2><ul class="related-list"><li><a href="../papers/2307.03172.html">Lost in the Middle: How Language Models Use Long Contexts</a></li><li><a href="../papers/2402.17753.html">Evaluating Very Long-Term Conversational Memory of LLM Agents</a></li><li><a href="../papers/2506.21605.html">MemBench: Towards More Comprehensive Evaluation on the Memory of LLM-based Agents</a></li><li><a href="../papers/2507.05257.html">Evaluating Memory in LLM Agents via Incremental Multi-Turn Interactions</a></li></ul></section></aside></div></div></main>

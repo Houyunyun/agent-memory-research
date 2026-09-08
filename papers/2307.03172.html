@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light"><title>Lost in the Middle: How Language Models Use Long Contexts · Agent Memory 研究</title>
 <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../assets/site.css">
-<script src="../assets/site.js" defer></script>
+<link rel="stylesheet" href="../assets/katex/katex.min.css"><script src="../assets/katex/katex.min.js" defer></script><script src="../assets/katex/auto-render.min.js" defer></script><script src="../assets/site.js" defer></script>
 </head>
 <body data-page="library">
 <a class="skip-link" href="#main">跳转到正文</a>
@@ -17,19 +17,145 @@
 <nav class="site-nav" aria-label="主导航"><a href="../index.html">研究总览</a><a href="../library.html" aria-current="page">文献库</a><a href="../reports/survey.html">综述全文</a><a href="../reports/multi-agent.html">多智能体专题</a><a href="../sources.html">阅读指南</a></nav>
 </div></header>
 <main id="main"><div class="page-wrap"><div class="breadcrumb"><a href="../library.html">文献库</a><span>/</span><a href="../library.html?topic=evaluation">评测与反证</a></div>
-<header class="paper-hero"><div class="paper-badges"><span class="muted">2023 · 2307.03172</span></div><h1>Lost in the Middle: How Language Models Use Long Contexts</h1><p class="paper-authors full-authors">Nelson F. Liu, Kevin Lin, John Hewitt, Ashwin Paranjape, Michele Bevilacqua, Fabio Petroni, Percy Liang</p>
+<header class="paper-hero"><div class="paper-badges"><span class="badge expanded">含详细解读</span><span class="muted">2023 · 2307.03172</span></div><h1>Lost in the Middle: How Language Models Use Long Contexts</h1><p class="paper-authors full-authors">Nelson F. Liu, Kevin Lin, John Hewitt, Ashwin Paranjape, Michele Bevilacqua, Fabio Petroni, Percy Liang</p>
 <div class="hero-actions paper-actions"><a href="https://arxiv.org/abs/2307.03172" target="_blank" rel="noopener noreferrer">论文原文 <span aria-hidden="true">↗</span></a><a href="../downloads/notes/2307.03172.md">下载文献卡片 Markdown</a></div></header>
 <div class="detail-layout"><article class="prose"><h2 id="_1">核心机制</h2>
 <p>分析相关信息位置对长上下文使用效果的影响</p>
 <h2 id="_2">适用范围与局限</h2>
 <p>早期模型结果不能直接推断当前全部模型</p>
-<h2 id="_3">原文摘要</h2>
+<h2 id="_3">详细解读</h2>
+<h3 id="_4">核心总结</h3>
+<p>这篇论文（"Lost in the Middle"）由斯坦福大学等机构的研究者发表，系统性地研究了当前大语言模型（LLM）在面对长输入上下文时，能否有效地利用其中的相关信息。研究者通过两个受控实验——多文档问答和键值对检索——发现了一个关键现象：语言模型的性能呈现出显著的<strong>U形曲线</strong>，即当相关信息位于输入上下文的开头或末尾时表现最好，而当相关信息位于中间部分时性能大幅下降。这一发现适用于几乎所有测试的模型（包括GPT-3.5-Turbo、Claude-1.3等），甚至那些专门设计为支持超长上下文的模型也未能幸免。论文还进一步探讨了模型架构、查询感知的上下文化以及指令微调对这一现象的影响，并通过开放域问答的案例研究指出，增加检索文档数量所带来的收益在远未达到检索器召回率饱和时就已经趋于饱和。</p>
+<hr />
+<h3 id="_5">详细讲解</h3>
+<h4 id="1">1. 研究背景与动机</h4>
+<p>近年来，大语言模型的上下文窗口不断扩大，从早期的512-2048个token发展到了4K、16K甚至100K个token。这些扩展主要得益于硬件提升（如更快更大显存的GPU）和算法改进（如FlashAttention、ALiBi位置编码等）。</p>
+<p>然而，一个关键问题被忽视了：<strong>模型能否真正有效地利用这些更长的上下文？</strong> 在实际应用中，语言模型经常需要处理长文档（法律文书、科学论文、对话历史等），或者通过检索增强生成（RAG）的方式将外部检索到的文档作为上下文输入。这些场景都要求模型能从长上下文中找到并利用关键信息。</p>
+<p>论文的核心假设是：<strong>如果语言模型能够稳健地使用长上下文中的信息，那么相关信息在上下文中的位置不应显著影响模型性能。</strong></p>
+<h4 id="2-multi-document-qa">2. 实验一：多文档问答（Multi-Document QA）</h4>
+<h5 id="21">2.1 任务设计</h5>
+<p>这个任务模拟了检索增强生成（RAG）的典型场景。具体设置如下：</p>
+<ul>
+<li><strong>输入</strong>：一个问题 + $k$ 篇文档，其中恰好有1篇包含答案，其余 $k-1$ 篇是"干扰文档"（distractor）</li>
+<li><strong>数据来源</strong>：NaturalQuestions-Open数据集，包含2655个Google搜索引擎的真实查询及人工标注的答案</li>
+<li><strong>干扰文档获取</strong>：使用Contriever（在MS-MARCO上微调）检索与查询最相关但不包含答案的Wikipedia段落</li>
+<li><strong>评估指标</strong>：准确率——判断模型输出中是否包含正确答案</li>
+</ul>
+<p><strong>两个关键控制变量</strong>：</p>
+<ol>
+<li><strong>上下文长度</strong>：通过改变文档数量 $k$（10、20、30篇）来调节</li>
+<li><strong>相关信息位置</strong>：通过调整文档排列顺序，将包含答案的文档放在开头、中间或末尾</li>
+</ol>
+<p>例如，在20篇文档的设置中（约4K token），研究者将包含答案的文档分别放在第1、5、10、15、20个位置，然后观察模型在每种情况下的表现。</p>
+<h5 id="22">2.2 测试模型</h5>
+<p>论文测试了多个当时最先进的模型：</p>
+<p><strong>开源模型</strong>：</p>
+<ul>
+<li>MPT-30B-Instruct（最大上下文8192 token，使用ALiBi位置编码）</li>
+<li>LongChat-13B (16K)（基于LLaMA-13B扩展到16384 token上下文）</li>
+</ul>
+<p><strong>闭源模型</strong>：</p>
+<ul>
+<li>GPT-3.5-Turbo（4K上下文）和GPT-3.5-Turbo (16K)</li>
+<li>Claude-1.3（8K上下文）和Claude-1.3 (100K)</li>
+</ul>
+<h5 id="23">2.3 核心发现</h5>
+<p><strong>发现一：U形性能曲线。</strong> 所有模型都呈现出明显的U形性能曲线。以20篇文档的GPT-3.5-Turbo为例：</p>
+<ul>
+<li>答案在第1篇文档（上下文开头）：准确率约75.8%</li>
+<li>答案在第10篇文档（上下文中间）：准确率约53.8%</li>
+<li>答案在第20篇文档（上下文末尾）：准确率约63.2%</li>
+</ul>
+<p>这意味着模型对开头信息有"首位偏好"（primacy bias），对末尾信息有"近因偏好"（recency bias），但对中间信息的利用能力显著下降。</p>
+<p>更令人惊讶的是，当相关信息在中间时，GPT-3.5-Turbo的表现（约53.8%）甚至<strong>低于其闭卷设置</strong>（不提供任何文档时为56.1%）。也就是说，提供了20篇文档反而不如不提供文档。</p>
+<p><strong>发现二：扩展上下文模型并不一定更好。</strong> 当输入长度都在基础模型的上下文窗口内时（如10篇和20篇文档都在GPT-3.5-Turbo的4K窗口内），GPT-3.5-Turbo和GPT-3.5-Turbo (16K)的性能几乎完全一致。同样，Claude-1.3和Claude-1.3 (100K)也表现出近乎相同的性能曲线。这说明<strong>简单扩大上下文窗口并不能改善模型对上下文信息的利用效率</strong>。</p>
+<h4 id="3-key-value-retrieval">3. 实验二：键值对检索（Key-Value Retrieval）</h4>
+<h5 id="31">3.1 任务设计</h5>
+<p>既然模型在多文档问答中表现不佳，研究者想进一步测试：模型是否连最基本的从上下文中"检索"信息的能力都有问题？</p>
+<p>为此，设计了一个更简单的合成任务：</p>
+<ul>
+<li><strong>输入</strong>：一个JSON格式的对象，包含 $k$ 个键值对（键和值都是随机生成的128位UUID），以及一个需要查找的键</li>
+<li><strong>任务</strong>：返回指定键对应的值</li>
+<li><strong>特点</strong>：完全去除了自然语言语义的干扰，模型只需要做精确匹配</li>
+</ul>
+<p>测试了75、140、300个键值对的设置（分别约4K、8K、16K token）。</p>
+<h5 id="32">3.2 结果</h5>
+<ul>
+<li><strong>Claude-1.3和Claude-1.3 (100K)</strong>在所有设置下几乎达到完美准确率</li>
+<li><strong>其他模型</strong>（GPT-3.5-Turbo、MPT-30B-Instruct等）在140和300个键值对时出现明显的U形曲线。例如，GPT-3.5-Turbo (16K)在300个键值对时，最差情况的准确率仅为45.6%</li>
+<li>这证实了即使是最简单的精确匹配检索任务，某些模型也难以从上下文中间位置获取信息</li>
+</ul>
+<h4 id="4">4. 原因分析</h4>
+<p>论文从三个角度进行了初步探索。</p>
+<h5 id="41-decoder-only-vs-encoder-decoder">4.1 模型架构的影响（Decoder-only vs. Encoder-Decoder）</h5>
+<p>之前测试的开源模型都是decoder-only架构（每个时间步只能关注之前的token）。研究者额外测试了encoder-decoder架构的模型：Flan-T5-XXL和Flan-UL2。</p>
+<p>关键发现：</p>
+<ul>
+<li>当输入序列长度<strong>在训练时的最大长度范围内</strong>时（例如Flan-UL2的encoder训练时用2048 token），encoder-decoder模型对信息位置变化<strong>非常鲁棒</strong>（最佳与最差性能仅差1.9%）</li>
+<li>但当输入序列<strong>超过训练时长度</strong>时，encoder-decoder模型也开始出现U形曲线</li>
+</ul>
+<p>研究者假设encoder-decoder模型表现更好的原因是：其<strong>双向编码器</strong>允许每篇文档在所有其他文档的上下文中被编码，从而更好地评估文档间的相对重要性。</p>
+<h5 id="42-query-aware-contextualization">4.2 查询感知上下文化（Query-Aware Contextualization）</h5>
+<p>在标准实验设置中，查询（问题或要检索的键）出现在所有文档/键值对<strong>之后</strong>。对于decoder-only模型，这意味着在编码文档时无法利用查询信息。</p>
+<p>研究者尝试将查询同时放在文档<strong>之前和之后</strong>，使模型在处理文档时已经"知道"要回答什么问题。</p>
+<p>结果：</p>
+<ul>
+<li>在键值对检索任务中效果<strong>极为显著</strong>——所有模型都达到了近乎完美的性能（例如GPT-3.5-Turbo (16K)从最差45.6%提升到100%）</li>
+<li>但在多文档问答中<strong>几乎没有改善</strong>——U形曲线依然存在</li>
+</ul>
+<p>这说明键值对检索是一个相对"浅层"的匹配任务，知道要找什么后就容易解决；而多文档问答需要更复杂的推理，仅仅知道问题还不够。</p>
+<h5 id="43">4.3 指令微调的影响</h5>
+<p>指令微调数据中，任务说明通常位于上下文开头，这可能导致模型更加关注开头信息。为验证这一假设，研究者对比了MPT-30B（基础模型）和MPT-30B-Instruct（指令微调后的模型）。</p>
+<p>结果出乎意料：<strong>两个模型都呈现U形曲线</strong>。虽然指令微调提升了绝对性能，并略微减少了最佳与最差性能间的差距（从约10%降至约4%），但U形趋势本身并非由指令微调引起。</p>
+<p>此外，对Llama-2模型（7B、13B、70B）的实验揭示了一个有趣的规律：</p>
+<ul>
+<li><strong>7B模型</strong>仅表现出近因偏好（只偏好末尾信息），不展现U形曲线</li>
+<li><strong>13B和70B模型</strong>展现出完整的U形曲线（同时有首位偏好和近因偏好）</li>
+<li>这暗示<strong>首位偏好（primacy bias）可能需要足够大的模型才能出现</strong>，这也解释了为什么之前的研究（通常使用&lt;1B参数的模型）只观察到了近因偏好</li>
+</ul>
+<h4 id="5">5. 实际应用案例：开放域问答</h4>
+<p>论文最后进行了一个更贴近实际的案例研究。在标准的检索器-阅读器（retriever-reader）框架下，用Contriever从Wikipedia检索top-$k$文档来回答NaturalQuestions-Open的问题。</p>
+<p>关键发现（如Figure 11所示）：</p>
+<ul>
+<li><strong>检索器召回率</strong>随检索文档数增加持续上升（从5篇到50篇显著增长）</li>
+<li><strong>阅读器（语言模型）准确率</strong>在检索约20篇文档后就基本饱和</li>
+<li>从20篇增加到50篇文档，GPT-3.5-Turbo仅提升约1.5%，Claude-1.3仅提升约1%</li>
+</ul>
+<p>这意味着在实际的RAG场景中，<strong>盲目增加检索文档数量并不能有效提升最终性能</strong>，因为模型无法有效利用额外的上下文。</p>
+<h4 id="6">6. 与心理学的联系</h4>
+<p>论文指出，观察到的U形曲线与心理学中的<strong>序列位置效应</strong>（serial-position effect，Ebbinghaus 1913; Murdock 1962）有着有趣的对应关系。人类在回忆列表中的项目时，也倾向于更好地记住开头（首因效应）和末尾（近因效应）的内容。但对于Transformer来说，这一现象尤其令人意外，因为自注意力机制在理论上对所有位置的token具有相同的访问能力。</p>
+<h4 id="7">7. 实际启示与建议</h4>
+<p>论文提出了几个实践层面的建议：</p>
+<ol>
+<li><strong>检索增强生成中的文档重排序</strong>：将最相关的文档放在上下文的开头或末尾，而非中间</li>
+<li><strong>检索列表截断</strong>：在适当时检索更少而非更多的文档</li>
+<li><strong>新的评估协议</strong>：未来声称长上下文能力的模型，需要证明其性能在不同信息位置下保持稳定（即最佳与最差性能差距最小化）</li>
+</ol>
+<h4 id="8">8. 论文贡献总结</h4>
+<ol>
+<li>通过受控实验首次系统性地揭示了语言模型在长上下文中"丢失中间信息"的现象</li>
+<li>证明扩展上下文窗口不等同于更好地利用上下文</li>
+<li>提出了encoder-decoder架构在训练长度范围内更鲁棒的发现</li>
+<li>展示了查询感知上下文化在简单任务中有效但在复杂任务中无效</li>
+<li>发现U形曲线与模型规模相关，首位偏好需要足够大的模型才出现</li>
+<li>在开放域问答中证明增加上下文并非总是有益</li>
+<li>提出了评估长上下文模型的新标准和协议</li>
+</ol>
+<h2 id="_6">研究要点表</h2>
+<p>我已准备好帮您分析学术论文并填写表格。请提供论文内容，我会按照您的要求严格按照表格模板填写各个维度的信息。</p>
+<h2 id="_7">原文摘要</h2>
 <p>While recent language models have the ability to take long contexts as input, relatively little is known about how well they use longer context. We analyze the performance of language models on two tasks that require identifying relevant information in their input contexts: multi-document question answering and key-value retrieval. We find that performance can degrade significantly when changing the position of relevant information, indicating that current language models do not robustly make use of information in long input contexts. In particular, we observe that performance is often highest when relevant information occurs at the beginning or end of the input context, and significantly degrades when models must access relevant information in the middle of long contexts, even for explicitly long-context models. Our analysis provides a better understanding of how language models use their input context and provides new evaluation protocols for future long-context language models.</p></article>
 <aside class="detail-aside"><div class="report-toc" aria-label="文献卡片目录"><details open><summary>本页目录</summary><div class="toc">
 <ul>
 <li><a href="#_1">核心机制</a></li>
 <li><a href="#_2">适用范围与局限</a></li>
-<li><a href="#_3">原文摘要</a></li>
+<li><a href="#_3">详细解读</a><ul>
+<li><a href="#_4">核心总结</a></li>
+<li><a href="#_5">详细讲解</a></li>
+</ul>
+</li>
+<li><a href="#_6">研究要点表</a></li>
+<li><a href="#_7">原文摘要</a></li>
 </ul>
 </div>
 </details></div><section><h2>引用这篇论文</h2><p id="citation-text" class="citation-text">Nelson F. Liu, Kevin Lin, John Hewitt, et al.. Lost in the Middle: How Language Models Use Long Contexts. arXiv:2307.03172, 2023.</p><button class="button secondary" type="button" data-copy-citation>复制引用</button><p class="meta-note">综述参考文献 [48]</p></section><section><h2>同方向继续阅读</h2><ul class="related-list"><li><a href="../papers/2402.17753.html">Evaluating Very Long-Term Conversational Memory of LLM Agents</a></li><li><a href="../papers/2410.10813.html">LongMemEval: Benchmarking Chat Assistants on Long-Term Interactive Memory</a></li><li><a href="../papers/2506.21605.html">MemBench: Towards More Comprehensive Evaluation on the Memory of LLM-based Agents</a></li><li><a href="../papers/2507.05257.html">Evaluating Memory in LLM Agents via Incremental Multi-Turn Interactions</a></li></ul></section></aside></div></div></main>

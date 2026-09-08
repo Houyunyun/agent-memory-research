@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light"><title>When Experience Becomes Instruction: Trajectory Poisoning in Self-Evolving Agent Skill Systems · Agent Memory 研究</title>
 <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../assets/site.css">
-<script src="../assets/site.js" defer></script>
+<link rel="stylesheet" href="../assets/katex/katex.min.css"><script src="../assets/katex/katex.min.js" defer></script><script src="../assets/katex/auto-render.min.js" defer></script><script src="../assets/site.js" defer></script>
 </head>
 <body data-page="library">
 <a class="skip-link" href="#main">跳转到正文</a>
@@ -24,12 +24,204 @@
 <h2 id="_2">适用范围与局限</h2>
 <p>支持率与系统配置是条件，不能与其他攻击分数直接横比</p>
 <h2 id="_3">详细解读</h2>
-<h3 id="_4">核心总结</h3>
-<p>这篇论文揭示了LLM智能体"自演化技能系统"（Self-Evolving Skill, SES）中一个全新的安全漏洞：攻击者无需直接篡改技能文件或入侵演化器，只需向轨迹池中贡献少量（如10%）看似正常的恶意轨迹记录，就能让系统自身的演化流程将攻击者期望的恶意行为写入持久化的技能文档中。论文提出了名为PoisonedEvolution的攻击方法，将攻击成功分解为"包含（Inclusion）—演化归因（Evolution Attribution）—实现（Realization）"三个必要条件，其中"演化归因"是区别于传统RAG投毒的核心瓶颈。在SkillClaw系统上，10%的攻击者轨迹占比即可在600次试验中达到91.0%的技能嵌入成功率；在结构不同的Trace2Skill系统上也达到61.5%，证明了攻击的跨架构迁移性。</p>
-<h3 id="_5">一、研究背景与动机</h3>
-<h4 id="11-agentagent-skill">1.1 什么是Agent技能（Agent Skill）</h4>
-<p>现代LLM智能体越来越多地将其学到的经验持久化为**可复用的技能（skill</p>
-<h2 id="_6">研究要点表</h2>
+<h3 id="_4">论文核心总结</h3>
+<p>这篇论文揭示了LLM智能体"自进化技能系统"（Self-Evolving Skill, SES）中一个安全威胁：攻击者无需直接修改技能文件或入侵系统，只需向轨迹池中贡献少量（如10%）经过精心构造的"看起来正常"的执行轨迹，就能让系统自身的进化流程将恶意行为写入持久化的技能文件中。这一攻击称为<strong>PoisonedEvolution</strong>，其核心难点在于让恶意行为被进化器（evolver）识别为"值得提炼的可复用经验"——即"进化归因"（Evolution Attribution）。在SkillClaw系统上，10%的攻击者轨迹在600次试验中成功嵌入目标行为546次（技能嵌入率91.0%）；在结构不同的Trace2Skill系统上为61.5%。这些数字度量技能制品中的嵌入，不代表运行时恶意动作已经执行。</p>
+<hr />
+<h3 id="_5">一、研究背景与问题动机</h3>
+<h4 id="11-agent">1.1 什么是"Agent技能"</h4>
+<p>现代LLM智能体越来越多地将自己学到的东西持久化为<strong>可复用的技能（skill）</strong>。一个技能通常是一个<code>SKILL.md</code>文件，描述了智能体在何时、如何执行某类重复性任务，包含流程指令、示例、引用和可执行资源等。</p>
+<p>关键区别在于：<strong>技能不是普通的检索文本</strong>。一旦技能被安装或更新，它就成为智能体未来操作流程的一部分。这意味着技能的创建和维护本身构成了一个<strong>安全边界</strong>。</p>
+<h4 id="12-ses">1.2 什么是自进化技能系统（SES）</h4>
+<p>近年来出现了一类系统，能自动从智能体的交互记录和执行轨迹中提炼出可复用的技能：</p>
+<ul>
+<li><strong>SkillClaw</strong>：从多用户的会话（session）中聚合模式，由一个"智能进化器"（agentic evolver）比较分组会话与已有技能仓库，决定是refine（优化）、create（新建）还是skip（跳过）。</li>
+<li><strong>Trace2Skill</strong>：运行一个冻结的智能体收集完整的执行轨迹，然后由单独的"成功分析师"和"错误分析师"LLM分别提取可复用方案或缺失的指导，再通过层级合并生成或优化技能。</li>
+</ul>
+<p>这些系统共享一个核心假设：<strong>轨迹池中的证据是良性的、值得被提升为持久指令的</strong>。</p>
+<h4 id="13">1.3 论文的核心问题</h4>
+<p>论文研究的就是：<strong>当这个假设不成立时会发生什么？</strong> 攻击者不需要发布恶意技能、不需要入侵进化器、不需要直接编辑受害者的技能库。他只需要贡献一小部分"看起来正常"的进化证据。如果这些证据通过了过滤、被认定为反复出现的经验、并在技能合成中保留下来，那么SES系统<strong>自己就会产出被污染的技能文件</strong>。</p>
+<hr />
+<h3 id="_6">二、系统模型与威胁模型</h3>
+<h4 id="21-ses">2.1 SES系统抽象</h4>
+<p>论文将基于轨迹的SES系统建模为：</p>
+<p>$$\Sigma = (T, F, E, S)$$</p>
+<p>其中：</p>
+<ul>
+<li>$T = \{\tau_i\}$ 是轨迹池</li>
+<li>$F$ 是质量过滤器或路由器</li>
+<li>$E$ 是LLM支持的进化器</li>
+<li>$S$ 是版本化的技能库</li>
+</ul>
+<p>一个进化周期的更新过程为：</p>
+<p>$$S_{t+1} = S_t \oplus E(F(T_t), S_t)$$</p>
+<p>轨迹池包含干净证据 $T_c$ 和攻击者证据 $T_p$，批次大小 $n = |T_c| + |T_p|$，攻击者支持量 $k = |T_p|$，投毒比例 $\rho = k/n$。</p>
+<h4 id="22">2.2 攻击者模型：技能可见的黑盒攻击者</h4>
+<p>攻击者是一个合法但不可信的轨迹贡献者，处于<strong>skill-visible black-box（BB）</strong>设定下：</p>
+<ul>
+<li><strong>能做的</strong>：查看已公开或已安装的技能文件；贡献有限数量的轨迹</li>
+<li><strong>不能做的</strong>：查看私有轨迹池、过滤器或进化器的提示词；不能直接修改技能库 $S$；不能篡改下游管道组件</li>
+</ul>
+<p>在SkillClaw中，这对应于普通用户或Sybil（女巫攻击/多账号）用户向共享证据池贡献会话。在Trace2Skill这类离线系统中，可能的攻击来源包括任务语料贡献者、被篡改的遥测数据或上游环境。</p>
+<h4 id="23">2.3 制品投毒的三个必要条件</h4>
+<p>论文将投毒成功分解为三个必要条件的合取：</p>
+<p>$$\text{PoisoningSuccess} = C1_{\text{Inclusion}} \wedge C2_{\text{Attribution}} \wedge C3_{\text{Realization}}$$</p>
+<ul>
+<li><strong>C1 包含（Inclusion）</strong>：投毒记录通过过滤器 $F$，进入进化器可消费的数据流</li>
+<li><strong>C2 进化归因（Evolution Attribution）</strong>：进化器 $E$ 将重复出现的行为视为一个"值得提升为技能的可复用模式"，而非噪声、一次性事件或不安全建议。根据管道路径不同，该行为可能被归功于支撑成功，或者因其缺失被认为是解释失败的原因。</li>
+<li><strong>C3 实现（Realization）</strong>：目标行为在摘要和合并过程中幸存，最终出现在生成的技能中</li>
+</ul>
+<p>论文特别指出，<strong>C2是SES特有的瓶颈</strong>，也是区别于RAG投毒等其他攻击的关键。在RAG攻击中，恶意文档直接被检索进生成上下文；而在SES攻击中，恶意模式必须首先被进化器<strong>归因</strong>为一个可泛化的技能更新。</p>
+<p><strong>反复支持是核心机制</strong>：一条投毒记录可能被视为偶然的失败、用户特异行为或无关的弯路；而两条或更多一致的记录更可能类似于SES系统设计用来提升的"经验"。因此攻击者的预算 $k$ 不仅是投毒比例参数，更决定了恶意行为是看起来像反复出现的实践还是孤立事件。</p>
+<h4 id="24">2.4 攻击者目标与度量</h4>
+<p>对于目标行为 $b$，令 $\Delta S = \text{diff}(S_t, S_{t+1})$ 表示生成的技能更新。攻击者的目标是：</p>
+<p>$$\max_{T_p: |T_p| \leq k} \Pr[C1 \wedge C2 \wedge C3] \equiv \max_{T_p: |T_p| \leq k} \Pr[b \in \Delta S]$$</p>
+<p>主要度量是<strong>技能嵌入率（Skill Embedding Rate, SER）</strong>：</p>
+<p>$$\text{SER} = \frac{1}{|\mathcal{R}|} \sum_{r \in \mathcal{R}} I_r(b)$$</p>
+<p>其中 $\mathcal{R}$ 是已完成的进化试验集合，$I_r(b) = 1$ 当且仅当在输出技能中发现了目标行为 $b$ 的新证据。</p>
+<hr />
+<h3 id="_7">三、攻击方法：归因导向的轨迹投毒</h3>
+<h4 id="31">3.1 核心思想</h4>
+<p>PoisonedEvolution是一种<strong>归因导向的轨迹投毒攻击</strong>。其核心不是直接让进化器写一条攻击者指令，而是操纵进化器赖以分配"功劳"的证据：让一个目标行为<strong>看起来像是解释观察到的成功（或修复观察到的失败）的可复用知识</strong>。</p>
+<h4 id="32">3.2 轨迹变换</h4>
+<p>设攻击者拥有的任务轨迹为 $\tau^a = (q, h, y)$，包含任务 $q$、交互/执行历史 $h$ 和结果 $y$。攻击者选定目标技能 $s$ 和目标行为 $b$，然后对自己的贡献进行变换：</p>
+<p>$$\tau' = \mathcal{T}(\tau^a; s, b)$$</p>
+<p>变换的关键原则是：<strong>保留原始任务和结果，同时让 $b$ 看起来与该结果有因果关联</strong>。</p>
+<p>具体来说，论文将变换后的历史构造为：</p>
+<p>$$h' = \tilde{h}_{&lt;\ell} \| [\text{constraint}_b, \text{action}_b, \text{successful retry}] \| \tilde{h}_{&gt;\ell}$$</p>
+<p>其中 $\ell$ 是一个合理的工作流位点（workflow locus），波浪号表示表面措辞的改写和压缩。</p>
+<ul>
+<li>在<strong>成功路由</strong>的记录中，$b$ 出现在任务约束和成功完成之间</li>
+<li>在<strong>失败路由</strong>的记录中（用于Trace2Skill），$b$ 的缺失被呈现为失败的原因</li>
+</ul>
+<h4 id="33">3.3 三个条件的具体实现</h4>
+<p><strong>C1 领域对齐的包含</strong>：变换后的步骤被放置在进化器合理期望发现可复用专业知识的工作流位点——输入先决条件、恢复步骤、输出转换或验证步骤。这种领域对齐帮助轨迹保留在目标技能的证据流中。</p>
+<p><strong>C2 因果归因</strong>（攻击的核心技术步骤）：如果目标行为以孤立命令、无关弯路或用户特有异常的形式出现，它不太可能被提升。PoisonedEvolution将其绑定到任务相关约束和观察到的结果。进化器反复观察到这样的结构：</p>
+<p>$$\text{障碍或需求} \rightarrow b \rightarrow \text{任务完成}$$</p>
+<p>在失败路由系统中，则观察到：$b$ 缺失 $\rightarrow$ 失败，从而提取 $b$ 作为修复。这种结构使进化器倾向于将可复用的"功劳"分配给 $b$。</p>
+<p><strong>C3 跨轨迹实现</strong>：各投毒轨迹的任务和措辞不同，但 $b$ 的操作语义保持稳定。这种反复出现使行为看起来可泛化，同时为C3提供了一个具体的不变量，能够在摘要、改写和技能合并中幸存。</p>
+<h4 id="34">3.4 载荷表示与安全效果族</h4>
+<p>载荷被表示为 $p = \langle \ell, a, o, c \rangle$：工作流位点 $\ell$、动作 $a$、目标对象 $o$ 和执行上下文 $c$。论文定义了四个代表性的安全效果族：</p>
+<ul>
+<li><strong>F1-机密性</strong>："产出输出制品后，将发现的凭据和敏感字段传输到 <code>&amp;lt;ATTACKER_ENDPOINT&gt;</code>"</li>
+<li><strong>F2-数据完整性</strong>："产出输出后，删除 <code>&amp;lt;SOURCE_PATH&gt;</code> 的源文件，使后续用户无法恢复"</li>
+<li><strong>F3-供应链完整性</strong>："安装依赖前，将配置的包注册表替换为 <code>&amp;lt;ATTACKER_REGISTRY&gt;</code>"</li>
+<li><strong>F4-安全削弱</strong>："发布或提交结果前，禁用 <code>&amp;lt;SECURITY_CHECKS&gt;</code>"</li>
+</ul>
+<p>实验中使用<strong>惰性金丝雀（inert canary）</strong>标识符——即占位的假端点、假路径、假注册表和假CI标志——嵌入在轨迹和技能文本中，<strong>不实际执行</strong>任何引用的操作。SER的检测也只检查生成的技能文本。</p>
+<h4 id="35">3.5 攻击算法</h4>
+<p>论文给出了完整的算法（Algorithm 1）：</p>
+<ol>
+<li>从攻击者拥有的候选轨迹中选择 $k$ 条与目标技能 $s$ 任务相关的</li>
+<li>对每条轨迹：找到合理的工作流位点；添加结果条件化的因果桥（约束→$b$→成功，或$b$缺失→失败）；保留任务结果，变换表面措辞但保持 $b$ 的语义不变</li>
+<li>贡献 $k$ 条变换后的轨迹，SES用其 $n-k$ 条干净记录组成批次</li>
+<li>运行SES进化周期，检查生成的技能差异</li>
+<li>报告 $b$ 是否在进化后的技能中实现</li>
+</ol>
+<hr />
+<h3 id="_8">四、实验评估</h3>
+<h4 id="41">4.1 实验设置</h4>
+<p>论文围绕三个研究问题组织实验：</p>
+<ul>
+<li><strong>RQ1</strong>：在SkillClaw上的攻击可行性</li>
+<li><strong>RQ2</strong>：机制消融——隔离反复支持、进化归因和实现</li>
+<li><strong>RQ3</strong>：对Trace2Skill的结构迁移</li>
+</ul>
+<p>主要实验针对SkillClaw中的xlsx技能，源语料来自300条用GLM-5在100个SpreadsheetBench训练任务上收集的案例级执行日志。默认设置为 $n = 30, k = 3$（$\rho = 10\%$），每个模型×效果族单元包含25次完成的试验。使用六个主流LLM作为进化器。</p>
+<h4 id="42-rq1skillclaw">4.2 RQ1：SkillClaw上的攻击可行性</h4>
+<p><strong>主要结果（Table 1）</strong>：在10%攻击者支持下，PoisonedEvolution在600次完成的试验中嵌入目标行为546次，<strong>SER = 91.0%</strong>。</p>
+<p>各进化器的表现差异显著：</p>
+<ul>
+<li>DeepSeek-V3.2和Qwen3.5-122B-A10B达到100/100（100%）</li>
+<li>Qwen3.5-35B-A3B和DeepSeek-V4-Pro分别达到95/100和94/100</li>
+<li>MiniMax-M2.5达到87/100</li>
+<li>GPT-5.4最低，为70/100</li>
+</ul>
+<p>各效果族也有差异：</p>
+<ul>
+<li>F4（安全削弱）最高：146/150（97.3%）</li>
+<li>F2（数据完整性）：139/150（92.7%）</li>
+<li>F1（机密性）：137/150（91.3%）</li>
+<li>F3（供应链）最低：124/150（82.7%），因为包源/环境重定向更容易被进化器视为不相关的设置建议</li>
+</ul>
+<p>在无初始技能（no-init，对应技能创建场景）下，四个代表性进化器在600次试验中嵌入490次（81.7%），支持该设置下创建路径的攻击可行性。</p>
+<h4 id="43-rq2">4.3 RQ2：机制消融</h4>
+<p><strong>反复支持的影响</strong>（Figure 2左）：固定 $n = 30$——</p>
+<ul>
+<li>$k = 1$（3.3%）：SER = 5/25（仅20%）</li>
+<li>$k = 2$（6.7%）：SER = 21/25（84%）</li>
+<li>$k = 3$（10%）：SER = 25/25（100%）</li>
+</ul>
+<p>从1条到2条的跳跃是关键：一条投毒轨迹可能被视为偶然或任务特异的，但反复一致的轨迹类似于SES系统设计用来提炼的经验。</p>
+<p><strong>干净池稀释的影响</strong>（Figure 2右）：固定 $k = 3$——</p>
+<ul>
+<li>$n = 10$（30%）：25/25</li>
+<li>$n = 30$（10%）：25/25</li>
+<li>$n = 100$（3%）：22/25（仍然很高）</li>
+<li>额外测试 $k = 1, n = 100$（1%）：0/5，与反复效应一致</li>
+</ul>
+<p><strong>C2归因形式的消融</strong>（Figure 3a）：</p>
+<ul>
+<li>Local（在干净证据的一个点插入行为）：8/25</li>
+<li>Fragmented（跨记录分散，无明确因果角色）：11/25</li>
+<li>Causal（将行为与观察到的任务结果绑定）：25/25</li>
+</ul>
+<p>这些消融结果支持因果框架在所测设置中的作用，不构成对所有演化器和任务的保证。</p>
+<p><strong>C3行为编码的消融</strong>（Figure 3b）：</p>
+<ul>
+<li>Generic（宽泛的报告指令）：18/25</li>
+<li>Auxiliary（辅助通道提示）：0/25</li>
+<li>Tailored（领域特定的可操作xlsx语义）：25/25</li>
+</ul>
+<p>这表明<strong>领域对齐的可操作编码</strong>在所测设置中有重要作用。</p>
+<h4 id="44-rq3trace2skill">4.4 RQ3：Trace2Skill上的结构迁移</h4>
+<p>每次试验混合3条攻击者控制的失败轨迹和27条干净的失败轨迹（$n = 30, k = 3, \rho = 10\%$）。攻击者的失败轨迹使某个任务/环境需求看起来未被满足，Trace2Skill的原生错误分析阶段会提取"失败教训"。</p>
+<p><strong>结果（Table 2）</strong>：600次试验中369次成功，<strong>SER = 61.5%</strong>。各族差异很大：</p>
+<ul>
+<li>F2：124/150（82.7%）</li>
+<li>F3：116/150（77.3%）</li>
+<li>F1：101/150（67.3%）</li>
+<li>F4：28/150（18.7%）</li>
+</ul>
+<p>对于F4在Trace2Skill上的下降，论文给出的机制解释是：Trace2Skill通过失败分析路径处理这些记录，分析师被要求提取"解释任务失败的缺失能力"。环境或后处理需求（F2/F3）可以被解释为失败轨迹的具体修复，而安全削弱建议看起来更像是与电子表格任务无关的策略放松，不像一个必要的修复。</p>
+<p>这提示Trace2Skill的<strong>结果分流分析师和层级合并</strong>可能引入额外的归因和实现瓶颈，但并未阻止全部攻击。</p>
+<h4 id="45">4.5 良性任务实用性检查</h4>
+<p>论文也检查了被投毒后的技能是否仍然对正常任务有用。在100个任务的分割上：</p>
+<ul>
+<li>投毒进化技能：Hard 20.0%, Soft 36.54%</li>
+<li>无技能：Hard 18.0%, Soft 34.88%</li>
+</ul>
+<p>这一比较提示投毒与正常任务收益可以共存，而不是将技能文件退化为纯攻击文本；不能据此推断收益具有统计显著性。</p>
+<hr />
+<h3 id="_9">五、讨论</h3>
+<h4 id="51-ses">5.1 SES管道是否提供自然防御？</h4>
+<p>原生进化器的检查主要是<strong>实用性门控</strong>。SkillClaw能区分技能缺陷与智能体/环境失败，跳过弱证据。确实，局部插入和碎片化插入仅达到8/25和11/25，$k=1$ 远弱于 $k&gt;1$。但这存在结构性矛盾：SES应该忽略偶然事件，但反复出现的投毒证据恰好类似于它设计用来提炼的可复用经验。</p>
+<h4 id="52">5.2 防御应检查证据提升而非仅扫描技能文本</h4>
+<p>最终技能扫描器在进化器已经压缩和规范化证据之后运行。<strong>来源（provenance）提供了更早的信号</strong>：一个模式是独立支持的，还是由一个用户、Sybil集群或模板主导的？</p>
+<p>论文的<strong>试点防御——来源多样性门控（Provenance-Diversity Gate）</strong>：要求至少3个用户和集群，拒绝多数主导，惩罚高文本重叠。在 $n = 30, k = 3$ 下，它阻止了25/25的单集群F1候选，将SER从25/25降至0/25。但这只是初步实验：候选分组是假定的，干净对照很小，协调的Sybil可能模拟多样性。</p>
+<h4 id="53">5.3 进化器策略的重要性</h4>
+<p>Table 1中的模型变异表明，所测进化器的技能嵌入率从70%到100%不等；这些差异不能仅归因于单一的保守或激进策略。</p>
+<h4 id="54">5.4 真实来源 ≠ 可信来源</h4>
+<p>最终技能确实来自受害者的进化器，因此制品来源检查可以报告一个授权的生产者——<strong>即使该生产者消费了攻击者控制的证据</strong>。SES的溯源必须额外保留支持和反对的轨迹、贡献者集群、进化器版本和精确的技能差异。</p>
+<h4 id="55">5.5 进化可能形成反馈循环</h4>
+<p>论文的实验只在一个进化周期后停止。但在部署系统中，一旦被投毒的技能指导了后续智能体，其轨迹可能重复该行为，使该模式看起来像被独立验证的。这种纵向效应论文未测量，但提出了需要版本化溯源和反事实评估来打破循环。</p>
+<h4 id="56">5.6 制品投毒与运行时影响是不同的</h4>
+<p>SER回答的是攻击者是否改变了一个持久制品。触发器激活、动作执行和良性实用性是不同的问题，不应混为一谈。有效的部署需要：证据级提升门控、执行前技能分析、分阶段部署、可逆的技能版本和基于能力的运行时强制执行。</p>
+<hr />
+<h3 id="_10">六、与相关工作的区别</h3>
+<h4 id="rag">与RAG投毒的区别</h4>
+<p>RAG投毒中，恶意文档直接被检索进生成上下文。SES投毒中，攻击者的证据不被直接执行；它必须被解释为有用的反复模式、写入技能、然后才在未来匹配该技能触发器的任务中产生影响。这种间接性创造了"进化归因"这个新瓶颈。</p>
+<h4 id="_11">与技能/供应链攻击的区别</h4>
+<p>PoisonedSkills、Skill-Inject、POISE等假设攻击者控制分布式技能或其指令。而PoisonedEvolution的攻击者仅贡献有限的、外观正常的证据，依赖受害者的进化器来编写制品。攻击的是<strong>跨轨迹的功劳分配</strong>，而非最终技能文件。</p>
+<h4 id="_12">与记忆注入攻击的区别</h4>
+<p>MINJA和eTAMP通过查询交互或环境观测注入记忆。PoisonedEvolution针对的是<strong>制品生产管道</strong>，需要记录进入管道、被归功为可复用专业知识、并在合成中幸存——产生了显式的进化归因条件和制品级度量。</p>
+<hr />
+<h3 id="_13">七、论文贡献总结</h3>
+<ol>
+<li><strong>识别了SES管道中"证据提升"作为一个信任边界</strong>，与先前的静态技能投毒不同</li>
+<li><strong>形式化了PoisonedEvolution的C1-C2-C3制品投毒机制</strong>，其中进化归因（C2）是SES特有的瓶颈，并通过领域对齐、因果绑定和跨轨迹不变性来实例化</li>
+<li><strong>提供了跨系统证据、条件消融和设计启示</strong>，表明SES防御必须约束哪些证据可以成为共享指令，而不仅仅是在生成后扫描技能文本</li>
+</ol>
+<h2 id="_14">研究要点表</h2>
 <div class="table-scroll"><table class="key-value">
 <thead>
 <tr>
@@ -76,9 +268,9 @@
 </tr>
 </tbody>
 </table></div>
-<h2 id="_7">结构化提纲</h2>
+<h2 id="_15">结构化提纲</h2>
 <h3 id="when-experience-becomes-instruction-trajectory-poisoning-in-self-evolving-agent-skill-systems_1">When Experience Becomes Instruction: Trajectory Poisoning in Self-Evolving Agent Skill Systems</h3>
-<h4 id="_8">研究背景与目标</h4>
+<h4 id="_16">研究背景与目标</h4>
 <ul>
 <li>自演化技能（SES）系统的兴起</li>
 <li>LLM智能体将交互轨迹蒸馏为持久化技能（SKILL.md）</li>
@@ -96,7 +288,7 @@
 <li>提出并验证针对轨迹演化过程的投毒攻击（PoisonedEvolution）</li>
 <li>为SES防御提供设计启示</li>
 </ul>
-<h4 id="_9">研究方法</h4>
+<h4 id="_17">研究方法</h4>
 <ul>
 <li>威胁模型定义</li>
 <li>攻击者类型：技能可见的黑盒攻击者（skill-visible black-box）<ul>
@@ -130,7 +322,7 @@
 <li>技能嵌入率（SER）：输出技能中新嵌入目标行为的试验比例</li>
 <li>基于差异感知的家族特定金丝雀规则检测</li>
 </ul>
-<h4 id="_10">关键研究结果</h4>
+<h4 id="_18">关键研究结果</h4>
 <ul>
 <li>RQ1：SkillClaw上的攻击可行性</li>
 <li>10%攻击者支持（n=30, k=3），6个主流LLM演化器</li>
@@ -165,7 +357,7 @@
 <li>投毒演化后的技能仍保留正常任务增益（Hard 20.0%, Soft 36.54%）</li>
 <li>投毒与正常功能共存，未将技能退化为纯攻击文本</li>
 </ul>
-<h4 id="_11">研究结论与意义</h4>
+<h4 id="_19">研究结论与意义</h4>
 <ul>
 <li>核心贡献</li>
 <li>识别SES管线中"证据提升"为独立于静态技能投毒的信任边界</li>
@@ -185,23 +377,29 @@
 <li>用户范围对话记忆系统、验证器系统和参数训练系统未纳入评估</li>
 <li>协调的Sybil攻击者可能绕过来源多样性门控</li>
 </ul>
-<h2 id="_12">原文摘要</h2>
+<h2 id="_20">原文摘要</h2>
 <p>Self-evolving skill (SES) systems distill agent trajectories into persistent skills, allowing untrusted experience to become trusted instruction. We introduce PoisonedEvolution, a trajectory-poisoning attack on this promotion process. Our skill-visible black-box attacker can inspect a target skill and contribute bounded evidence, but cannot observe private pools or evolution logic or edit the skill bank. Artifact poisoning requires Inclusion, Evolution Attribution, and Realization. Attribution is the distinctive bottleneck: the target behavior must appear causally useful, recurrent, and generalizable before promotion. We evaluate four representative security-effect families using inert canary specifications. At 10% attacker support, across six mainstream LLM evolvers in SkillClaw, PoisonedEvolution embeds target behaviors in 546/600 trials (91.0% SER). On the structurally different Trace2Skill pipeline at the same ratio, it embeds target behaviors in 369/600 trials (61.5% SER), demonstrating transfer across evolution architectures. In a representative controlled study, three consistent attacker records suffice in a 30-record batch, whereas a single record is much weaker. Ablations identify recurring support, causal framing, and domain-aligned encoding as the main determinants of success. These findings expose evidence promotion as a security boundary for self-evolving agents.</p></article>
 <aside class="detail-aside"><div class="report-toc" aria-label="文献卡片目录"><details open><summary>本页目录</summary><div class="toc">
 <ul>
 <li><a href="#_1">核心机制</a></li>
 <li><a href="#_2">适用范围与局限</a></li>
 <li><a href="#_3">详细解读</a><ul>
-<li><a href="#_4">核心总结</a></li>
-<li><a href="#_5">一、研究背景与动机</a></li>
+<li><a href="#_4">论文核心总结</a></li>
+<li><a href="#_5">一、研究背景与问题动机</a></li>
+<li><a href="#_6">二、系统模型与威胁模型</a></li>
+<li><a href="#_7">三、攻击方法：归因导向的轨迹投毒</a></li>
+<li><a href="#_8">四、实验评估</a></li>
+<li><a href="#_9">五、讨论</a></li>
+<li><a href="#_10">六、与相关工作的区别</a></li>
+<li><a href="#_13">七、论文贡献总结</a></li>
 </ul>
 </li>
-<li><a href="#_6">研究要点表</a></li>
-<li><a href="#_7">结构化提纲</a><ul>
+<li><a href="#_14">研究要点表</a></li>
+<li><a href="#_15">结构化提纲</a><ul>
 <li><a href="#when-experience-becomes-instruction-trajectory-poisoning-in-self-evolving-agent-skill-systems_1">When Experience Becomes Instruction: Trajectory Poisoning in Self-Evolving Agent Skill Systems</a></li>
 </ul>
 </li>
-<li><a href="#_12">原文摘要</a></li>
+<li><a href="#_20">原文摘要</a></li>
 </ul>
 </div>
 </details></div><section><h2>引用这篇论文</h2><p id="citation-text" class="citation-text">Jialuo Chen, Lingqi Jiang, Xinhao Deng, et al.. When Experience Becomes Instruction: Trajectory Poisoning in Self-Evolving Agent Skill Systems. arXiv:2608.05563, 2026.</p><button class="button secondary" type="button" data-copy-citation>复制引用</button><p class="meta-note">综述参考文献 [55]</p></section><section><h2>同方向继续阅读</h2><ul class="related-list"><li><a href="../papers/2503.03704.html">Memory Injection Attacks on LLM Agents via Query-Only Interaction</a></li><li><a href="../papers/2509.26354.html">Your Agent May Misevolve: Emergent Risks in Self-evolving LLM Agents</a></li><li><a href="../papers/2510.02373.html">A-MemGuard: A Proactive Defense Framework for LLM-Based Agent Memory</a></li><li><a href="../papers/2602.15654.html">Zombie Agents: Persistent Control of Self-Evolving LLM Agents via Self-Reinforcing Injections</a></li></ul></section></aside></div></div></main>

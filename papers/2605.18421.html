@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light"><title>EvoMemBench: Benchmarking Agent Memory from a Self-Evolving Perspective · Agent Memory 研究</title>
 <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../assets/site.css">
-<script src="../assets/site.js" defer></script>
+<link rel="stylesheet" href="../assets/katex/katex.min.css"><script src="../assets/katex/katex.min.js" defer></script><script src="../assets/katex/auto-render.min.js" defer></script><script src="../assets/site.js" defer></script>
 </head>
 <body data-page="library">
 <a class="skip-link" href="#main">跳转到正文</a>
@@ -17,19 +17,375 @@
 <nav class="site-nav" aria-label="主导航"><a href="../index.html">研究总览</a><a href="../library.html" aria-current="page">文献库</a><a href="../reports/survey.html">综述全文</a><a href="../reports/multi-agent.html">多智能体专题</a><a href="../sources.html">阅读指南</a></nav>
 </div></header>
 <main id="main"><div class="page-wrap"><div class="breadcrumb"><a href="../library.html">文献库</a><span>/</span><a href="../library.html?topic=evaluation">评测与反证</a></div>
-<header class="paper-hero"><div class="paper-badges"><span class="muted">2026 · 2605.18421</span></div><h1>EvoMemBench: Benchmarking Agent Memory from a Self-Evolving Perspective</h1><p class="paper-authors full-authors">Yuyao Wang, Zhongjian Zhang, Mo Chi, Kaichi Yu, Yuhan Li, Miao Peng, Bing Tong, Chen Zhang, Yan Zhou, Jia Li</p>
+<header class="paper-hero"><div class="paper-badges"><span class="badge expanded">含详细解读</span><span class="muted">2026 · 2605.18421</span></div><h1>EvoMemBench: Benchmarking Agent Memory from a Self-Evolving Perspective</h1><p class="paper-authors full-authors">Yuyao Wang, Zhongjian Zhang, Mo Chi, Kaichi Yu, Yuhan Li, Miao Peng, Bing Tong, Chen Zhang, Yan Zhou, Jia Li</p>
 <div class="hero-actions paper-actions"><a href="https://arxiv.org/abs/2605.18421" target="_blank" rel="noopener noreferrer">论文原文 <span aria-hidden="true">↗</span></a><a href="../downloads/notes/2605.18421.md">下载文献卡片 Markdown</a></div></header>
 <div class="detail-layout"><article class="prose"><h2 id="_1">核心机制</h2>
 <p>episode 内/跨 episode 与知识/执行两轴，比较多种记忆</p>
 <h2 id="_2">适用范围与局限</h2>
 <p>强长上下文有竞争力；部分简单任务记忆负收益</p>
-<h2 id="_3">原文摘要</h2>
+<h2 id="_3">详细解读</h2>
+<h3 id="evomembench">EvoMemBench 论文详解</h3>
+<h4 id="_4">核心内容概述</h4>
+<p>这篇论文提出了 <strong>EvoMemBench</strong>，一个专门用于评估大语言模型（LLM）智能体"记忆能力"的基准测试框架。作者从"自演化记忆"的视角出发，将记忆评估组织在两个维度上：<strong>记忆范围</strong>（单轮内 vs. 跨轮次）和<strong>记忆内容</strong>（知识导向 vs. 执行导向），形成四个评测子任务，并对 15 种代表性记忆方法进行了系统比较。核心结论是：当前所有记忆方法都远未达到"通用解决方案"的水平——强大的长上下文基线模型依然极具竞争力，记忆机制只在特定场景（上下文不足、任务困难、经验与任务结构匹配）下才能带来明显提升，且没有任何单一记忆形式能在所有场景下都表现最优。</p>
+<hr />
+<h3 id="_5">一、研究背景与动机</h3>
+<h4 id="11-llm">1.1 LLM 智能体的无状态问题</h4>
+<p>现代 LLM 本质上是<strong>无状态</strong>的：它们只能处理当前输入上下文中的信息，无法跨交互维护或更新持久状态。常见的应对方式是把历史交互、环境观测和工具输出都拼接到 prompt 里，但这种做法有明显局限——随着历史增长，内容很快就会超出有限的上下文窗口（context window）。</p>
+<p>因此，真正有效的智能体记忆需要具备<strong>持续更新、组织和复用</strong>信息的能力，而不仅仅是存储过去的信息。</p>
+<h4 id="12">1.2 现有评测基准的不足</h4>
+<p>作者梳理了已有的记忆评测工作，发现它们各有侧重但存在明显盲区：</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>基准</th>
+<th>单轮内知识演化</th>
+<th>单轮内执行演化</th>
+<th>跨轮次知识演化</th>
+<th>跨轮次执行演化</th>
+<th>开源</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LoCoMo</td>
+<td>✓</td>
+<td>✗</td>
+<td>✗</td>
+<td>✗</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>LongMemEval</td>
+<td>✓</td>
+<td>✗</td>
+<td>✗</td>
+<td>✗</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>MemoryAgentBench</td>
+<td>✓</td>
+<td>✗</td>
+<td>✗</td>
+<td>✗</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>StuLife</td>
+<td>✗</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>MemoryBench</td>
+<td>✓</td>
+<td>✗</td>
+<td>✓</td>
+<td>✗</td>
+<td>✗</td>
+</tr>
+<tr>
+<td>Evo-Memory</td>
+<td>✗</td>
+<td>✗</td>
+<td>✓</td>
+<td>✓</td>
+<td>✗</td>
+</tr>
+<tr>
+<td>MemoryArena</td>
+<td>✓</td>
+<td>✓</td>
+<td>✗</td>
+<td>✗</td>
+<td>✓</td>
+</tr>
+<tr>
+<td><strong>EvoMemBench（本文）</strong></td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+</tr>
+</tbody>
+</table></div>
+<p>没有任何已有基准同时覆盖全部四个维度，且部分基准不开源，可复现性差。</p>
+<hr />
+<h3 id="_6">二、核心概念框架</h3>
+<h4 id="21">2.1 形式化定义</h4>
+<p>论文将智能体的记忆机制形式化为：在 episode $e$ 的第 $t$ 步，智能体接收观测 $o_t^e$，持有历史 $h_{t-1}^e = (o_1^e, a_1^e, \ldots, o_{t-1}^e, a_{t-1}^e)$，然后基于当前上下文和记忆状态 $m_t^e$ 做出决策：</p>
+<p>$$a_t^e \sim \pi(\cdot \mid h_{t-1}^e, o_t^e, m_t^e)$$</p>
+<p>收到反馈 $y_t^e$ 之后，记忆状态被更新：</p>
+<p>$$m_{t+1}^e = U(m_t^e, o_t^e, a_t^e, y_t^e)$$</p>
+<p>其中 $U$ 是记忆更新函数。</p>
+<h4 id="22">2.2 两个评估维度</h4>
+<p><strong>维度一：记忆范围（Scope）</strong></p>
+<ul>
+<li><strong>单轮内记忆（In-Episode）</strong>：记忆仅在一个任务 episode 内维护。episode 开始时初始化，期间在线更新，episode 结束后清空。作用是在同一任务内为后续决策提供压缩的任务级状态。</li>
+<li><strong>跨轮次记忆（Cross-Episode）</strong>：记忆在不同 episode 之间积累和复用。作用是将过去任务的经验提炼为经验级状态，供未来任务决策参考，同时需要避免直接复用不再相关的 episode 细节。</li>
+</ul>
+<p><strong>维度二：记忆内容（Content）</strong></p>
+<ul>
+<li><strong>知识演化（Knowledge Evolution）</strong>：存储支持后续推理和回答的信息，包括事实、约束、偏好、领域规则或任务模式。关键挑战是在新信息到来时，既要保留有效的旧信息，又要更新或替换与新证据相冲突的旧信息。</li>
+<li><strong>执行演化（Execution Evolution）</strong>：存储支持动作选择和任务推进的信息，包括任务进度、中间结果、工具输出、未解决的子目标、行动套路和解题流程。关键挑战是帮助智能体追踪"做了什么、还剩什么、下一步最优行动是什么"。</li>
+</ul>
+<hr />
+<h3 id="_7">三、基准构建：六个数据集</h3>
+<p>四个维度对应六个数据集，选取原则是：任务需为显式记忆留下改进空间、具有清晰的记忆依赖和可验证结果、覆盖多样化领域。</p>
+<h4 id="31-inep-know">3.1 INEP-KNOW（单轮内知识演化）</h4>
+<p>来源：MemoryAgentBench 的两个子集：</p>
+<ul>
+<li><strong>Accurate Retrieval</strong>（2000 样本）：测试记忆保留（retention）——对话中提到的信息，后续能否正确检索。</li>
+<li><strong>Selective Forgetting</strong>（800 样本）：测试记忆修订（revision）——对话中出现信息矛盾时，智能体能否正确更新记忆（例如"我说我爱梨？抱歉，我是爱豌豆"）。</li>
+</ul>
+<h4 id="32-inep-exec">3.2 INEP-EXEC（单轮内执行演化）</h4>
+<p>来源：BFCL-Multiturn-LongContext，涵盖 Gorilla File System、Vehicle Control、Trading Bots、Travel Booking 四个领域，各 200 样本。</p>
+<p>论文对原始数据做了两步重构以增强记忆导向性：</p>
+<ol>
+<li>将实体名、参数值等显式引用替换为隐式引用（"你刚创建的那个目录"而非具体名称），迫使智能体从记忆中恢复。</li>
+<li>将包含多个依赖动作的单轮拆分为多个子轮，使后续子轮必须依赖前轮结果。</li>
+</ol>
+<h4 id="33-crossep-know">3.3 CROSSEP-KNOW（跨轮次知识演化）</h4>
+<p>来源：CL-Bench，覆盖四类知识形式：</p>
+<ul>
+<li>领域事实（Domain Knowledge Reasoning，294 样本）</li>
+<li>规则系统（Rule System Application，257 样本）</li>
+<li>操作流程（Procedural Task Execution，306 样本）</li>
+<li>经验规律（Empirical Discovery &amp; Simulation，27 样本）</li>
+</ul>
+<p>构建方式：将样本按共享背景分组，保留至少含 5 个样本的上下文（共 120 个上下文，884 个样本），按 DeepSeek-V3.2 基线得分三等分为 Easy/Medium/Hard。episode 按序处理，每个 episode 结束后更新记忆供同一上下文的后续 episode 使用。</p>
+<h4 id="34-crossep-tool">3.4 CROSSEP-TOOL（跨轮次工具使用执行演化）</h4>
+<p>来源：BFCL-Multiturn-Base，同样覆盖四个领域各 200 样本，采用与 INEP-EXEC 相同的重构流程。测试智能体能否学习可复用的工具调用模式、API 约束和参数填充流程。</p>
+<h4 id="35-crossep-web">3.5 CROSSEP-WEB（跨轮次网页搜索执行演化）</h4>
+<p>来源：xbench-DeepSearch（100 样本）+ WebWalkerQA（170 样本）。测试智能体能否复用之前的搜索策略和信息验证经验。</p>
+<h4 id="36-crossep-emb">3.6 CROSSEP-EMB（跨轮次具身交互执行演化）</h4>
+<p>来源：ALFWorld 测试集，覆盖六类任务：Examine in Light（19）、Pick &amp; Place（46）、Clean &amp; Place（37）、Cool &amp; Place（28）、Heat &amp; Place（25）、Pick Two &amp; Place（45）。测试智能体能否积累行动套路和环境信息用于后续具身任务。</p>
+<hr />
+<h3 id="_8">四、评估指标</h3>
+<h4 id="41-answer-accuracy">4.1 答案准确率（Answer Accuracy）</h4>
+<p>用于 INEP-KNOW 和 CROSSEP-KNOW（知识导向任务）：</p>
+<p>$$\text{Acc} = \frac{1}{N}\sum_{i=1}^{N} \text{Correct}(i)$$</p>
+<p>其中 $\text{Correct}(i) \in \{0,1\}$ 表示第 $i$ 个实例是否答对。</p>
+<h4 id="42-success-rate">4.2 成功率（Success Rate）</h4>
+<p>用于 INEP-EXEC、CROSSEP-TOOL、CROSSEP-WEB、CROSSEP-EMB（执行导向任务）：</p>
+<p>$$\text{SR} = \frac{1}{N}\sum_{i=1}^{N} \text{Success}(i)$$</p>
+<p>衡量智能体能否完成最终目标，是端到端执行质量的严格度量。</p>
+<h4 id="43-progress-score">4.3 进度分（Progress Score）</h4>
+<p>用于 INEP-EXEC 和 CROSSEP-TOOL，衡量部分完成情况：</p>
+<p>$$\text{PS}_i = \frac{1}{T_i}\sum_{t=1}^{T_i} \text{Pass}(i, t)$$</p>
+<p>$$\text{PS} = \frac{1}{N}\sum_{i=1}^{N} \text{PS}_i$$</p>
+<p>比成功率更细粒度，即使最终失败也能反映智能体走了多远。</p>
+<h4 id="44-token">4.4 平均步数与 Token 用量</h4>
+<ul>
+<li><strong>平均步数</strong>（Average Steps）：$\text{AS} = \frac{1}{N}\sum_{i=1}^N \text{Steps}(i)$，反映交互效率，越低越好。</li>
+<li><strong>Token 用量</strong>（Token Usage）：$\text{TU}_i = \sum_{c \in C_i} (\text{Tok}^{\text{in}}(c) + \text{Tok}^{\text{out}}(c))$，衡量不同记忆机制引入的计算开销。</li>
+</ul>
+<hr />
+<h3 id="_9">五、实验设置</h3>
+<h4 id="51">5.1 对比方法</h4>
+<p><strong>无记忆基线（长上下文 LLM）：</strong></p>
+<ul>
+<li><strong>Gemini-3-Flash</strong>：Google 的长上下文模型，支持超长上下文高效推理。</li>
+<li><strong>GPT-5-mini</strong>：OpenAI 的轻量长上下文模型。</li>
+<li><strong>DeepSeek-V3.2</strong>：混合专家（MoE）架构，作为所有记忆增强方法的统一骨干模型。</li>
+</ul>
+<p><strong>记忆增强方法（均以 DeepSeek-V3.2 为骨干）：</strong></p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>类别</th>
+<th>方法</th>
+<th>核心思路</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>检索增强记忆</td>
+<td>BM25</td>
+<td>基于词频/逆文档频率的稀疏检索</td>
+</tr>
+<tr>
+<td></td>
+<td>Qwen3-Emb-4B</td>
+<td>4B 参数稠密向量检索</td>
+</tr>
+<tr>
+<td></td>
+<td>GraphRAG</td>
+<td>构建知识图谱后分层摘要查询</td>
+</tr>
+<tr>
+<td>短期记忆</td>
+<td>MemAgent</td>
+<td>固定大小记忆缓冲区，RL 训练的覆写式更新</td>
+</tr>
+<tr>
+<td></td>
+<td>MemoBrain</td>
+<td>持续压缩近期交互历史的执行型记忆</td>
+</tr>
+<tr>
+<td>通用长期记忆</td>
+<td>Mem0</td>
+<td>ADD/UPDATE/DELETE/NOOP 四操作增量提取</td>
+</tr>
+<tr>
+<td></td>
+<td>A-MEM</td>
+<td>语义互联的记忆笔记网络</td>
+</tr>
+<tr>
+<td></td>
+<td>MemOS</td>
+<td>操作系统风格的分层存储管理</td>
+</tr>
+<tr>
+<td></td>
+<td>MemoryOS</td>
+<td>STM/MTM/LPM 三层记忆层次</td>
+</tr>
+<tr>
+<td>程序性长期记忆</td>
+<td>AWM</td>
+<td>从轨迹归纳可复用工作流</td>
+</tr>
+<tr>
+<td></td>
+<td>SkillWeaver</td>
+<td>自主发现和精炼可执行 API 技能</td>
+</tr>
+<tr>
+<td></td>
+<td>AgentKB</td>
+<td>跨框架知识共享基础设施</td>
+</tr>
+<tr>
+<td>ACE</td>
+<td></td>
+<td>积累可执行经验模板</td>
+</tr>
+<tr>
+<td></td>
+<td>ReasoningBank</td>
+<td>存储结构化推理轨迹的推理记忆库</td>
+</tr>
+<tr>
+<td>元演化记忆</td>
+<td>MemEvolve</td>
+<td>通过迭代自优化持续演化记忆结构</td>
+</tr>
+</tbody>
+</table></div>
+<p>注：程序性记忆不用于单轮内知识演化；短期记忆不用于跨轮次场景。</p>
+<h4 id="52">5.2 实现细节</h4>
+<ul>
+<li>每个方法统一封装为 <code>utilize</code>（利用记忆）和 <code>update</code>（更新记忆）两个接口。</li>
+<li>INEP-EXEC 评估四种上下文预算：16K、32K、64K、128K token；当 prompt 超出预算时，保留当前任务输入和记忆，截断早期历史。</li>
+<li>默认使用 DashScope 的 text-embedding-v4 作为嵌入后端；知识导向任务检索 top-k=10，执行导向任务 top-k=3。</li>
+</ul>
+<hr />
+<h3 id="_10">六、主要实验结果与发现</h3>
+<h4 id="61-inep-know">6.1 单轮内知识演化（INEP-KNOW）</h4>
+<p><strong>发现 1：强大的长上下文基线极具竞争力。</strong></p>
+<p>Gemini-3-Flash 在记忆保留和记忆修订上均排名第一。这说明当上下文预算充足时，直接保留原始证据往往比依赖外部记忆抽象更可靠。从 Figure 2 的精度-开销图来看，很多记忆方法消耗了更多 token，但准确率并不更高。</p>
+<p><strong>发现 2：现有记忆方法在"保留"上优于"修订"。</strong></p>
+<p>BM25、Mem0、A-MEM 在保留类任务上能超过弱基线，但在 FactConsolidation（事实修订）任务上——尤其是多跳推理子集——性能急剧下降。这揭示了记忆修订的核心难点：<strong>不是检索相关证据，而是判断哪些存储信息应当被更新、压制或替换</strong>。</p>
+<h4 id="62-inep-exec">6.2 单轮内执行演化（INEP-EXEC）</h4>
+<p><strong>发现 3：上下文预算受限时，记忆帮助更大。</strong></p>
+<p>与 DeepSeek-V3.2 无记忆基线相比，最优记忆方法在各上下文预算下的整体成功率提升：</p>
+<ul>
+<li>16K：+14.5 个百分点</li>
+<li>32K：+14.0 个百分点</li>
+<li>64K：+7.8 个百分点</li>
+<li>128K：+8.5 个百分点</li>
+</ul>
+<p>16K 和 32K 下提升最大，因为原始交互历史更容易被截断。但随着上下文增大，记忆的边际收益递减；在 128K 下，部分记忆方法甚至低于无记忆基线，说明追加的记忆内容可能引入噪声或占用有用上下文空间。</p>
+<p><strong>发现 4：执行任务受益于程序性引导，但压缩有风险。</strong></p>
+<p>ReasoningBank 在 16K（43.0）、32K（49.5）、128K（48.0）三个预算下均取得最优整体成绩；AWM 在 64K（53.1）下最优。这说明工具使用任务受益于可复用的执行指导（行动套路、失败感知策略、参数填充流程）。</p>
+<p>但短期压缩方法（MemAgent 和 MemoBrain）在 16K 下整体成功率仅为 26.0 和 25.0，均低于无记忆基线 28.5。执行状态追踪需要<strong>精细粒度的细节</strong>（精确的工具调用参数、实体引用、中间结果），粗粒度压缩会造成信息损失。</p>
+<h4 id="63-crossep-know">6.3 跨轮次知识演化（CROSSEP-KNOW）</h4>
+<p><strong>发现 5：记忆对难任务帮助更大，但会损害简单任务。</strong></p>
+<ul>
+<li>Easy 分割：无记忆基线 DeepSeek-V3.2 得 52.1，最优记忆方法 Qwen3-Emb-4B 仅 50.0，通用长期记忆更低（43.8–46.8）。</li>
+<li>Hard 分割：DeepSeek-V3.2 得 0.0，而 ACE 达到 13.0，BM25 达到 10.1，MemoryOS 达到 9.0。</li>
+</ul>
+<p>结论：当当前上下文对基础模型已经足够时，额外记忆可能引入不相关证据、不匹配的历史信息或不必要的 prompt 偏差，反而有害。</p>
+<p><strong>发现 6：瓶颈在于形成可复用知识，而非简单堆叠更多信息。</strong></p>
+<p>ACE 在 Medium 和 Hard 任务上综合表现最优（16.5 和 13.0），在规则系统应用子任务上更是在 Easy/Medium/Hard 三个难度上都超越所有其他记忆方法（74.9 / 24.0 / 7.8）。这表明有效记忆应当支持<strong>知识的应用方式</strong>，而非仅仅存储更多知识内容。</p>
+<h4 id="64-crossep-toolwebemb">6.4 跨轮次执行演化（CROSSEP-TOOL/WEB/EMB）</h4>
+<p><strong>发现 7：不同执行域偏好不同记忆形式。</strong></p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>执行域</th>
+<th>最优记忆类别</th>
+<th>平均排名</th>
+<th>原因分析</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>工具使用</td>
+<td>检索增强记忆</td>
+<td>5.43</td>
+<td>相似 API 调用和参数模式反复出现，适合基于案例的检索复用</td>
+</tr>
+<tr>
+<td>网页搜索</td>
+<td>通用长期记忆</td>
+<td>5.38</td>
+<td>需要持续积累证据和验证习惯，适合长期信息维护</td>
+</tr>
+<tr>
+<td>具身 AI</td>
+<td>程序性长期记忆</td>
+<td>5.60</td>
+<td>行动套路和环境可供性（affordance）重要，适合技能/工作流存储</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>发现 8：跨环境迁移取决于记忆与目标决策过程的匹配程度。</strong></p>
+<ul>
+<li><strong>CROSSEP-TOOL</strong>（图 3）：工具使用任务跨环境迁移更稳定，因为不同工具使用环境通常共享相似的决策步骤（检查中间状态→选择下一次调用→验证最终状态）。</li>
+<li><strong>CROSSEP-EMB</strong>（图 4）：ALFWorld 跨环境迁移更不稳定，更容易出现中性或负迁移。ALFWorld 各子环境在任务需求和执行条件上差异更大，一个具身环境积累的经验未必适用于另一个。</li>
+</ul>
+<hr />
+<h3 id="_11">七、综合结论</h3>
+<p>论文最终得出三条一致性规律：</p>
+<ol>
+<li><strong>记忆可以提升性能，但不均匀</strong>：强长上下文基线依然极具竞争力，显式记忆只在部分场景下提供明显增益。</li>
+<li><strong>记忆在以下情况最有帮助，在以下情况可能有害</strong>：</li>
+</ol>
+<ul>
+<li>有帮助：上下文不足、任务更难、存储经验与目标决策过程匹配。</li>
+<li>有害：引入不相关证据、通过压缩移除细粒度执行细节、跨环境迁移程序不匹配。
+3. <strong>没有单一记忆形式能在所有场景普遍有效</strong>：检索增强是知识导向需求的强选择；程序性和长期记忆在执行导向问题上更有效——前提是存储形式与任务的可复用结构对齐。</li>
+</ul>
+<p>总体而言，当前方法仍未能提供自演化智能体记忆的通用解决方案，EvoMemBench 旨在为这一方向的未来研究提供统一测试平台。</p>
+<h2 id="_12">研究要点表</h2>
+<p>我已准备好帮您分析学术论文并填写表格。请提供需要分析的论文内容。</p>
+<h2 id="_13">原文摘要</h2>
 <p>Recent benchmarks for Large Language Model (LLM) agents mainly evaluate reasoning, planning, and execution. However, memory is also essential for agents, as it enables them to store, update, and retrieve information over time. This ability remains under-evaluated, largely because existing benchmarks do not provide a systematic way to assess memory mechanisms. In this paper, we study agent memory from a self-evolving perspective and introduce EvoMemBench, a unified benchmark organized along two axes: memory scope (in-episode vs. cross-episode) and memory content (knowledge-oriented vs. execution-oriented). We compare 15 representative memory methods with strong long-context baselines under a standardized protocol. Results show that current memory systems are still far from a general solution: long-context baselines remain highly competitive, memory helps most when the current context is insufficient or tasks are difficult, and no single memory form works consistently across all settings. Retrieval-based methods remain strong for knowledge-intensive settings, whereas procedural and long-term memory methods are more effective for execution-oriented tasks when their stored experience matches the task structure. We hope EvoMemBench facilitates future research on more effective memory systems for LLM-based agents. Our code is available at  this https URL .</p></article>
 <aside class="detail-aside"><div class="report-toc" aria-label="文献卡片目录"><details open><summary>本页目录</summary><div class="toc">
 <ul>
 <li><a href="#_1">核心机制</a></li>
 <li><a href="#_2">适用范围与局限</a></li>
-<li><a href="#_3">原文摘要</a></li>
+<li><a href="#_3">详细解读</a><ul>
+<li><a href="#evomembench">EvoMemBench 论文详解</a></li>
+<li><a href="#_5">一、研究背景与动机</a></li>
+<li><a href="#_6">二、核心概念框架</a></li>
+<li><a href="#_7">三、基准构建：六个数据集</a></li>
+<li><a href="#_8">四、评估指标</a></li>
+<li><a href="#_9">五、实验设置</a></li>
+<li><a href="#_10">六、主要实验结果与发现</a></li>
+<li><a href="#_11">七、综合结论</a></li>
+</ul>
+</li>
+<li><a href="#_12">研究要点表</a></li>
+<li><a href="#_13">原文摘要</a></li>
 </ul>
 </div>
 </details></div><section><h2>引用这篇论文</h2><p id="citation-text" class="citation-text">Yuyao Wang, Zhongjian Zhang, Mo Chi, et al.. EvoMemBench: Benchmarking Agent Memory from a Self-Evolving Perspective. arXiv:2605.18421, 2026.</p><button class="button secondary" type="button" data-copy-citation>复制引用</button><p class="meta-note">综述参考文献 [46]</p></section><section><h2>同方向继续阅读</h2><ul class="related-list"><li><a href="../papers/2307.03172.html">Lost in the Middle: How Language Models Use Long Contexts</a></li><li><a href="../papers/2402.17753.html">Evaluating Very Long-Term Conversational Memory of LLM Agents</a></li><li><a href="../papers/2410.10813.html">LongMemEval: Benchmarking Chat Assistants on Long-Term Interactive Memory</a></li><li><a href="../papers/2506.21605.html">MemBench: Towards More Comprehensive Evaluation on the Memory of LLM-based Agents</a></li></ul></section></aside></div></div></main>
