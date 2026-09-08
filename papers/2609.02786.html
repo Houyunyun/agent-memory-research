@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="安全轨迹同时驱动 harness 更新与 SFT/RL 策略学习">
+<meta name="color-scheme" content="light"><title>SafeEvolve: Harness-Policy Co-Evolution from Agent Experience for Safety Alignment · Agent Memory 研究</title>
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/katex/katex.min.css"><script src="../assets/katex/katex.min.js" defer></script><script src="../assets/katex/auto-render.min.js" defer></script><script src="../assets/site.js" defer></script>
+</head>
+<body data-page="library">
+<a class="skip-link" href="#main">跳转到正文</a>
+<header class="site-header"><div class="header-inner">
+<a class="brand" href="../index.html" aria-label="Agent Memory 研究首页">
+<svg viewBox="0 0 36 36" width="32" height="32" aria-hidden="true"><path d="M9 9h18v18H9zM9 9l18 18M27 9L9 27" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="9" r="4"/><circle cx="27" cy="9" r="4"/><circle cx="9" cy="27" r="4"/><circle cx="27" cy="27" r="4"/></svg>
+<span>Agent Memory<small>研究文献站</small></span></a>
+<nav class="site-nav" aria-label="主导航"><a href="../index.html">研究总览</a><a href="../library.html" aria-current="page">文献库</a><a href="../reports/survey.html">综述全文</a><a href="../reports/multi-agent.html">多智能体专题</a><a href="../sources.html">阅读指南</a></nav>
+</div></header>
+<main id="main"><div class="page-wrap"><div class="breadcrumb"><a href="../library.html">文献库</a><span>/</span><a href="../library.html?topic=safety">安全与治理</a></div>
+<header class="paper-hero"><div class="paper-badges"><span class="badge expanded">含详细解读</span><span class="muted">2026 · 2609.02786</span></div><h1>SafeEvolve: Harness-Policy Co-Evolution from Agent Experience for Safety Alignment</h1><p class="paper-authors full-authors">Qinghua Mao, Wanying Qu, Dadi Guo, Leitao Yuan, Qingyu Liu, Yu Li, Guanxu Chen, Yanwei Fu, Xi Lin, Xia Hu, Dongrui Liu</p>
+<div class="hero-actions paper-actions"><a href="https://arxiv.org/abs/2609.02786" target="_blank" rel="noopener noreferrer">论文原文 <span aria-hidden="true">↗</span></a><a href="../downloads/notes/2609.02786.md">下载文献卡片 Markdown</a></div></header>
+<div class="detail-layout"><article class="prose"><h2 id="_1">核心机制</h2>
+<p>安全轨迹同时驱动 harness 更新与 SFT/RL 策略学习</p>
+<h2 id="_2">适用范围与局限</h2>
+<p>不是纯记忆补丁；部署效用与安全仍要共同衡量</p>
+<h2 id="_3">详细解读</h2>
+<h3 id="_4">文献阅读报告</h3>
+<h4 id="safeevolve-harness-policy-co-evolution-from-agent-experience-for-safety-alignment_1">SafeEvolve: Harness-Policy Co-Evolution from Agent Experience for Safety Alignment</h4>
+<hr />
+<h4 id="_5">一、论文基本信息</h4>
+<div class="table-scroll"><table class="key-value">
+<thead>
+<tr>
+<th>项目</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>标题</td>
+<td>SafeEvolve: Harness-Policy Co-Evolution from Agent Experience for Safety Alignment</td>
+</tr>
+<tr>
+<td>作者</td>
+<td>Qing Hua Mao, Wan Ying Qu, Da Di Guo 等（共 11 人，含 Yan Wei Fu, Xi Lin, Xia Hu, Dong Rui Liu）</td>
+</tr>
+<tr>
+<td>发表信息</td>
+<td>arXiv 预印本，DOI: 10.48550/arXiv.2609.02786，2026-09-02</td>
+</tr>
+<tr>
+<td>领域</td>
+<td>LLM 智能体安全对齐、经验驱动的智能体进化、强化学习后训练</td>
+</tr>
+<tr>
+<td>引用键</td>
+<td>maoSafeEvolveHarnessPolicyCoEvolution2026</td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+<h4 id="_6">二、一句话概括</h4>
+<p>SafeEvolve 提出一个<strong>经验驱动的智能体安全对齐框架</strong>：让模型外部的执行框架（harness：安全提示词 + 分层技能库）与模型内部的策略参数（通过 SFT-RL）从<strong>同一批交互轨迹</strong>中交替进化，从而在工具使用场景下同时获得"可审计、可快速迭代"的外部安全控制与"内化、持久"的模型安全行为，在安全性-效用权衡上显著优于单一路线及现有基线。</p>
+<hr />
+<h4 id="_7">三、研究背景与问题动机</h4>
+<h5 id="31">3.1 问题背景：智能体安全是"轨迹级"问题</h5>
+<p>LLM 智能体的安全风险不只出现在最终回复，而是散布在<strong>多步工具使用轨迹</strong>的中间环节：不安全的工具调用、跟随注入指令、中途误拒等。论文覆盖两类典型威胁：</p>
+<ul>
+<li><strong>恶意查询（malicious query）</strong>：用户指令本身有害，考验模型的意图级拒绝能力；</li>
+<li><strong>环境注入（environment injection）</strong>：用户目标良性，但网页、邮件、工具输出等环境观察中混有对抗指令，考验模型"把环境内容当证据而非指令"的能力。</li>
+</ul>
+<h5 id="32">3.2 核心论点：两条现有路线各有死穴</h5>
+<p>论文将现有工作分为两派，并指出各自单走的缺陷：</p>
+<ol>
+<li><strong>只进化 harness</strong>（提示词、技能、运行时护栏）：复杂的工件可能超出弱策略的执行能力；且指导在 episode 开始前注入，随多步执行推进会与现实行为脱节——"说得到，做不到"；</li>
+<li><strong>只训练策略参数</strong>：训练时 harness 固定，无法应对训练分布外新出现的失败模式；安全能力锁死在特定权重里，难以跨模型迁移，且不可审计——"做到了，但带不走、追不上"。</li>
+</ol>
+<p>这一矛盾构成本文的全部动机：<strong>运行时控制与内在安全能力必须耦合进化，而非各自为政。</strong></p>
+<h5 id="33">3.3 论文定位</h5>
+<p>本文把"经验驱动的智能体自我进化"这一此前主要用于<strong>能力提升</strong>的范式，首次系统地迁移到<strong>安全对齐</strong>领域，并提出配套的机制设计（单组件有界突变、配对接受-拒绝门控、版本化回滚、任务类型化奖励）。</p>
+<hr />
+<h4 id="_8">四、方法详解</h4>
+<h5 id="41">4.1 总体结构</h5>
+<p>方法分为三个阶段：① 策略冻结下的 harness 预热进化；② harness-use SFT 冷启动；③ 持续的 harness-策略协同进化主循环。</p>
+<pre><code>flowchart TD
+    A[&quot;阶段1：Harness 预热进化&amp;lt;br/&gt;冻结策略，H_init → H_0&quot;] --&gt; B[&quot;阶段2：SFT 冷启动&amp;lt;br/&gt;在 H_0 下拒绝采样，θ_base → θ_0&quot;]
+    B --&gt; C[&quot;阶段3：协同进化主循环 r=0..R-1&quot;]
+    C --&gt; D[&quot;采样：配对 (π_θr, H_r) 下&amp;lt;br/&gt;32 任务 × 8 轨迹&quot;]
+    D --&gt; E[&quot;规则验证器打分 U(τ), S(τ)&quot;]
+    E --&gt; F[&quot;GRPO 更新策略 → θ_(r+1)&quot;]
+    E --&gt; G[&quot;聚合失败/恢复证据&quot;]
+    G --&gt; H{&quot;按计划提议 harness 突变&quot;}
+    H --&gt; I{&quot;J 提升 ≥ δ 且门控 G=1？&quot;}
+    I -- 是 --&gt; J[&quot;发布版本化 H_(r+1)&quot;]
+    I -- 否 --&gt; K[&quot;保持 H_r&quot;]
+    J --&gt; D
+    K --&gt; D
+</code></pre>
+<h5 id="42">4.2 形式化</h5>
+<p><strong>轨迹（Eq. 1）</strong>：$\tau = (x, o_1, a_1, o_2, a_2, \ldots, o_T, a_T)$，其中 $x$ 为任务，$o_t$ 为环境观察（用户消息、工具输出、网页、记忆状态等），$a_t$ 为模型动作，$T$ 为最大步数。</p>
+<p><strong>系统级目标（Eq. 2）</strong>：</p>
+<pre><code>$$\max_{\theta,\, H} \ \mathbb{E}_{x \sim D,\; \tau \sim \pi_\theta(\cdot \mid x, H)} \big[ R(\tau \mid z(x)) \big]$$
+</code></pre>
+<p>$\theta$ 为策略权重，$H$ 为 harness 工件，$z(x)$ 为任务类型标签。关键设计决定：论文<strong>不将其作为联合优化求解</strong>，而是把 harness 更新（离散文本编辑 + 门控选择）与策略更新（连续梯度）分离、交替进行。</p>
+<h5 id="43">4.3 可进化组件与验证器</h5>
+<p><strong>Harness 组件</strong>：安全系统提示词 $P$；分层技能库 $S = \{S_g, S_k, S_m\}$（通用原则 / 任务特定程序 / 错误修复技能）。技能更新受约束（P1.S5）：优先合并更新而非新增、须注明作用域与触发条件、禁止包含基准特定标识与 ground-truth 信息、附回滚说明——保证工件可审计、可检索、无数据泄漏。</p>
+<p><strong>规则验证器</strong>：所有奖励与门控分数均由确定性规则程序计算（不用 LLM 裁判），检查轨迹、工具调用、工具输出与最终答案。按任务类型切换逻辑（P1.S4）：干净任务查 grounding 与必需工具调用；注入任务分解 $U$、$S$ 与交互项；恶意查询按"工具是否助长危害 vs. 拒绝/安全重定向"打分。这带来三点好处：确定性可复现（GRPO 组内比较的前提）、对轨迹内注入文本天然免疫、支撑门控的可信度。</p>
+<h5 id="44-eq-11p1s2">4.4 奖励设计（Eq. 11，P1.S2）</h5>
+<pre><code>$$R(\tau \mid z) = \begin{cases} U(\tau), &amp; z = \text{clean} \\ S(\tau), &amp; z = \text{query} \\ \lambda_U U(\tau) + \lambda_S S(\tau) + \lambda_{US} U(\tau)S(\tau), &amp; z = \text{injection} \end{cases}$$
+</code></pre>
+<blockquote>
+<p>Environment injection attacks require both ignoring the injected instruction and preserving the original benign goal; therefore, their reward combines utility, safety, and an interaction term that favors trajectories satisfying both requirements.</p>
+<p>(Mao 等, 2026)</p>
+</blockquote>
+<p>交互项 $U\!\cdot\!S$ 是关键：只有"既完成原任务又无视注入"的轨迹才能获得这部分奖励，防止模型走向"为安全而停摆"或"埋头执行被劫持"两个极端。$\lambda$ 系数跨骨干与训练固定（具体值在 Appendix A.5，本文未覆盖）。</p>
+<h5 id="45-harness-eq-8">4.5 Harness 进化：有界突变 + 配对门控（Eq. 8）</h5>
+<ol>
+<li>从轨迹聚合失败证据（失败桶、恢复案例、任务元数据）；</li>
+<li>proposer 模型针对<strong>单个组件</strong>提出有界修改 $\Delta_j$（有界 = 一次只改一处，保证可归因）；</li>
+<li>在内部面板 $\mathcal{B}_{\text{evo}}$ 上用<strong>同一策略</strong>配对评估新旧 harness，$J(H; \mathcal{B}) = \frac{1}{|\mathcal{B}|}\sum R(\tau_i)$；</li>
+<li>接受需同时满足：$J(\hat{H}) \geq J(H) + \delta$（改进需超过裕度，抗采样噪声）且门控 $G = 1$（安全、干净效用、执行质量任一不退化，一票否决）；</li>
+<li>接受的修改版本化存储，附证据与回滚元数据。</li>
+</ol>
+<h5 id="46-harness-use-sft-eq-10p1s1">4.6 Harness-use SFT 冷启动（Eq. 10，P1.S1）</h5>
+<p>动机：技能库作为运行时上下文注入，但基座策略未必会判断"何时相关、如何执行"。做法：在进化 harness 下 rollout，验证器拒绝采样保留合格轨迹，只在 assistant 回复与工具调用上计算损失：</p>
+<pre><code>$$\mathcal{L}_{\text{sft}}(\theta) = -\mathbb{E}_{\tau \in \mathcal{D}_{\text{sft}}} \sum_{t \in \mathcal{A}(\tau)} \log \pi_\theta(a_t \mid h_t, P^\star, S_x)$$
+</code></pre>
+<p>$P^\star$、$S_x$ 作为条件进入训练样本——策略学的是"在这套 harness 指导下如何行动"，直接回应"harness 超出策略能力"问题。</p>
+<h5 id="47-harness-augmented-rlgrpoeq-1213">4.7 Harness-augmented RL：GRPO（Eq. 12–13）</h5>
+<p><strong>组内相对优势</strong>：每任务采 $G=8$ 条轨迹，</p>
+<pre><code>$$\hat{A}_i = \frac{R(\tau_i) - \mu_x}{\sigma_x + \varepsilon}$$
+</code></pre>
+<p>无需价值网络，以组内均值 $\mu_x$ 为基线；同组共享任务与 harness 上下文，比较公平。</p>
+<p><strong>优化目标</strong>：$\rho_{i,t}(\theta) = \frac{\pi_\theta(a_{i,t}|h_{i,t})}{\pi_{\theta_{\text{old}}}(a_{i,t}|h_{i,t})}$ 为重要性采样比率，经 clip（$\varepsilon=0.2$）限制单步更新幅度，并加 KL 惩罚 $-\beta_{\text{KL}} D_{\text{KL}}(\pi_\theta \| \pi_{\text{ref}})$（$\beta_{\text{KL}}=0.01$）锚定参考策略。</p>
+<p>关键性质：奖励虽在轨迹级分配，但通过 $\rho_{i,t}$ 将信用传导至<strong>每一步</strong>的工具调用、拒绝与恢复决策——这是解决"多步执行脱节"的机制所在。</p>
+<h5 id="48">4.8 主循环与关键细节</h5>
+<p>Algorithm 1 的主循环有三个值得注意的设计：</p>
+<ul>
+<li><strong>显式版本配对</strong>：每批轨迹标注 $(\pi_{\theta_r}, H_r)$，行为变化可归因到策略更新、harness 更新或两者交互；</li>
+<li><strong>时间错开</strong>：harness 评估用刚更新完的固定策略 $\pi_{\theta_{r+1}}$，每次只变一个变量；</li>
+<li><strong>节奏不对称</strong>：策略每步更新，技能库每 10 步、提示词每 20 步才评估一次突变（Table 4），避免"移动靶"训练环境。</li>
+</ul>
+<p>主要超参数：200 训练步、批 32 任务、组 8 轨迹（每次更新 256 条）、学习率 $10^{-6}$、上下文 4096/512。</p>
+<hr />
+<h4 id="_9">五、实验设置与主要结果</h4>
+<h5 id="51">5.1 设置</h5>
+<ul>
+<li><strong>基准</strong>：AgentDojo、AgentDyn（间接提示注入，指标 ASR↓、U-Attack↑）、AgentHarm（恶意查询，指标有害分↓、拒绝率↑）；held-out 泛化测试用 Agent Security Bench（DPI / IPI / PoT Backdoor）；</li>
+<li><strong>骨干</strong>：Qwen3.5-4B、Qwen3-4B-Instruct-2507；</li>
+<li><strong>基线</strong>：SFT、DPO、GRPO、MetaSecAlign、AgentAlign 及 harness-only 变体。</li>
+</ul>
+<h5 id="52">5.2 主结果</h5>
+<div class="table-scroll"><table class="key-value">
+<thead>
+<tr>
+<th>基准 / 骨干</th>
+<th>基线 → SafeEvolve</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AgentDojo（Qwen3.5-4B）</td>
+<td>ASR 2.37% → <strong>0.79%</strong>（约 3 倍降低）；效用 59.79% → <strong>61.86%</strong></td>
+</tr>
+<tr>
+<td>AgentHarm（Qwen3.5-4B）</td>
+<td>有害分 56.45 → <strong>12.27</strong>；拒绝率 28.98% → <strong>83.83%</strong></td>
+</tr>
+<tr>
+<td>AgentDojo（Qwen3-4B）</td>
+<td>效用 44.33 → <strong>60.82</strong>；ASR 13.38% → <strong>2.42%</strong></td>
+</tr>
+</tbody>
+</table></div>
+<blockquote>
+<p>SafeEvolve improves direct refusal behavior on harmful requests while still preserving task execution under indirect prompt injection, suggesting that harness-policy co-evolution learns risk-specific intervention rather than uniformly suppressing action.</p>
+<p>(Mao 等, 2026)</p>
+</blockquote>
+<p>这段作者解读点出了最重要的结果模式：安全性提升<strong>不是来自"一律保守"</strong>——模型在恶意查询上更会拒绝，同时在注入攻击下仍能完成良性任务，即学到了<strong>风险特异性的干预行为</strong>，而非全局压抑行动。这正是安全对齐中最难获得的性质（避免"对齐税"）。</p>
+<h5 id="53">5.3 消融与分析要点</h5>
+<ol>
+<li><strong>冻结策略 + 进化 harness 已有效</strong>：不训练模型时 AgentDojo ASR 可降至 0.92%——检索式程序性指导优于单一全局提示；</li>
+<li><strong>RL-only 崩塌</strong>：只用 RL（无 harness）导致效用崩塌、有害分上升；harness-augmented RL 才真正内化安全知识；</li>
+<li><strong>跨模型迁移有限</strong>：harness 迁移到同级 4B 模型仍有收益，迁移到 1.7B 弱模型几乎无效——反向印证协同进化的必要性；</li>
+<li><strong>在线更新不稳定</strong>：RL 期间持续在线进化技能库使 AgentHarm 有害分从 12.27 回升至 27.02——门控强度是稳定性的瓶颈；</li>
+<li><strong>组件非加性</strong>：提示词 + 技能组合有时过度约束执行、降低攻击下效用；</li>
+<li><strong>泛化</strong>：held-out 的</li>
+</ol>
+<h2 id="_10">研究要点表</h2>
+<p>我已准备好帮助您分析学术论文并填写表格。请提供需要分析的论文内容，我将严格按照模板格式为您整理信息。</p>
+<h2 id="_11">原文摘要</h2>
+<p>The performance of LLM-based agents is jointly shaped by the base model and the harness used when interacting with the environment. This exposes them to safety risks in both harmful final responses and multi-step execution trajectories. Existing safety alignment mechanisms often rely on either external harness updates or policy optimization, yet applying either paradigm in isolation fails to bridge runtime control with intrinsic safety. We propose SafeEvolve, an experience-driven self-evolving framework for agent safety alignment. SafeEvolve leverages safety experience from completed on-policy trajectories to drive a continual loop of harness-policy co-evolution. On the harness side, SafeEvolve converts trajectory-level safety evidence into bounded, component-level updates across safety prompt and hierarchical skills, yielding auditable and reversible harness artifacts. On the policy side, SafeEvolve follows a two-stage SFT-RL paradigm, where harness-use SFT bootstraps the policy to actively leverage evolved harness artifacts, and harness-augmented RL further shapes autonomous safety behaviors during multi-step exploration via verifier-decomposed rewards. Through harness-policy co-evolution, SafeEvolve converts safety experience into an evolved runtime harness and improved policy behavior. Experiments on agentic safety benchmarks show that SafeEvolve achieves a stronger safety-utility tradeoff than existing baselines. For Qwen3.5-4B, SafeEvolve achieves a $3\times$ ASR reduction on AgentDojo while improving benign utility from 59.79% to 61.86%.</p></article>
+<aside class="detail-aside"><div class="report-toc" aria-label="文献卡片目录"><details open><summary>本页目录</summary><div class="toc">
+<ul>
+<li><a href="#_1">核心机制</a></li>
+<li><a href="#_2">适用范围与局限</a></li>
+<li><a href="#_3">详细解读</a><ul>
+<li><a href="#_4">文献阅读报告</a></li>
+</ul>
+</li>
+<li><a href="#_10">研究要点表</a></li>
+<li><a href="#_11">原文摘要</a></li>
+</ul>
+</div>
+</details></div><section><h2>引用这篇论文</h2><p id="citation-text" class="citation-text">Qinghua Mao, Wanying Qu, Dadi Guo, et al.. SafeEvolve: Harness-Policy Co-Evolution from Agent Experience for Safety Alignment. arXiv:2609.02786, 2026.</p><button class="button secondary" type="button" data-copy-citation>复制引用</button><p class="meta-note">综述参考文献 [64]</p></section><section><h2>同方向继续阅读</h2><ul class="related-list"><li><a href="../papers/2503.03704.html">Memory Injection Attacks on LLM Agents via Query-Only Interaction</a></li><li><a href="../papers/2509.26354.html">Your Agent May Misevolve: Emergent Risks in Self-evolving LLM Agents</a></li><li><a href="../papers/2510.02373.html">A-MemGuard: A Proactive Defense Framework for LLM-Based Agent Memory</a></li><li><a href="../papers/2602.15654.html">Zombie Agents: Persistent Control of Self-Evolving LLM Agents via Self-Reinforcing Injections</a></li></ul></section></aside></div></div></main>
+<footer class="site-footer"><div><strong>Agent Memory 研究</strong><p>从保存历史，到有依据地更新长期状态。</p></div>
+<div><span>内容更新 · 2026-09-08</span><p>理解方法，比较条件，关注长期影响。</p><a href="../sources.html">阅读指南</a></div></footer>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body></html>

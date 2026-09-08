@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="空间热图、视觉实例和符号技能支持 teacher-free 奖励塑形">
+<meta name="color-scheme" content="light"><title>AtlasVA: Self-Evolving Visual Skill Memory for Teacher-Free VLM Agents · Agent Memory 研究</title>
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/katex/katex.min.css"><script src="../assets/katex/katex.min.js" defer></script><script src="../assets/katex/auto-render.min.js" defer></script><script src="../assets/site.js" defer></script>
+</head>
+<body data-page="library">
+<a class="skip-link" href="#main">跳转到正文</a>
+<header class="site-header"><div class="header-inner">
+<a class="brand" href="../index.html" aria-label="Agent Memory 研究首页">
+<svg viewBox="0 0 36 36" width="32" height="32" aria-hidden="true"><path d="M9 9h18v18H9zM9 9l18 18M27 9L9 27" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="9" r="4"/><circle cx="27" cy="9" r="4"/><circle cx="9" cy="27" r="4"/><circle cx="27" cy="27" r="4"/></svg>
+<span>Agent Memory<small>研究文献站</small></span></a>
+<nav class="site-nav" aria-label="主导航"><a href="../index.html">研究总览</a><a href="../library.html" aria-current="page">文献库</a><a href="../reports/survey.html">综述全文</a><a href="../reports/multi-agent.html">多智能体专题</a><a href="../sources.html">阅读指南</a></nav>
+</div></header>
+<main id="main"><div class="page-wrap"><div class="breadcrumb"><a href="../library.html">文献库</a><span>/</span><a href="../library.html?topic=multimodal">多模态记忆</a></div>
+<header class="paper-hero"><div class="paper-badges"><span class="badge expanded">含详细解读</span><span class="muted">2026 · 2605.17933</span></div><h1>AtlasVA: Self-Evolving Visual Skill Memory for Teacher-Free VLM Agents</h1><p class="paper-authors full-authors">Pan Wang, Yihao Hu, Xiujin Liu, Jingchu Yang, Hang Wang, Zhihao Wen</p>
+<div class="hero-actions paper-actions"><a href="https://arxiv.org/abs/2605.17933" target="_blank" rel="noopener noreferrer">论文原文 <span aria-hidden="true">↗</span></a><a href="../downloads/notes/2605.17933.md">下载文献卡片 Markdown</a></div></header>
+<div class="detail-layout"><article class="prose"><h2 id="_1">核心机制</h2>
+<p>空间热图、视觉实例和符号技能支持 teacher-free 奖励塑形</p>
+<h2 id="_2">适用范围与局限</h2>
+<p>包含强化学习，与检索式问答方法不可直接横比</p>
+<h2 id="_3">详细解读</h2>
+<h3 id="_4">核心总结</h3>
+<p>这篇论文提出了AtlasVA，一个面向视觉-语言模型（VLM）智能体的<strong>无需教师模型的视觉技能记忆框架</strong>。其核心观点是：现有的记忆增强型VLM智能体几乎都将可复用经验压缩为文本存储，这在空间决策任务中会造成严重的几何信息丢失、依赖外部大模型教师、以及奖励信号与空间任务不匹配三大问题。AtlasVA通过构建三层视觉技能记忆（空间热力图、视觉样例、符号文本规则），从智能体自身的轨迹统计中自演化出"危险地图"和"亲和力地图"，并将这些地图作为基于势函数的稠密奖励塑形信号用于强化学习优化，从而在不依赖任何外部LLM监督的情况下，统一了感知、记忆和优化。实验表明，仅3B参数的AtlasVA在Sokoban、FrozenLake、3D导航和3D机器人操作任务上全面超越了GPT-5等大型闭源模型。</p>
+<h3 id="_5">一、问题背景与动机</h3>
+<h4 id="11-vlm">1.1 VLM智能体的记忆增强范式</h4>
+<p>VLM智能体（如基于GPT-4o、Qwen-VL等的交互式代理）需要在长时间跨度的空间任务中积累和复用经验。近年来，记忆增强的强化学习（Memory-Augmented RL）框架（如Reflexion、SkillRL、XSkill等）通过存储技能库、回顾总结、任务启发式规则等方式来跨episode复用经验。</p>
+<h4 id="12">1.2 现有范式的三大问题</h4>
+<p>然而，几乎所有现有框架都将VLM智能体视为<strong>以文本为中心的推理器</strong>：视觉流仅作为瞬时观测被消费，而可复用知识几乎全部以语言形式存储。这在空间密集型任务中产生了三个严重问题：<br />
+<strong>问题①：模态不匹配导致的信息损失。</strong> 将二维空间布局压缩为一维文本规则（如"避开角落"、"保持在中心"），会丢弃几何结构信息。文本难以表达复杂的空间拓扑，如死胡同、局部危险区域、有前景的子目标区域等。<br />
+<strong>问题②：依赖外部教师模型。</strong> 许多框架需要调用GPT-4等闭源LLM来总结失败经验、合并技能或重写记忆。这不仅增加了计算成本，也破坏了完全自主自我改进的前提。<br />
+<strong>问题③：奖励反馈的模态不匹配。</strong> 使用文本形式的奖励（如"你不应该把箱子推到角落"）来评估空间交互，本质上是抽象且缺乏精确空间定位的。这使得智能体无法获得稠密的、坐标感知的指导信号，加剧了信用分配（credit assignment）问题。</p>
+<h3 id="atlasva">二、AtlasVA方法框架</h3>
+<h4 id="21">2.1 问题形式化</h4>
+<p>论文将具身决策过程建模为一个部分可观测马尔可夫决策过程（POMDP）：$\mathcal{M} = \langle \mathcal{S}, \mathcal{O}, \mathcal{A}, \mathcal{T}, \mathcal{R}, \gamma \rangle$。每个时间步$t$，智能体接收多模态观测$o_t \in \mathcal{O}$（包含渲染的RGB图像和自然语言任务描述），输出离散动作$a_t \in \mathcal{A}$，由VLM参数化的多模态策略$\pi_\theta(a_t | o_{\leq t})$采样得到。环境给出稀疏的二值奖励$\mathcal{R}(s_t, a_t) \in \{0, 1\}$，仅在任务成功时为1。<br />
+论文定义了一个统一的<strong>GridState抽象</strong> $g_t$，从模拟器内部状态直接提取语义层（包括障碍物和交互对象）。令$\mathbf{p}_t \in \mathbb{Z}^2$为时间步$t$时主要操控实体的2D坐标。<strong>关键点是：这种特权表示仅在训练时用于构建和演化空间先验，部署时VLM策略仅依赖视觉输入。</strong></p>
+<h4 id="22-vsm">2.2 三层视觉技能记忆（VSM）</h4>
+<p>AtlasVA的核心是一个多模态记忆架构，包含三个互补层次。提供给VLM的增强多模态提示构造为：  </p>
+<p>$\displaystyle \tilde{o}_t = [M_{danger}, M_{affinity}, \mathcal{E}_{vis}, \mathcal{S}_{text}, o_t]$</p>
+<p><strong>第一层：空间热力图（Spatial Heatmaps）。</strong> 这是最基础的层次，提供环境上的连续空间场：</p>
+<ul>
+<li><strong>危险地图（Danger Map）</strong>：标识死锁风险区域</li>
+<li><strong>亲和力地图（Affinity Map）</strong>：标识接近任务完成的区域<br />
+  关键设计是：这些地图不是编码为文本数组，而是渲染为RGB热力图$M \in \mathbb{R}^{H \times W \times 3}$，与VLM的视觉编码器天然对齐。它们作为独立的视觉token注入，或alpha混合到原始观测$o_t$上，使智能体能直观感知危险和有前景的区域，无需模态转换。</li>
+</ul>
+<p><strong>第二层：视觉样例（Visual Exemplars）。</strong> 从历史rollout中挖掘少量代表性截图，明确标注成功或失败标签（$\mathcal{E}_{vis}$）。这为抽象的空间先验补充了具体的视觉参考。<br />
+<strong>第三层：符号文本技能（Symbolic Text Skills）。</strong> 保留一组紧凑的文本启发式规则（$\mathcal{S}_{text}$），用于保持高层次的策略推理。这些规则直接从环境规则手册和任务描述中构建，<strong>不需要任何外部LLM生成</strong>。<br />
+三层共同建立了从感知空间地图、具体布局样例到符号逻辑的完整知识梯度。</p>
+<h4 id="23">2.3 无教师的视觉地图演化</h4>
+<p>这是AtlasVA消除外部LLM依赖的核心机制。空间热力图通过融合<strong>静态网格启发式</strong> $M_{heuristic}$ 和<strong>累积轨迹统计</strong> $M_{stat}$ 来合成。<br />
+<strong>轨迹累积。</strong></p>
+<ul>
+<li>静态启发式分支：从当前布局提取拓扑特征，如角落型死锁区域和到目标对象的BFS（广度优先搜索）距离。</li>
+<li>轨迹统计分支：分析当前训练批次的结构化rollout日志。令$\mathcal{T}_{fail}$和$\mathcal{T}_{succ}$分别为失败和成功轨迹集合。<br />
+  批次级危险地图通过累积终端失败位置$\mathbf{p}_T$计算：  </li>
+</ul>
+<p>$\displaystyle M_{batch}^{danger}(\mathbf{p}) = \frac{1}{|\mathcal{T}_{fail}|} \sum_{\tau \in \mathcal{T}_{fail}} \mathbb{I}(\mathbf{p}_T = \mathbf{p})$</p>
+<p>即统计每个坐标位置作为失败终点的频率。类似地，批次级亲和力地图$M_{batch}^{affinity}$通过记录成功路径$\mathcal{T}_{succ}$中坐标的归一化访问频率得到。</p>
+<p><strong>EMA混合。</strong> 使用指数移动平均（EMA）更新历史轨迹统计，衰减率为$\alpha$：  </p>
+<p>$\displaystyle M_{stat} \leftarrow \alpha M_{stat} + (1 - \alpha) M_{batch}$</p>
+<p>最终呈现给VLM的热力图是静态启发式和EMA统计的动态混合：  </p>
+<p>$\displaystyle M_{final} = (1 - \beta_k) M_{heuristic} + \beta_k M_{stat}$</p>
+<p>其中$\beta_k \in [0, 1]$是一个调度系数，随训练epoch $k$从0逐渐退火到1。这意味着：</p>
+<ul>
+<li><strong>训练早期</strong>（$\beta_k \approx 0$）：主要依赖静态几何启发式，提供安全的冷启动探索</li>
+<li><strong>训练后期</strong>（$\beta_k \approx 1$）：平滑过渡到经验驱动的精炼，同时不会遗忘早期知识</li>
+</ul>
+<h4 id="24">2.4 基于地图的稠密视觉奖励塑形</h4>
+<p>这是AtlasVA解决稀疏奖励瓶颈的关键机制。给定从$\mathbf{p}_t$到$\mathbf{p}_{t+1}$的转移，计算有界辅助视觉奖励：  </p>
+<p>$\displaystyle r_{visual} = \lambda_{danger} \cdot r_{danger} + \lambda_{affinity} \cdot r_{affinity}$</p>
+<p><strong>危险惩罚。</strong> 阻止智能体探索地图历史上标识为高风险的区域：  </p>
+<p>$\displaystyle r_{danger} = -M_{final}^{danger}(\mathbf{p}_{t+1})$</p>
+<p>即进入危险区域就受到与该位置危险值成正比的负惩罚。<br />
+<strong>亲和力增益。</strong> 激励智能体沿着更接近目标流形的路径前进，公式化为亲和力势的逐步差分：  </p>
+<p>$\displaystyle r_{affinity} = M_{final}^{affinity}(\mathbf{p}_{t+1}) - M_{final}^{affinity}(\mathbf{p}_t)$</p>
+<p>由于$M_{final}^{affinity}$继承了$M_{heuristic}^{affinity}$的BFS距离梯度，当智能体向目标靠近一步时，这个差分产生严格正信号；远离时产生严格负信号。这本质上是一种<strong>基于势函数的奖励塑形（PBRS）</strong>。</p>
+<h4 id="25">2.5 优化与闭环</h4>
+<p>最终用于RL优化的奖励为$r_{visual} + r_{env}$。这里有一个重要的理论细节：亲和力增益被公式化为势差（符合PBRS理论，不改变最优策略），而危险惩罚则作为启发式安全约束，<strong>有意改变最优策略</strong>以优先选择安全导航而非危险捷径。<br />
+更重要的是，这个机制形成了一个<strong>自主闭环</strong>：改进的策略→生成更高质量的轨迹→通过EMA精炼视觉地图→提供更准确的稠密奖励→进一步优化策略。<br />
+形式化地，增强观测空间为：  </p>
+<p>$\displaystyle \tilde{o}_t = \langle o_t, \mathcal{M}_k^{(heatmap)}, \mathcal{M}_k^{(exemplar)}, \mathcal{M}_k^{(text)} \rangle$</p>
+<p>塑形奖励为：  </p>
+<p>$\displaystyle \tilde{r}_t = r_t^{env} + F(o_t, a_t, o_{t+1})$</p>
+<p>其中：  </p>
+<p>$\displaystyle F(o_t, a_t, o_{t+1}) = [\Phi_{affinity}(o_{t+1}) - \Phi_{affinity}(o_t)] - \beta \cdot \mathbb{I}(\text{enters\_danger}(o_{t+1}))$</p>
+<p>离线记忆演化动力学：  </p>
+<p>$\displaystyle \mathcal{M}_{k+1}^{(heatmap)} \leftarrow \alpha \mathcal{M}_k^{(heatmap)} + (1 - \alpha) \cdot \text{Extract}(\tau_k)$</p>
+<h4 id="26-3d25d">2.6 3D空间到2.5D视觉先验的投影</h4>
+<p>对于3D任务，AtlasVA通过降维抽象层处理：</p>
+<ul>
+<li><strong>3D导航</strong>：将连续可达表面投影到X-Z平面，动态离散化为2D平面图（每格0.25米）</li>
+<li><strong>3D机器人操作</strong>：将连续操作台映射为局部2.5D工作空间网格，Z轴（高度）信息作为任务元数据隐式保留</li>
+</ul>
+<hr />
+<h3 id="_6">三、实验</h3>
+<h4 id="31">3.1 实验设置</h4>
+<ul>
+<li><strong>基础模型</strong>：Qwen2.5-VL-3B-Instruct（仅3B参数）</li>
+<li><strong>优化算法</strong>：PPO + GAE</li>
+<li><strong>评估基准</strong>：</li>
+<li>2D离散网格：Sokoban（推箱子）、FrozenLake（冰湖）</li>
+<li>3D具身导航：基于AI2-THOR的Navigation</li>
+<li>3D机器人操作：PrimitiveSkill（基于ManiSkill，包含Place、Stack、Drawer、Align和新增的Swap任务）</li>
+</ul>
+<h4 id="32">3.2 主要结果</h4>
+<p>AtlasVA在所有基准上取得了最先进的性能，<strong>平均成功率0.93</strong>。关键发现：</p>
+<ol>
+<li><strong>超越大型闭源模型</strong>：尽管仅有3B参数，AtlasVA显著超越GPT-5（0.69）、o3（0.71）、Claude Sonnet 4.5（0.62）等。</li>
+<li><strong>空间推理能力</strong>：在Sokoban上，零样本Qwen2.5-VL-3B仅有0.14成功率，AtlasVA将其提升到0.79，甚至超过GPT-5（0.70）。</li>
+<li><strong>3D任务鲁棒性</strong>：在PrimitiveSkill的所有5个子任务上达到完美的1.00成功率，而Qwen2.5-VL-72B和GPT-5在Swap任务上分别仅有0.33和0.55。</li>
+<li><strong>学习效率</strong>：相比仅使用文本规则（Layer 3）的基线，AtlasVA在Sokoban上140步内从近0快速攀升到约0.80成功率，而基线难以超过0.25。</li>
+</ol>
+<h4 id="33">3.3 消融实验</h4>
+<p>消融实验验证了每个组件的必要性：</p>
+<ul>
+<li><strong>去除整个VSM</strong>（w/o VSM）：空间谜题性能严重下降，证实将几何约束压缩为文本会造成致命信息损失。</li>
+<li><strong>去除地图演化</strong>（w/o Atlas Evolution）：所有任务出现重大回退，证明空间热力图可以仅从原始统计中有效自举，无需外部教师LLM。</li>
+<li><strong>去除稠密奖励</strong>（w/o Dense Reward）：在长时间跨度任务中难以逃离局部最优，证实视觉地图到稠密塑形信号的转换对缓解稀疏奖励瓶颈至关重要。</li>
+<li><strong>去除热力图</strong>（w/o Heatmap L1）或<strong>去除样例</strong>（w/o Exemplar L2）：性能均下降，证明两层都是最优执行所必需的。</li>
+</ul>
+<h4 id="34">3.4 热力图演化可视化</h4>
+<p>从Step 0到Step 400，热力图从无信息状态逐步学习到编码结构性危险（红色）和子目标路径（绿色），直观展示了框架如何在无外部语言模型监督下将2D布局蒸馏为视觉先验。</p>
+<h4 id="35">3.5 奖励瀑布分析</h4>
+<p>奖励分解分析显示，在所有四个环境中，危险惩罚和亲和力增益都提供了连续的步级信号，有效补充了稀疏的环境奖励。例如在Sokoban中，环境稀疏奖励贡献+0.79，危险惩罚-0.12，亲和力增益+0.14，总计+0.81。</p>
+<h3 id="_7">四、局限性</h3>
+<p>论文指出的主要局限是将桌面3D操作投影到2.5D视觉先验的方式；将这种方法扩展到高度遮挡的、以自我为中心的3D机器人场景仍然是关键的未来工作方向。</p>
+<h2 id="_8">研究要点表</h2>
+<div class="table-scroll"><table class="key-value">
+<thead>
+<tr>
+<th>维度</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>论文标题</td>
+<td>AtlasVA: Self-Evolving Visual Skill Memory for Teacher-Free VLM Agents</td>
+</tr>
+<tr>
+<td>作者</td>
+<td>Pan Wang, Yihao Hu, Xiujin Liu, Jingchu Yang, Hang Wang, Zhihao Wen（来自蚂蚁集团、中国科学技术大学、西湖大学、密歇根大学安娜堡分校、中山大学）</td>
+</tr>
+<tr>
+<td>发表年份</td>
+<td>2026年（arXiv预印本，2026年5月18日提交）</td>
+</tr>
+<tr>
+<td>研究问题</td>
+<td>现有VLM智能体的记忆增强强化学习框架依赖文本存储记忆并依赖外部教师模型进行总结和优化，导致空间几何信息有损压缩、模态不匹配以及稀疏奖励下的信用分配困难，如何构建视觉原生的、无需教师模型的技能记忆框架以提升空间决策能力？</td>
+</tr>
+<tr>
+<td>研究方法</td>
+<td>提出AtlasVA框架，包含三层视觉技能记忆（空间热力图、视觉样例、符号文本技能）；通过轨迹统计和轻量网格启发式方法自演化危险图和亲和图（EMA混合更新）；将自演化的空间图谱作为基于势函数的密集奖励塑形信号，结合PPO进行策略优化，形成感知-优化闭环。基座模型采用Qwen2.5-VL-3B-Instruct。</td>
+</tr>
+<tr>
+<td>主要发现</td>
+<td>AtlasVA在SOKOBAN、FROZENLAKE、3D具身导航和3D机器人操作四类基准上取得SOTA表现，平均成功率达0.93，显著超越GPT-5（0.69）、o3（0.71）等大型专有模型以及VAGEN（0.78）等开源基线。仅3B参数的模型在空间密集型任务上尤其表现突出，且训练收敛速度显著加快。消融实验证实了视觉技能记忆各层、图谱自演化机制和密集奖励塑形的必要性。</td>
+</tr>
+<tr>
+<td>创新点</td>
+<td>1）提出三层视觉技能记忆（VSM）层级结构，将可复用经验保持在视觉模态中，避免文本有损压缩；2）引入无需教师模型的图谱自演化机制，直接从原始轨迹统计中引导空间先验的更新；3）开发基于自演化视觉图谱的密集奖励塑形策略，将空间热力图转化为势函数提供坐标对齐的密集梯度信号，统一了感知、记忆与优化。</td>
+</tr>
+<tr>
+<td>局限性</td>
+<td>主要局限在于将桌面3D操作投影为2.5D视觉先验的方式；将该方法扩展到高度遮挡的、以自我为中心视角的3D机器人场景仍是关键的未来工作。</td>
+</tr>
+<tr>
+<td>与本研究的关联</td>
+<td>该论文为VLM智能体在空间推理任务中的记忆增强强化学习提供了新范式，其视觉原生记忆设计、无教师自演化机制和密集视觉奖励塑形策略对研究具身智能体的长期经验复用、稀疏奖励缓解以及多模态记忆架构设计具有重要参考价值。</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="_9">原文摘要</h2>
+<p>Vision-language model (VLM) agents increasingly rely on memory-augmented reinforcement learning to reuse experience across long-horizon tasks, yet most existing frameworks store memory as text and depend on proprietary teacher models to summarize or refine it. This design is poorly matched to spatial decision making: geometric priors are compressed into lossy language, and sparse interaction is often supervised through delayed textual feedback rather than dense visually grounded signals. We argue that reusable experience for VLM agents should remain visually grounded. Based on this insight, we propose \textbf{AtlasVA}, a teacher-free visual skill memory framework that organizes memory into three complementary layers: spatial heatmaps, visual exemplars, and symbolic text skills. AtlasVA further evolves danger and affinity atlases directly from trajectory statistics and lightweight grid heuristics, and reuses these self-evolving atlases as potential-based shaping rewards for reinforcement learning. This unifies perception, memory, and optimization without external LLM supervision. Experiments on \textsc{Sokoban}, \textsc{FrozenLake}, 3D embodied navigation, and 3D robotic manipulation benchmarks show that AtlasVA consistently outperforms text-centric memory baselines and competitive VLM agents, with especially strong gains on spatially intensive tasks. Homepage:  this https URL</p></article>
+<aside class="detail-aside"><div class="report-toc" aria-label="文献卡片目录"><details open><summary>本页目录</summary><div class="toc">
+<ul>
+<li><a href="#_1">核心机制</a></li>
+<li><a href="#_2">适用范围与局限</a></li>
+<li><a href="#_3">详细解读</a><ul>
+<li><a href="#_4">核心总结</a></li>
+<li><a href="#_5">一、问题背景与动机</a></li>
+<li><a href="#atlasva">二、AtlasVA方法框架</a></li>
+<li><a href="#_6">三、实验</a></li>
+<li><a href="#_7">四、局限性</a></li>
+</ul>
+</li>
+<li><a href="#_8">研究要点表</a></li>
+<li><a href="#_9">原文摘要</a></li>
+</ul>
+</div>
+</details></div><section><h2>引用这篇论文</h2><p id="citation-text" class="citation-text">Pan Wang, Yihao Hu, Xiujin Liu, et al.. AtlasVA: Self-Evolving Visual Skill Memory for Teacher-Free VLM Agents. arXiv:2605.17933, 2026.</p><button class="button secondary" type="button" data-copy-citation>复制引用</button><p class="meta-note">综述参考文献 [38]</p></section><section><h2>同方向继续阅读</h2><ul class="related-list"><li><a href="../papers/2507.07957.html">MIRIX: Multi-Agent Memory System for LLM-Based Agents</a></li><li><a href="../papers/2511.21678.html">Agentic Learner with Grow-and-Refine Multimodal Semantic Memory</a></li><li><a href="../papers/2602.16493.html">MMA: Multimodal Memory Agent</a></li><li><a href="../papers/2604.01007.html">Omni-SimpleMem: Autoresearch-Guided Discovery of Lifelong Multimodal Agent Memory</a></li></ul></section></aside></div></div></main>
+<footer class="site-footer"><div><strong>Agent Memory 研究</strong><p>从保存历史，到有依据地更新长期状态。</p></div>
+<div><span>内容更新 · 2026-09-08</span><p>理解方法，比较条件，关注长期影响。</p><a href="../sources.html">阅读指南</a></div></footer>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body></html>

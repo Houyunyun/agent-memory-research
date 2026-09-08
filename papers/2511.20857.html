@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="流式任务中的经验检索、更新与复用，含 ExpRAG/ReMem">
+<meta name="color-scheme" content="light"><title>Evo-Memory: Benchmarking LLM Agent Test-time Learning with Self-Evolving Memory · Agent Memory 研究</title>
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/katex/katex.min.css"><script src="../assets/katex/katex.min.js" defer></script><script src="../assets/katex/auto-render.min.js" defer></script><script src="../assets/site.js" defer></script>
+</head>
+<body data-page="library">
+<a class="skip-link" href="#main">跳转到正文</a>
+<header class="site-header"><div class="header-inner">
+<a class="brand" href="../index.html" aria-label="Agent Memory 研究首页">
+<svg viewBox="0 0 36 36" width="32" height="32" aria-hidden="true"><path d="M9 9h18v18H9zM9 9l18 18M27 9L9 27" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="9" r="4"/><circle cx="27" cy="9" r="4"/><circle cx="9" cy="27" r="4"/><circle cx="27" cy="27" r="4"/></svg>
+<span>Agent Memory<small>研究文献站</small></span></a>
+<nav class="site-nav" aria-label="主导航"><a href="../index.html">研究总览</a><a href="../library.html" aria-current="page">文献库</a><a href="../reports/survey.html">综述全文</a><a href="../reports/multi-agent.html">多智能体专题</a><a href="../sources.html">阅读指南</a></nav>
+</div></header>
+<main id="main"><div class="page-wrap"><div class="breadcrumb"><a href="../library.html">文献库</a><span>/</span><a href="../library.html?topic=evaluation">评测与反证</a></div>
+<header class="paper-hero"><div class="paper-badges"><span class="badge expanded">含详细解读</span><span class="muted">2025 · 2511.20857</span></div><h1>Evo-Memory: Benchmarking LLM Agent Test-time Learning with Self-Evolving Memory</h1><p class="paper-authors full-authors">Tianxin Wei, Noveen Sachdeva, Benjamin Coleman, Zhankui He, Yuanchen Bei, Xuying Ning, Mengting Ai, Yunzhe Li, Jingrui He, Ed H. Chi, Chi Wang, Shuo Chen, Fernando Pereira, Wang-Cheng Kang, Derek Zhiyuan Cheng</p>
+<div class="hero-actions paper-actions"><a href="https://arxiv.org/abs/2511.20857" target="_blank" rel="noopener noreferrer">论文原文 <span aria-hidden="true">↗</span></a><a href="../downloads/notes/2511.20857.md">下载文献卡片 Markdown</a></div></header>
+<div class="detail-layout"><article class="prose"><h2 id="_1">核心机制</h2>
+<p>流式任务中的经验检索、更新与复用，含 ExpRAG/ReMem</p>
+<h2 id="_2">适用范围与局限</h2>
+<p>与 EvoMemBench 为不同论文，不合并引用</p>
+<h2 id="_3">详细解读</h2>
+<p>这篇论文提出了<strong>Evo-Memory</strong>，一个用于评估LLM智能体（agent）在部署阶段（test-time）通过"自演化记忆"（self-evolving memory）进行持续学习的综合性流式基准测试和框架。核心思想是：现有的LLM记忆系统大多是静态的，只能被动地从对话历史中检索事实来回答问题（即"对话回忆"），但无法从过去的交互经验中抽象出可复用的推理策略来改进未来的决策（即"经验复用"）。Evo-Memory将传统静态数据集重构为顺序任务流，要求LLM在每次交互后检索、整合和更新记忆，并统一实现了十余种代表性记忆模块，在10个多样化的数据集上进行评估。论文还提出了两个方法：ExpRAG（一个简单的经验检索聚合基线）和ReMem（一个将推理、行动和记忆精炼紧密结合的action–think–memory refine流水线），用于实现持续改进。</p>
+<h3 id="_4">一、问题动机与核心区分</h3>
+<h4 id="11-vs">1.1 对话回忆 vs. 经验复用</h4>
+<p>论文开篇就做了一个关键区分（Figure 1a）：</p>
+<ul>
+<li><strong>对话回忆（Conversational Recall）</strong>：记住"说了什么"。比如你之前问过 $2x^2 + 3x - 1 = 0$ 的解是什么，记忆系统能回忆起答案是 $x = -2, 0.5$。这是一种"What"层面的记忆。</li>
+<li><strong>经验复用（Experience Reuse）</strong>：记住"怎么做的"。比如记住解二次方程应该用求根公式 $\frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$，这样遇到新的二次方程时可以直接复用这个策略。这是"How"层面的记忆。<br />
+  现有的LLM记忆评估基本都停留在对话回忆层面，而忽略了经验复用这个更重要的能力。</li>
+</ul>
+<h4 id="12">1.2 现有工作的不足</h4>
+<p>论文指出几个已有基准的局限：</p>
+<ul>
+<li><strong>StreamBench</strong>：评估顺序学习，但主要测量事实保留，不涉及推理或轨迹复用。</li>
+<li><strong>LifelongBench</strong>：研究终身学习，但关注的是保留能力而非记忆结构或更新机制。</li>
+<li>其他工作评估长期对话一致性，但不测试agent如何在部署过程中演化其记忆。<br />
+  总之，缺乏一个统一框架来评估不同记忆方法如何在真实流式场景中检索、整合和演化历史策略。</li>
+</ul>
+<hr />
+<h3 id="_5">二、问题形式化</h3>
+<h4 id="21">2.1 记忆增强智能体的抽象</h4>
+<p>论文将一个通用的记忆增强智能体形式化为一个四元组 $(\mathrm{F}, \mathrm{U}, \mathrm{R}, \mathrm{C})$：</p>
+<ul>
+<li>$\mathrm{F}$：基础LLM</li>
+<li>$\mathrm{U}$：记忆更新管道</li>
+<li>$\mathrm{R}$：检索模块</li>
+<li>$\mathrm{C}$：上下文构造机制（将检索到的内容转化为最终的工作上下文）<br />
+  智能体处理一个输入序列 $\{x_1, x_2, \ldots, x_T\}$，记忆状态 $M_t$ 随历史演化。在时间步 $t$，智能体接收输入 $x_t$，维护演化记忆 $M_t$，检索相关元素 $\mathrm{R}(M_t, x_t)$，构造上下文化的提示：  </li>
+</ul>
+<p>$\displaystyle C_t = \mathrm{C}(x_t, \mathrm{R}(M_t, x_t))$</p>
+<p>然后产生输出：  </p>
+<p>$\displaystyle \hat{y}_t = \mathrm{F}(C_t)$</p>
+<h4 id="22-">2.2 搜索-合成-演化循环</h4>
+<p>这个抽象统一了从RAG到动态/层次化/工作流记忆的各种机制，核心是三个步骤的迭代循环：<br />
+<strong>搜索（Search）</strong>：给定当前输入 $x_t$，检索相关记忆条目：  </p>
+<p>$\displaystyle R_t = \mathrm{R}(M_t, x_t)$</p>
+<p>其中 $\mathrm{R}$ 可以是相似性搜索、索引查找或对存储嵌入的注意力机制。<br />
+<strong>合成（Synthesis）</strong>：将检索到的信息 $R_t$ 重组为适合当前输入的工作上下文。可能涉及构建结构化提示、选择关键记忆项或将检索内容合并为摘要：  </p>
+<p>$\displaystyle \tilde{C}_t = \mathrm{C}(x_t, R_t), \quad \hat{y}_t = \mathrm{F}(\tilde{C}_t)$</p>
+<p><strong>演化（Evolve）</strong>：获得 $\hat{y}_t$ 后，构造新的记忆条目 $m_t = h(x_t, \hat{y}_t, f_t)$，其中 $f_t$ 是反馈信号（如任务是否完成），然后更新记忆：  </p>
+<p>$\displaystyle M_{t+1} = \mathrm{U}(M_t, m_t)$</p>
+<p>不同算法以不同方式实例化 $\mathrm{U}$：直接追加（检索型记忆）、摘要/压缩（长期存储）、替换（有限容量存储）等。</p>
+<h4 id="23">2.3 数据集准备</h4>
+<p>Evo-Memory将传统静态数据集重构为<strong>流式任务序列</strong>。每个数据集被转化为序列 $\tau = \{(x_1, y_1), \ldots, (x_T, y_T)\}$，形成一个ground-truth轨迹，其中早期任务为后续任务提供关键信息或策略。在每一步 $t$，智能体处理输入 $x_t$，检索和合成记忆，产生预测 $\hat{y}_t$，并更新记忆状态 $M_t$，得到预测轨迹：  </p>
+<p>$\displaystyle (x_1, \hat{y}_1, M_1) \rightarrow (x_2, \hat{y}_2, M_2) \rightarrow \cdots \rightarrow (x_T, \hat{y}_T, M_T)$</p>
+<h3 id="_6">三、提出的方法</h3>
+<h4 id="31-exprag">3.1 ExpRAG：经验检索与聚合</h4>
+<p>ExpRAG是一个简单的任务级检索增强基线。每个记忆条目 $m_i = S(x_i, \hat{y}_i, f_i)$ 用模板 $S$ 编码为结构化经验文本。在步骤 $t$，智能体根据检索分数 $\phi$ 从记忆中检索 $k$ 个最相似的经验：  </p>
+<p>$\displaystyle R_t = \text{Top-}k_{m_i \in M_t} \phi(x_t, m_i)$</p>
+<p>模型基于这些检索到的示例进行上下文学习（in-context learning）：  </p>
+<p>$\displaystyle \hat{y}_t = \mathrm{F}(x_t, R_t)$</p>
+<p>然后将新经验追加到记忆：  </p>
+<p>$\displaystyle M_{t+1} = M_t \cup \{(x_t, \hat{y}_t, f_t)\}$</p>
+<p>ExpRAG的特点是<strong>一次性经验复用</strong>——通过检索和聚合实现，但缺乏迭代推理或自适应精炼。它本质上是in-context learning的记忆扩展版本。</p>
+<h4 id="32-remem">3.2 ReMem：推理、行动与记忆的协同</h4>
+<p>ReMem是论文提出的核心方法，一个将推理（reasoning）、行动（action）和记忆精炼（memory refinement）统一在单一决策循环中的框架。与传统的ReAct风格方法将记忆视为静态上下文不同，ReMem引入了第三个维度——<strong>记忆推理（memory reasoning）</strong>，允许智能体在问题求解过程中主动评估、重组和演化自己的记忆。<br />
+在每一步 $t$，给定当前输入 $x_t$、记忆状态 $M_t$ 和之前的推理轨迹 $o_t^{1:n-1}$，智能体选择以下操作之一：  </p>
+<p>$\displaystyle a_t^n \in \{\text{Think}, \text{Act}, \text{Refine}\}$</p>
+<p>然后执行操作并转移：  </p>
+<p>$\displaystyle o_t^n = \text{Agent}(x_t, M_t, a_t^n)$</p>
+<p>三种操作的含义：</p>
+<ul>
+<li><strong>Think</strong>：产生内部推理轨迹，帮助分解任务并指导后续行动。</li>
+<li><strong>Act</strong>：在环境中执行操作或输出用户可见的响应。</li>
+<li><strong>Refine</strong>：对记忆进行元推理——利用有用经验、修剪噪声、重组 $M_t$，以更好地支持未来的推理和行动。<br />
+  在每一步内，智能体可以执行多轮Think和Refine，一旦选择Act操作，该步骤终止。这诱导了一个<strong>马尔可夫决策过程</strong>，其中步骤 $t$ 经过 $n$ 次操作后的状态为：  </li>
+</ul>
+<p>$\displaystyle s_t^n = (x_t, M_t, o_t^{1:n-1})$</p>
+<p>动作空间为 $\{\text{Think}, \text{Act}, \text{Refine}\}$，转移动态由Agent算子和环境响应给出。<br />
+  ReMem的关键创新在于扩展了ReAct风格智能体的动作空间，引入了显式的记忆推理机制。通过这种扩展，记忆成为一个与推理实时交互的自适应组件，而不是被动的上下文。</p>
+<hr />
+<h3 id="_7">四、实验设置</h3>
+<h4 id="41">4.1 数据集</h4>
+<p>Evo-Memory在涵盖多种能力的10个数据集上进行评估：<br />
+<strong>单轮推理和QA任务</strong>：</p>
+<ul>
+<li><strong>MMLU-Pro</strong>：多学科推理（工程、经济、哲学等子领域）</li>
+<li><strong>GPQA-Diamond</strong>：研究生级别的科学推理</li>
+<li><strong>AIME-24/25</strong>：奥林匹克数学竞赛题</li>
+<li><strong>ToolBench</strong>：工具使用和API调用</li>
+</ul>
+<p><strong>多轮目标导向任务</strong>：</p>
+<ul>
+<li><strong>AlfWorld</strong>：文本化的家庭任务环境</li>
+<li><strong>BabyAI</strong>：网格导航和物体操作</li>
+<li><strong>ScienceWorld</strong>：交互式科学实验</li>
+<li><strong>PDDL</strong>：符号规划任务<br />
+  所有方法在相同的搜索-预测-演化循环下评估：  </li>
+</ul>
+<p>$\displaystyle (x_t, M_t) \xrightarrow{\text{search}} R_t \xrightarrow{\text{synthesis}} \hat{y}_t \xrightarrow{\text{evolve}} M_{t+1}$</p>
+<h4 id="42">4.2 对比方法</h4>
+<p>论文将评估的方法分为四类：</p>
+<ol>
+<li><strong>无过程记忆的Agent管道</strong>：ReAct、Amem</li>
+<li><strong>自适应Agent记忆方法</strong>：SelfRAG、MemOS、Mem0、LangMem</li>
+<li><strong>基于过程知识的记忆Agent</strong>：Dynamic Cheatsheet（DC-Cu和DC-RS两个变体）、Agent Workflow Memory（AWM）</li>
+<li><strong>提出的演化记忆框架</strong>：ExpRecent、ExpRAG、ReMem<br />
+   所有方法在两个强LLM骨干上实例化：<strong>Gemini-2.5系列</strong>（Flash、Flash-Lite、Pro）和<strong>Claude系列</strong>（3.5-Haiku、3.7-Sonnet）。</li>
+</ol>
+<h4 id="43">4.3 评估维度</h4>
+<ul>
+<li><strong>答案准确率</strong>：LLM是否产生正确输出</li>
+<li><strong>成功率（S）</strong>：Agent是否成功完成任务目标</li>
+<li><strong>进度率（P）</strong>：任务完成的进度</li>
+<li><strong>步骤效率</strong>：完成目标所需的步数</li>
+<li><strong>序列鲁棒性</strong>：在不同任务顺序下是否保持一致性能</li>
+</ul>
+<hr />
+<h3 id="_8">五、实验结果</h3>
+<h4 id="51-rq1">5.1 RQ1：整体性能</h4>
+<p><strong>单轮任务</strong>（Table 1a）：演化记忆方法显示出一致的改进。ReMem在Gemini-2.5 Flash上达到0.65的平均精确匹配和0.85/0.71的API准确率。ExpRAG作为简单基线，表现出色，超越了多个更复杂的设计。单轮场景下的改进幅度相对温和。<br />
+<strong>多轮任务</strong>（Table 1b）：ReMem和ExpRAG在两个骨干上都取得了强劲且稳定的性能。特别值得注意的是，在Claude 3.7 Sonnet上，ReMem在AlfWorld达到0.92/0.96（成功率/进度率），在PDDL达到0.83/0.95，在ScienceWorld达到0.62/0.89。多轮场景下的性能提升<strong>明显大于</strong>单轮场景，说明随着任务视野的延长，持续适应变得越来越有价值。</p>
+<h4 id="52-rq2">5.2 RQ2：记忆改进的影响因素</h4>
+<p><strong>任务相似性的影响</strong>（Figure 3）：ReMem的改进与数据集内任务相似性强相关（Gemini 2.5 Flash上Pearson $r = 0.717$，Claude 3.7 Sonnet上 $r = 0.563$）。任务相似性通过计算每个任务嵌入与其数据集聚类中心的平均余弦距离来衡量。PDDL和AlfWorld等具有较高嵌入聚类比率的任务产生更大的增益，说明重复出现的任务结构有助于记忆复用和泛化。而AIME-25或GPQA等多样性较高的数据集增益较小。<br />
+<strong>步骤效率</strong>（Figure 4）：演化记忆方法一致地需要更少的步骤。ReMem实现了最大且最稳定的减少（如在AlfWorld上从22.6步降到11.5步）。</p>
+<h4 id="53-rq3">5.3 RQ3：任务序列难度的影响</h4>
+<p>Table 2比较了Easy→Hard和Hard→Easy两种任务排列方向下的性能。基线方法在不同序列下表现差异大，鲁棒性有限。而ReMem在两个方向上都保持强劲一致的性能，在Hard→Easy设置下达到0.94/0.97。有趣的是，Hard→Easy方向的性能更好，这暗示<strong>从更难任务中获得的成功经验更具可迁移性</strong>。</p>
+<h4 id="54-rq4">5.4 RQ4：反馈类型的影响</h4>
+<p>Table 3评估了当成功和失败经验都存入记忆时的表现。基线方法在未过滤失败经验下性能明显下降，说明朴素的记忆积累会引入噪声并妨碍检索。而ReMem通过主动精炼存储的经验保持鲁棒，在两个骨干上都取得最佳的成功率和进度率。这突显了选择性利用和记忆精炼对稳定测试时适应的重要性。</p>
+<h3 id="_9">六、附加分析</h3>
+<h4 id="61">6.1 记忆修剪率</h4>
+<p>Figure 5展示了不同数据集上的记忆修剪率。领域覆盖范围更广的数据集（如GPQA，涵盖工程、物理等多领域）表现出更高的修剪率（36.8%），说明更多记忆在异构任务间被认为是冗余的。而问题类型更集中的数据集（如AIME）修剪率更低（17.5%和10.8%），因为更高的任务相似性使记忆保持相关性。</p>
+<h4 id="62">6.2 累积准确率曲线</h4>
+<p>Figure 6和7展示了随任务序列推进的累积准确率曲线。在所有环境中，ReMem表现出更快的适应和更稳定的保持。在初始的"冷启动"阶段，History基线表现相当，但随着更多任务被处理，ReMem迅速超越，体现了持续任务级适应的累积优势。</p>
+<h4 id="63">6.3 跨模型泛化</h4>
+<p>附录中的Table 4和5展示了在更多模型（Gemini-2.5-Flash-Lite、Gemini-2.5-Pro、Claude-3.5-Haiku）上的结果。性能趋势在所有设置下保持一致，确认了演化记忆架构的优势是<strong>模型无关的</strong>。值得注意的是，<strong>较小的模型从中受益最大</strong>，说明测试时精炼也是增强轻量级LLM的有效方式。</p>
+<h3 id="_10">七、总结与启示</h3>
+<p>论文的核心发现包括：</p>
+<ol>
+<li><strong>自演化记忆能持续提升性能</strong>，但在稳定性和过程知识复用方面仍然脆弱。</li>
+<li><strong>多轮任务的改进远大于单轮任务</strong>，说明持续适应在长视野任务中价值更大。</li>
+<li><strong>记忆改进与任务相似性正相关</strong>——结构重复的任务更容易从记忆复用中获益。</li>
+<li><strong>简单的经验检索（ExpRAG）已经是非常有效的基线</strong>，超越了许多更复杂的设计，说明显式的任务级经验利用是一个有前景但尚未充分探索的方向。</li>
+<li><strong>ReMem通过将记忆推理引入决策循环</strong>，实现了最佳的整体性能，特别是在多轮交互环境中。</li>
+<li><strong>失败经验的处理很重要</strong>——朴素积累会引入噪声，需要选择性利用和主动精炼。</li>
+</ol>
+<h2 id="_11">研究要点表</h2>
+<div class="table-scroll"><table class="key-value">
+<thead>
+<tr>
+<th>维度</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>论文标题</td>
+<td>Evo-Memory: Benchmarking LLM Agent Test-time Learning with Self-Evolving Memory</td>
+</tr>
+<tr>
+<td>作者</td>
+<td>Tianxin Wei, Noveen Sachdeva, Benjamin Coleman, Zhankui He, Yuanchen Bei, Xuying Ning, Mengting Ai, Yunzhe Li, Jingrui He, Ed H. Chi, Chi Wang, Shuo Chen, Fernando Pereira, Wang-Cheng Kang, Derek Zhiyuan Cheng</td>
+</tr>
+<tr>
+<td>发表年份</td>
+<td>2026</td>
+</tr>
+<tr>
+<td>研究问题</td>
+<td>现有LLM记忆评估主要关注静态对话回忆，忽视了智能体在动态任务流中积累和复用经验的能力。本文旨在解决如何评估LLM智能体在部署时通过自进化记忆实现测试时学习（test-time evolution）的问题。</td>
+</tr>
+<tr>
+<td>研究方法</td>
+<td>提出Evo-Memory流式基准测试框架，将静态数据集重构为顺序任务流，统一实现了十余种代表性记忆模块，并在10个多轮目标导向和单轮推理QA数据集上进行评估。提出ExpRAG（基于检索的经验复用基线）和ReMem（融合推理-行动-记忆精炼的action–think–memory refine管线）两种方法。</td>
+</tr>
+<tr>
+<td>主要发现</td>
+<td>自进化记忆架构在各任务和模型上一致提升性能，ReMem在多轮任务中表现尤为突出（如AlfWorld达0.92/0.96成功率/进度率）。记忆改进效果与数据集内任务相似度强相关（Pearson r=0.717）。进化记忆方法显著减少完成任务所需步数，且在包含失败经验的噪声记忆条件下仍保持鲁棒。</td>
+</tr>
+<tr>
+<td>创新点</td>
+<td>首次提出针对LLM智能体自进化记忆的统一流式评估基准，区分了"对话回忆"与"经验复用"两种记忆能力；提出ReMem框架，将记忆推理作为第三维度引入ReAct式智能体的动作空间，实现推理、行动与记忆更新的实时交互；提供了以记忆为中心的多维度评估指标体系。</td>
+</tr>
+<tr>
+<td>局限性</td>
+<td>受预算和API限制，仅评估了有限的强LLM模型，未覆盖开源或多语言模型；基准主要聚焦文本和目标导向任务，尚未扩展到多模态或真实世界环境；记忆管理依赖LLM输出，可能受对抗攻击或记忆投毒影响。</td>
+</tr>
+<tr>
+<td>与本研究的关联</td>
+<td>未提及</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="_12">原文摘要</h2>
+<p>Statefulness is essential for large language model (LLM) agents to perform long-term planning and problem-solving. This makes memory a critical component, yet its management and evolution remain largely underexplored. Existing evaluations mostly focus on static conversational settings, where memory is passively retrieved from dialogue to answer queries, overlooking the dynamic ability to accumulate and reuse experience across evolving task streams. In real-world environments such as interactive problem assistants or embodied agents, LLMs are required to handle continuous task streams, yet often fail to learn from accumulated interactions, losing valuable contextual insights, a limitation that calls for test-time evolution, where LLMs retrieve, integrate, and update memory continuously during deployment. To bridge this gap, we introduce Evo-Memory, a comprehensive streaming benchmark and framework for evaluating self-evolving memory in LLM agents. Evo-Memory structures datasets into sequential task streams, requiring LLMs to search, adapt, and evolve memory after each interaction. We unify and implement over ten representative memory modules and evaluate them across 10 diverse multi-turn goal-oriented and single-turn reasoning and QA datasets. To better benchmark experience reuse, we provide a baseline method, ExpRAG, for retrieving and utilizing prior experience, and further propose ReMem, an action-think-memory refine pipeline that tightly integrates reasoning, task actions, and memory updates to achieve continual improvement.</p></article>
+<aside class="detail-aside"><div class="report-toc" aria-label="文献卡片目录"><details open><summary>本页目录</summary><div class="toc">
+<ul>
+<li><a href="#_1">核心机制</a></li>
+<li><a href="#_2">适用范围与局限</a></li>
+<li><a href="#_3">详细解读</a><ul>
+<li><a href="#_4">一、问题动机与核心区分</a></li>
+<li><a href="#_5">二、问题形式化</a></li>
+<li><a href="#_6">三、提出的方法</a></li>
+<li><a href="#_7">四、实验设置</a></li>
+<li><a href="#_8">五、实验结果</a></li>
+<li><a href="#_9">六、附加分析</a></li>
+<li><a href="#_10">七、总结与启示</a></li>
+</ul>
+</li>
+<li><a href="#_11">研究要点表</a></li>
+<li><a href="#_12">原文摘要</a></li>
+</ul>
+</div>
+</details></div><section><h2>引用这篇论文</h2><p id="citation-text" class="citation-text">Tianxin Wei, Noveen Sachdeva, Benjamin Coleman, et al.. Evo-Memory: Benchmarking LLM Agent Test-time Learning with Self-Evolving Memory. arXiv:2511.20857, 2025.</p><button class="button secondary" type="button" data-copy-citation>复制引用</button><p class="meta-note">综述参考文献 [45]</p></section><section><h2>同方向继续阅读</h2><ul class="related-list"><li><a href="../papers/2307.03172.html">Lost in the Middle: How Language Models Use Long Contexts</a></li><li><a href="../papers/2402.17753.html">Evaluating Very Long-Term Conversational Memory of LLM Agents</a></li><li><a href="../papers/2410.10813.html">LongMemEval: Benchmarking Chat Assistants on Long-Term Interactive Memory</a></li><li><a href="../papers/2506.21605.html">MemBench: Towards More Comprehensive Evaluation on the Memory of LLM-based Agents</a></li></ul></section></aside></div></div></main>
+<footer class="site-footer"><div><strong>Agent Memory 研究</strong><p>从保存历史，到有依据地更新长期状态。</p></div>
+<div><span>内容更新 · 2026-09-08</span><p>理解方法，比较条件，关注长期影响。</p><a href="../sources.html">阅读指南</a></div></footer>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body></html>

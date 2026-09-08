@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="可追溯的 Agent Memory 文献与研究综述">
+<meta name="color-scheme" content="light"><title>阅读指南 · Agent Memory 研究</title>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/site.css">
+<script src="assets/site.js" defer></script>
+</head>
+<body data-page="sources">
+<a class="skip-link" href="#main">跳转到正文</a>
+<header class="site-header"><div class="header-inner">
+<a class="brand" href="index.html" aria-label="Agent Memory 研究首页">
+<svg viewBox="0 0 36 36" width="32" height="32" aria-hidden="true"><path d="M9 9h18v18H9zM9 9l18 18M27 9L9 27" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="9" r="4"/><circle cx="27" cy="9" r="4"/><circle cx="9" cy="27" r="4"/><circle cx="27" cy="27" r="4"/></svg>
+<span>Agent Memory<small>研究文献站</small></span></a>
+<nav class="site-nav" aria-label="主导航"><a href="index.html">研究总览</a><a href="library.html">文献库</a><a href="reports/survey.html">综述全文</a><a href="reports/multi-agent.html">多智能体专题</a><a href="sources.html" aria-current="page">阅读指南</a></nav>
+</div></header>
+<main id="main"><div class="page-wrap"><article class="prose reading-guide"><h1 id="_1">阅读指南</h1>
+<h2 id="_2">从哪里开始读</h2>
+<ul>
+<li><strong>建立全景</strong>：<a href="index.html">研究总览</a>按八个方向组织问题；<a href="reports/survey.html">中文综述</a>比较记忆架构、经验学习、评测和治理。</li>
+<li><strong>查找具体论文</strong>：<a href="library.html">文献库</a>支持题名、作者、论文标识和中文关键词搜索，以及研究方向、年份和范围筛选。</li>
+<li><strong>理解团队记忆</strong>：<a href="reports/multi-agent.html">多智能体专题</a>区分团队共享经验、角色适配和由多个 Agent 管理记忆。</li>
+</ul>
+<h2 id="_3">一张文献卡片里有什么</h2>
+<p>先看“核心机制”和“适用范围与局限”，判断论文是否与你的问题相关。部分卡片另提供：</p>
+<ul>
+<li><strong>详细解读</strong>：研究动机、方法步骤、实验设置、主要发现和局限。</li>
+<li><strong>研究要点表</strong>：快速对照问题、方法、结果与适用条件。</li>
+<li><strong>结构化提纲</strong>：按层级回顾论文的逻辑。</li>
+<li><strong>原文摘要与论文链接</strong>：回到原论文阅读图表、公式和完整论证。</li>
+</ul>
+<p>详细解读是帮助理解的整理文字，不代替原文。引用实验数字或理论结论时，请查看论文的对应版本、条件和图表。</p>
+<h2 id="_4">怎么比较不同方法</h2>
+<p><strong>先问改变了什么。</strong> 新增记忆内容、学习记忆操作、搜索记忆架构，以及改变外层改进规则，是不同层次的贡献。</p>
+<p><strong>再看测试条件。</strong> 同一数字在不同模型、历史长度、数据划分和计算预算下含义不同。“成本降低”要区分构建、检索、推理和整个生命周期；“零违规”也需要结合样本量和威胁模型理解。</p>
+<p><strong>保留不成功的情况。</strong> 完整上下文可能优于记忆压缩；更多共享也可能增加干扰。阅读实验结论时，注意基线、负迁移和防御对正常任务的影响。</p>
+<p><strong>不要混淆来源与权限。</strong> 在记忆安全研究中，“信息来自哪里”和“谁有权授予行动权限”是研究对象本身。保留信息出处，不等于允许 Agent 执行其中的指令。</p>
+<h2 id="_5">文献范围</h2>
+<p>全站收录 <strong>89 篇核心与扩展文献</strong>，另列 <strong>2 篇外围文献</strong>，合计 <strong>91 张卡片</strong>。分类可以交叉，不是互斥划分。年份以首次提交或首次记录为主，不一定等于正式发表年份。</p>
+<h2 id="_6">下载与离线阅读</h2>
+<ul>
+<li><a href="downloads/catalog.csv">文献表 CSV</a></li>
+<li><a href="downloads/references.bib">核心与扩展文献 BibTeX</a></li>
+<li><a href="downloads/survey.md">中文综述 Markdown</a></li>
+<li><a href="downloads/multi-agent.md">多智能体专题 Markdown</a></li>
+</ul>
+<p>每篇详情页也提供 Markdown 下载。网站可以直接在本地打开；浏览和公式显示无需联网，点击论文原文链接时才需要网络。</p></article></div></main>
+<footer class="site-footer"><div><strong>Agent Memory 研究</strong><p>从保存历史，到有依据地更新长期状态。</p></div>
+<div><span>内容更新 · 2026-09-08</span><p>理解方法，比较条件，关注长期影响。</p><a href="sources.html">阅读指南</a></div></footer>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body></html>

@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="研究多模态 LLM 评判器的对抗鲁棒性">
+<meta name="color-scheme" content="light"><title>On the Adversarial Robustness of Multimodal LLM Judges · Agent Memory 研究</title>
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/katex/katex.min.css"><script src="../assets/katex/katex.min.js" defer></script><script src="../assets/katex/auto-render.min.js" defer></script><script src="../assets/site.js" defer></script>
+</head>
+<body data-page="library">
+<a class="skip-link" href="#main">跳转到正文</a>
+<header class="site-header"><div class="header-inner">
+<a class="brand" href="../index.html" aria-label="Agent Memory 研究首页">
+<svg viewBox="0 0 36 36" width="32" height="32" aria-hidden="true"><path d="M9 9h18v18H9zM9 9l18 18M27 9L9 27" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="9" r="4"/><circle cx="27" cy="9" r="4"/><circle cx="9" cy="27" r="4"/><circle cx="27" cy="27" r="4"/></svg>
+<span>Agent Memory<small>研究文献站</small></span></a>
+<nav class="site-nav" aria-label="主导航"><a href="../index.html">研究总览</a><a href="../library.html" aria-current="page">文献库</a><a href="../reports/survey.html">综述全文</a><a href="../reports/multi-agent.html">多智能体专题</a><a href="../sources.html">阅读指南</a></nav>
+</div></header>
+<main id="main"><div class="page-wrap"><div class="breadcrumb"><a href="../library.html">文献库</a><span>/</span><a href="../library.html?topic=safety">安全与治理</a></div>
+<header class="paper-hero"><div class="paper-badges"><span class="badge expanded">含详细解读</span><span class="muted">2026 · 2606.15608</span></div><h1>On the Adversarial Robustness of Multimodal LLM Judges</h1><p class="paper-authors full-authors">Zihan Wang, Guansong Pang, Zelin Liu, Wenjun Miao, Jin Zheng, Xiao Bai</p>
+<div class="hero-actions paper-actions"><a href="https://arxiv.org/abs/2606.15608" target="_blank" rel="noopener noreferrer">论文原文 <span aria-hidden="true">↗</span></a><a href="../downloads/notes/2606.15608.md">下载文献卡片 Markdown</a></div></header>
+<div class="detail-layout"><article class="prose"><h2 id="_1">核心机制</h2>
+<p>研究多模态 LLM 评判器的对抗鲁棒性</p>
+<h2 id="_2">适用范围与局限</h2>
+<p>直接对象是评判器，不是长期记忆</p>
+<h2 id="_3">详细解读</h2>
+<h3 id="_4">论文核心总结</h3>
+<p>这篇论文研究的是<strong>多模态大语言模型（MLLM）作为自动化评判者时的对抗鲁棒性问题</strong>。当前，MLLM被广泛用作图像质量评估和图像安全审核的自动化"裁判"，但论文发现这些裁判系统极易被对抗性攻击欺骗——攻击者只需对输入图像施加人眼不可察觉的微小扰动，就能让裁判给出虚高的质量分数或将不安全图像误判为安全。论文提出了<strong>RobustMLLMJudge</strong>（首个系统评估MLLM裁判对抗鲁棒性的框架）和<strong>MGSIA</strong>（一种新型攻击方法），后者通过"肯定语义诱导"与"高分流形对齐"两个目标的联合优化，实现了跨协议、跨模型的高效可迁移攻击，揭示了MLLM裁判系统中存在的深层结构性缺陷。</p>
+<h3 id="_5">一、研究背景与动机</h3>
+<h4 id="11-mllm">1.1 MLLM作为裁判的兴起</h4>
+<p>近年来，LLaVA、Qwen-VL、InternVL等多模态大语言模型在跨模态任务上表现出色。这催生了一个新范式：<strong>用MLLM作为自动化评判者（MLLM Judge）</strong>，替代人工标注来评估：</p>
+<ul>
+<li><strong>图像质量/文图一致性</strong>：判断生成图像是否与参考文本描述匹配</li>
+<li><strong>图像安全性</strong>：判断图像是否包含有害、暴力、色情等违规内容<br />
+  传统方法的局限性很明显：人工标注成本高且主观性强；FID、CLIPScore等自动化指标难以捕捉细粒度语义对齐；Q16等传统安全分类器无法处理细粒度的、依赖具体政策的安全风险。而MLLM凭借强大的跨模态理解、细粒度推理和类人对齐能力，成为了更优的评估工具。</li>
+</ul>
+<h4 id="12">1.2 核心威胁问题</h4>
+<p>论文提出了一个被忽视的关键问题：<strong>攻击者能否蓄意操纵这些自动化评估系统的决策？</strong><br />
+这种攻击的危害是多方面的：</p>
+<ul>
+<li>攻击者可以通过对输入图像施加微小扰动来获得虚高的质量分数，从而<strong>操纵公共排行榜上的模型排名</strong></li>
+<li>在安全评估中，类似的操纵可能导致不安全图像被误判为安全，从而<strong>绕过生成后审核或安全过滤器</strong></li>
+<li>通过向自动化对齐流程（如RLAIF）注入有偏的奖励或安全信号，攻击者可以<strong>误导文生图模型的优化方向</strong></li>
+</ul>
+<hr />
+<h3 id="mllm">二、MLLM裁判的三大类型</h3>
+<p>论文将现有的MLLM裁判方法归纳为三大类（如图1所示），这三类在质量评估和安全评估中都有应用：</p>
+<h4 id="21-tokentoken-probability-scoring">2.1 Token概率评分（Token Probability Scoring）</h4>
+<p>通过一个整体性的二元视觉问答问题来评估，分数直接来自模型输出特定token的概率。形式化为：  </p>
+<p>$\displaystyle s = P_\mathcal{F}(a_{\text{tar}} \mid \boldsymbol{v}, \boldsymbol{q})$</p>
+<p>其中$a_{\text{tar}}$是指定的响应token（通常是"Yes"），$\boldsymbol{v}$是候选图像，$\boldsymbol{q}$是问题。<br />
+例如VQAScore会问："Does this figure show '{t}'?"，然后用模型输出"Yes"的概率作为分数。安全评估中类似地问图像是否符合安全策略。</p>
+<h4 id="22-fine-grained-decomposition">2.2 细粒度分解（Fine-grained Decomposition）</h4>
+<p>将评估标准分解为一系列局部的、可验证的子任务，分别评估后聚合。形式化为：  </p>
+<p>$\displaystyle s = \text{Agg}\left(\{s_i\}_{i=1}^n\right)$</p>
+<p>其中$\{q_i\}_{i=1}^n = D(\cdot)$是分解函数产生的子问题，$s_i \leftarrow \mathcal{F}(\boldsymbol{v}, \boldsymbol{q}_i)$是每个子问题的得分。<br />
+例如DSG和TIFA将参考文本分解为多个细粒度子问题（"有几个杯子？""杯子是什么材质的？"），然后聚合子分数。安全评估中的CLUE则将安全规则分解为前置条件。</p>
+<h4 id="23-mllm-as-a-judgemllm-as-a-judge-prompting">2.3 MLLM-as-a-Judge提示（MLLM-as-a-Judge Prompting）</h4>
+<p>直接通过提示词指示MLLM充当评估者，模型自回归生成包含数值评分（可选附带理由）的响应：  </p>
+<p>$\displaystyle s \leftarrow \mathcal{F}(\boldsymbol{v}, \boldsymbol{p}_{\text{judge}})$</p>
+<p>例如VIEScore、T2I-CompBench++等方法会使用类似"Act as an MLLM judge, evaluate quality based on..."的提示，让模型直接输出评分和评语。</p>
+<h3 id="robustmllmjudge">三、RobustMLLMJudge框架</h3>
+<h4 id="31">3.1 威胁模型</h4>
+<p><strong>攻击目标</strong>：给定良性图像$\boldsymbol{v}$，攻击者施加变换$T(\cdot)$产生对抗样本$\hat{\boldsymbol{v}} = T(\boldsymbol{v})$，使裁判给出尽可能高的评估分数：  </p>
+<p>$\displaystyle T^\* = \begin{cases} \arg\max_T \mathcal{J}(T(\boldsymbol{v}), \boldsymbol{t}; \mathcal{F}), &amp; \text{quality}, \\ \arg\max_T \mathcal{J}(T(\boldsymbol{v}), \boldsymbol{\pi}; \mathcal{F}), &amp; \text{safety}. \end{cases}$</p>
+<p>主要实例化为加性扰动$T(\boldsymbol{v}) = \boldsymbol{v} + \boldsymbol{\delta}$，受$L_\infty$范数约束：$\|\boldsymbol{\delta}\|_\infty \leq \epsilon$。<br />
+<strong>攻击者能力</strong>：</p>
+<ul>
+<li>攻击者生成待评估图像并提交给裁判系统，因此完全控制图像$\boldsymbol{v}$</li>
+<li>攻击者知道参考文本$\boldsymbol{t}$或安全策略$\boldsymbol{\pi}$以及评估协议（因为这些通常是公开的）</li>
+<li><strong>但攻击者只能修改图像</strong>，不能修改参考文本、安全策略或评估协议本身</li>
+<li>模型访问层面考虑白盒、黑盒和灰盒三种设置</li>
+</ul>
+<h4 id="32">3.2 基线攻击方法的适配</h4>
+<p>论文从现有对抗攻击方法中适配了三类基线攻击：<br />
+<strong>目标语义线索</strong> $\boldsymbol{t}_{\text{tar}}$是一个关键概念：在质量评估中，$\boldsymbol{t}_{\text{tar}}$就是参考文本$\boldsymbol{t}$（用于增强文图对齐）；在安全评估中，$\boldsymbol{t}_{\text{tar}}$是一段无害的替代文本（用于掩盖危险视觉内容）。</p>
+<ol>
+<li><strong>图像退化（Image Degradation）</strong>：添加高斯噪声、高斯模糊，测试裁判面对常见图像伪影时的稳定性</li>
+<li><strong>手工扰动（Handcrafted Perturbation）</strong>：黑盒设置下的启发式变换，包括黑色填充（Padding）、边界框标注（Bounding Box）、将目标语义文本叠加为半透明层（Target Text Overlay）</li>
+<li><strong>可学习扰动（Learnable Perturbation）</strong>：从现有针对MLLM的目标攻击方法适配而来，包括Chain of Attack、AttackVLM（图到图和图到文两个变体），以及受越狱攻击启发的<strong>Target Text Embedding</strong>方法，后者直接优化生成目标语义文本的概率：  </li>
+</ol>
+<p>$\displaystyle \boldsymbol{\delta}^\*_{\text{TTE}} = \arg\max_{\|\boldsymbol{\delta}\|_\infty \leq \epsilon} \log P_\mathcal{F}(\boldsymbol{t}_{\text{tar}} | \boldsymbol{v} + \boldsymbol{\delta})$</p>
+<h4 id="33">3.3 基线攻击的实验发现</h4>
+<p>论文在GenAI-Bench（质量评估）和HADES/T2I-RiskyPrompt（安全评估）数据集上，使用LLaVA-1.5-7B和Qwen2.5-VL-7B作为裁判骨干，评估了11种裁判协议。<br />
+<strong>关键发现</strong>：<br />
+<strong>发现一：MLLM裁判确实容易被攻击</strong>。简单适配的攻击方法就能在多种裁判协议上膨胀分数。其中，试图注入目标语义线索$\boldsymbol{t}_{\text{tar}}$的攻击相对更有效。例如Target Text Overlay利用注意力捷径，让MLLM通过OCR识别叠加文本而非真正进行多模态语义评估；Target Text Embedding通过优化生成概率将文本语义隐式编码到图像中。<br />
+<strong>发现二：但攻击效果受限</strong>。分数膨胀的幅度往往不大，原因有二：</p>
+<ul>
+<li><strong>紧约束的威胁模型</strong>：攻击者只能修改图像，无法操纵提示模板或评估协议</li>
+<li><strong>协议异质性</strong>：三类裁判使用高度异构的协议和方法来评估输入，针对特定任务精心设计的攻击方法难以泛化<br />
+  论文通过注意力图可视化（图4）揭示了基线攻击的本质：这些方法利用的是表面视觉捷径。例如Target Text Overlay使模型注意力集中在叠加文本上而非图像内容；Bounding Box和Padding使注意力分散到边缘，被裁判解读为图像缺陷。</li>
+</ul>
+<hr />
+<h3 id="mgsia">四、MGSIA攻击方法</h3>
+<h4 id="41">4.1 方法概述</h4>
+<p>MGSIA（Manifold-Guided Semantic Induction Attack，流形引导的语义诱导攻击）的核心思想是：<strong>绕过针对各种协议特定目标的复杂优化，转而优化一个与协议无关的目标</strong>，该目标结合了两个互补的组件：</p>
+<ol>
+<li><strong>肯定语义诱导（Affirmative Semantic Induction, ASI）</strong>：局部语义注入</li>
+<li><strong>高分流形对齐（High-Score Manifold Alignment, HMA）</strong>：全局结构对齐<br />
+   这两个目标背后的动机分别是：</li>
+</ol>
+<p><strong>对于ASI</strong>：尽管评分协议高度异构，但这些裁判的底层评分决策最终都可以归结为<strong>对二元查询的验证</strong>——即探测图像中是否存在或满足某些语义成分。因此，一个肯定token（如"Yes"）可以作为强有力的语义锚点来诱导正面回答。<br />
+<strong>对于HMA</strong>：ASI主要在输出token层面进行监督，但复杂的裁判协议可能基于隐藏表示中编码的更广泛的多模态证据来评分。因此需要在表示层面进行正则化，引导对抗表示向高分区域靠拢。</p>
+<h4 id="42-asi">4.2 肯定语义诱导（ASI）目标</h4>
+<p>给定目标语义线索$\boldsymbol{t}_{\text{tar}}$，首先使用基于LLM的问题生成器$G(\cdot)$将其分解为一组目标语义查询：  </p>
+<p>$\displaystyle G(\boldsymbol{t}_{\text{tar}}) = \{\boldsymbol{q}_i\}_{i=1}^n$</p>
+<p>这些查询探测局部语义成分，如物体、属性、空间关系和场景级细节。<br />
+ASI的优化目标是最大化模型对这些查询回答"Yes"的概率，形式化为负的期望对数概率：  </p>
+<p>$\displaystyle \mathcal{L}_{\text{ASI}}(\boldsymbol{\delta}) = -\mathbb{E}_{\boldsymbol{q} \sim G(\boldsymbol{t}_{\text{tar}})}[\log P_\mathcal{F}(\text{``Yes''} \mid \boldsymbol{v} + \boldsymbol{\delta}, \boldsymbol{q})]$</p>
+<p><strong>为什么用单token "Yes"而不是更长的目标文本？</strong> 这源于自回归生成的内在限制：基于梯度的对抗攻击难以对长序列保持精确的token级控制。随着目标文本长度增加，对抗梯度会扩散，通常只能实现松散的语义相似而非精确的token匹配。使用单token目标"Yes"建立了直接且无歧义的监督信号，避免了长序列优化目标固有的梯度衰减问题。<br />
+<strong>关键洞察</strong>：最大化"Yes"token的似然只是手段而非目的。通过强迫MLLM对特定查询给出肯定回答，优化过程内在地合成了作为该查询底层语义证据的视觉特征。"Yes"充当了一个紧凑且可迁移的<strong>语义锚点</strong>，将分解后的目标属性和概念直接嵌入到对抗表示中。</p>
+<h4 id="43-hma">4.3 高分流形对齐（HMA）目标</h4>
+<p>ASI的局限在于它仅在输出token空间进行优化。仅最大化肯定token的似然并不能保证底层表示真正与高质量或合规的视觉概念对齐。仅通过输出空间目标优化的样本可能出现<strong>表示不对齐</strong>：表面上引出肯定token，但在潜在分布上与真正高分图像根本不同。<br />
+HMA的核心假设是：自然图像的深层表示形成一个连续的评价流形，其中真正高质量或合规的图像聚集在一个特定的最优区域——<strong>自然高分流形</strong>。<br />
+为了避免过拟合到目标评估协议的特定提示模板，HMA使用一组<strong>离线代理协议</strong> $\mathcal{P} = \{p_i\}_{i=1}^k$ 和未扰动的代理样本来近似最优表示空间。对每个代理协议$p \in \mathcal{P}$，找出原生获得最高分的代理样本子集$\mathcal{H}_p$，提取它们在关键层（具体是评分生成前最后一个提示token位置）的隐藏状态，计算潜在质心：  </p>
+<p>$\displaystyle \boldsymbol{\mu}_p = \mathbb{E}_{\boldsymbol{v} \sim \mathcal{H}_p}[\boldsymbol{h}_\mathcal{F}(\boldsymbol{v}, p)]$</p>
+<p>其中$\boldsymbol{h}_\mathcal{F}(\cdot, p)$表示在代理协议$p$下提取的深层隐藏状态。<br />
+HMA目标最小化对抗图像的隐藏状态与所有代理协议的高分中心之间的距离：  </p>
+<p>$\displaystyle \mathcal{L}_{\text{HMA}}(\boldsymbol{\delta}) = \mathbb{E}_{p \sim \mathcal{P}}\left[\left\|\boldsymbol{h}_\mathcal{F}(\boldsymbol{v} + \boldsymbol{\delta}, p) - \boldsymbol{\mu}_p\right\|_2^2\right]$</p>
+<h4 id="44">4.4 联合优化</h4>
+<p>MGSIA通过最小化总损失来求解最优对抗扰动：  </p>
+<p>$\displaystyle \boldsymbol{\delta}^\*_{\text{MGSIA}} = \arg\min_{\|\boldsymbol{\delta}\|_\infty \leq \epsilon}\left[\mathcal{L}_{\text{ASI}}(\boldsymbol{\delta}) + \lambda\mathcal{L}_{\text{HMA}}(\boldsymbol{\delta})\right]$</p>
+<p>其中$\lambda$是平衡局部语义注入和全局结构对齐的超参数，$\epsilon$是$L_\infty$范数约束的最大扰动预算。优化使用100步PGD执行。</p>
+<h3 id="_6">五、实验结果</h3>
+<h4 id="51">5.1 实验设置</h4>
+<ul>
+<li><strong>质量评估</strong>：GenAI-Bench中750张DALL-E 3生成的图像及其参考文本</li>
+<li><strong>安全评估</strong>：HADES中750张不安全图像 + T2I-RiskyPrompt中1000张不安全图像</li>
+<li><strong>扰动预算</strong>：$\epsilon = 8/255$</li>
+<li><strong>裁判骨干</strong>：LLaVA-1.5-7B和Qwen2.5-VL-7B</li>
+<li><strong>评估协议</strong>：11种裁判协议覆盖三大类</li>
+</ul>
+<h4 id="52-mgsia">5.2 MGSIA的有效性</h4>
+<p>从Table I和Table II可以看到，MGSIA在几乎所有协议上都大幅超越基线方法：<br />
+<strong>质量评估（LLaVA-1.5-7B）</strong>：</p>
+<ul>
+<li>VQAScore：从63.001提升到98.588（+35.587）</li>
+<li>DSG：从87.405提升到98.062（+10.657）</li>
+<li>最强基线Target Text Embedding在VQAScore上仅+16.822</li>
+</ul>
+<p><strong>安全评估（Qwen2.5-VL-7B，HADES）</strong>：</p>
+<ul>
+<li>Ensemble：从32.143提升到60.208（+28.064）</li>
+<li>Single：从46.459提升到86.225（+39.766）</li>
+<li>Brief：从27.920提升到83.293（+55.373）</li>
+<li>LLaVAGuard：从11.200提升到54.887（+43.687）<br />
+  一个有趣的发现是：在安全评估的Single协议中（该协议查询有害内容是否存在，"Yes"概率越低表示越安全），尽管ASI目标显式最大化"Yes"概率，但生成的对抗图像在Single协议下降低了"Yes"概率，从而获得了虚高的安全分数。这证明最大化"Yes"token确实是语义注入的手段而非最终目的——MGSIA合成的视觉特征作为查询语义的内在证据发挥作用。</li>
+</ul>
+<h4 id="53">5.3 潜在空间可视化</h4>
+<p>论文通过图5可视化了Qwen2.5-VL的潜在空间。关键观察：</p>
+<ul>
+<li>不同分数的样本表示形成一个连续的评价流形，从低分区域到高分区域有清晰的分数上升轨迹</li>
+<li>MGSIA的对抗样本诱导的位移向量有效地与这个上升方向对齐，精确地将良性输入沿流形推向高分区域</li>
+<li>相比之下，Target Text Embedding的位移与最优轨迹对齐不佳，样本散布在过渡路径上，偏离流形</li>
+</ul>
+<h4 id="54">5.4 迁移性实验</h4>
+<p><strong>跨数据集代理迁移</strong>（Table III）：在T2I-RiskyPrompt上，使用HADES作为代理样本（跨数据集）的MGSIA性能与使用域内代理样本相当甚至更优，证明MGSIA利用的是模型潜在表示空间中的共享结构性缺陷，而非过拟合到特定数据分布。<br />
+<strong>灰盒迁移</strong>（Table IV）：在小模型（7B）上优化的扰动成功迁移到大模型（LLaVA-1.5-13B、Qwen2.5-VL-32B），且MGSIA保持了对基线的优势。这种跨规模脆弱性意味着攻击者可以低成本地在小型可访问模型上优化扰动来欺骗大规模专有裁判模型。<br />
+<strong>黑盒迁移</strong>（Table V）：从Qwen2.5-VL-7B迁移到GPT-5和Gemini-2.5-Flash，MGSIA在所有协议上都实现了正向分数膨胀，而最强基线Target Text Embedding结果不稳定。<br />
+<strong>对专用评估器的迁移</strong>（Table VI）：迁移到VQAScore（基于CLIP-FlanT5的质量评估器）、PerspectiveVision（基于LLaVA的安全评估器）和LLaVA-Reward（基于Qwen2.5-VL的安全评估器），MGSIA分别实现了+6.854、+34.133和+26.908的分数膨胀。即使经过严格的任务特定微调、显式安全审核训练和人类偏好对齐，这些专用评估器仍无法防御MGSIA。</p>
+<h4 id="55">5.5 消融实验</h4>
+<p><strong>ASI中的代理优化目标</strong>（Table VII）：</p>
+<ul>
+<li>质量评估中，用最高分短语（如"100.0"）替代"Yes"作为优化目标，效果显著下降</li>
+<li>安全评估中，直接对显式安全问题（如"Is this a safe image?"）优化肯定回答，效果不稳定甚至显著下降，因为这会触发模型的内部安全护栏</li>
+<li>适配UnsafeBench风格的QA（优化复合句如"Yes, the image is safe."）有所改善但跨协议迁移性不足</li>
+<li>默认的ASI（分解的具体语义属性 + 原子"Yes"token）在所有场景中最为稳健有效</li>
+</ul>
+<p><strong>ASI与HMA的协同</strong>（Table IX）：</p>
+<ul>
+<li>单独ASI或单独HMA都能带来改善</li>
+<li>但两者结合（完整MGSIA）在所有协议上达到最佳性能</li>
+<li>从潜在空间几何角度解释：ASI嵌入肯定语义引导表示远离低分分布，但缺乏几何约束会使表示脱离自然评价流形进入孤立的离流形区域；HMA提供关键的几何正则化，将表示锚定在高分核心区域</li>
+</ul>
+<p><strong>扰动预算$\epsilon$的影响</strong>（图6）：MGSIA在广泛的$\epsilon$值范围内持续优于基线。MGSIA在$\epsilon &gt; 12/255$后趋于饱和，基线甚至出现性能下降。<br />
+<strong>超参数$\lambda$的影响</strong>（图7）：在三个不同协议上，$\lambda = 0.15$一致达到最佳性能。</p>
+<h4 id="56">5.6 防御实验</h4>
+<p>论文评估了四种防御策略（Table X）：JPEG压缩、高斯模糊、随机裁剪、基于扩散的去噪。结果显示：</p>
+<ul>
+<li>激进的净化（如扩散去噪）可以将MGSIA的膨胀分数从89.042降到79.342</li>
+<li>但MGSIA可以通过在扰动优化过程中加入可微退化过程作为数据增强来绕过这些防御（MGSIA w/ Aug），展现出对标准防御的固有鲁棒性</li>
+</ul>
+<hr />
+<h3 id="_7">六、总结</h3>
+<p>这篇论文的核心贡献可以概括为三点：</p>
+<ol>
+<li><strong>框架层面</strong>：提出了RobustMLLMJudge，首个系统评估MLLM裁判对抗鲁棒性的框架，覆盖多种攻击类型、多种MLLM、质量和安全两大评估场景</li>
+<li><strong>洞察层面</strong>：揭示了MLLM裁判普遍容易被对抗攻击欺骗，但现有攻击方法因威胁模型的紧约束和协议异质性而效果受限</li>
+<li><strong>方法层面</strong>：提出MGSIA，通过ASI（在输出token层面进行局部语义注入）和HMA（在表示层面进行全局结构对齐）的联合优化，实现了跨协议、跨模型、跨数据集的高效可迁移攻击，揭示了MLLM作为裁判时存在的共享的、与协议无关的几何结构缺陷<br />
+   论文的发现强调了开发对抗鲁棒的MLLM裁判的迫切需求，以确保自动化评估的完整性和可靠性。</li>
+</ol>
+<h2 id="_8">研究要点表</h2>
+<div class="table-scroll"><table class="key-value">
+<thead>
+<tr>
+<th>维度</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>论文标题</td>
+<td>On the Adversarial Robustness of Multimodal LLM Judges</td>
+</tr>
+<tr>
+<td>作者</td>
+<td>Zihan Wang, Guansong Pang, Zelin Liu, Wenjun Miao, Jin Zheng, Xiao Bai</td>
+</tr>
+<tr>
+<td>发表年份</td>
+<td>2026（arXiv预印本，2026年6月14日）</td>
+</tr>
+<tr>
+<td>研究问题</td>
+<td>多模态大语言模型（MLLM）作为自动评判器（用于图像质量和安全性评估）时，其对抗鲁棒性如何？攻击者能否通过对输入图像施加微小扰动来欺骗这些评判系统，使其给出虚高的评分？</td>
+</tr>
+<tr>
+<td>研究方法</td>
+<td>提出RobustMLLMJudge框架，系统评估三类MLLM评判方法（Token概率评分、细粒度分解、MLLM-as-a-Judge提示）在图像质量和安全性评估场景下的对抗鲁棒性。进一步提出MGSIA（流形引导语义诱导攻击），结合肯定语义诱导（ASI）目标和高分流形对齐（HMA）目标，通过PGD优化生成可迁移的对抗扰动。实验覆盖白盒、灰盒和黑盒设置，使用LLaVA-1.5和Qwen2.5-VL等多种MLLM，在GenAI-Bench、HADES和T2I-RiskyPrompt等数据集上进行评估。</td>
+</tr>
+<tr>
+<td>主要发现</td>
+<td>（1）不同类型的MLLM评判器均高度容易受到分数膨胀的对抗攻击；（2）现有攻击方法虽然有效，但由于MLLM评判器异构的评估协议和受限的威胁模型，其攻击效果受到限制；（3）MGSIA在所有评判协议上均显著优于基线方法，实现了大幅度的分数膨胀，并展现出跨数据集、跨模型规模（灰盒）、跨架构（黑盒，包括GPT-5和Gemini-2.5-Flash）以及跨专用评估器的强迁移性。</td>
+</tr>
+<tr>
+<td>创新点</td>
+<td>（1）首次提出针对MLLM评判器对抗鲁棒性的通用评估框架RobustMLLMJudge；（2）提出MGSIA攻击方法，通过肯定语义诱导（利用"Yes"作为语义锚点绕过协议异构性）和高分流形对齐（在隐空间中将对抗表示正则化到高分区域）实现协议无关的可迁移攻击；（3）揭示了MLLM作为评判器时存在的共享结构性缺陷。</td>
+</tr>
+<tr>
+<td>局限性</td>
+<td>论文主要关注攻击方面，虽然评估了四种防御策略（JPEG压缩、高斯模糊、随机裁剪、扩散去噪），但发现MGSIA通过数据增强可绕过这些防御，表明有效的防御机制仍待开发。此外，黑盒迁移到闭源商业模型时分数膨胀幅度相对较小。</td>
+</tr>
+<tr>
+<td>与本研究的关联</td>
+<td>未提及</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="_9">原文摘要</h2>
+<p>Multimodal Large Language Models (MLLMs) are increasingly used as automated judges, e.g., for image quality and safety assessment. However, their adversarial robustness remains largely unexplored, threatening the fairness and reliability of automated judging. To bridge this gap, we introduce RobustMLLMJudge, the first general framework for evaluating the adversarial robustness of general-purpose MLLMs when functioning as judges. It covers diverse attacks against popular judge approaches across quality and safety evaluation scenarios. Using RobustMLLMJudge, we reveal that i) different MLLM judges are highly vulnerable to score-inflating adversarial attacks; and ii) although effective, these attack methods face a critical challenge due to unique constraints in the evaluation protocols of MLLM judges. We further propose MGSIA, namely Manifold-Guided Semantic Induction Attack, a novel method that bypasses these constraints to enable more effective and transferable attacks on MLLM judges. The core idea of MGSIA is to combine affirmative semantic induction with high-score manifold alignment: it maximizes the probability that judges yield affirmative responses (e.g., "Yes") to binary semantic queries, while regularizing adversarial representations toward high-score centers estimated from proxy protocols. Together, these objectives yield transferable score-inflating perturbations. Extensive experiments demonstrate the superiority and generalizability of MGSIA in deceiving advanced MLLM judges under different evaluation scenarios, highlighting the need for robust MLLM judges. Code and data will be made available at  this https URL .</p></article>
+<aside class="detail-aside"><div class="report-toc" aria-label="文献卡片目录"><details open><summary>本页目录</summary><div class="toc">
+<ul>
+<li><a href="#_1">核心机制</a></li>
+<li><a href="#_2">适用范围与局限</a></li>
+<li><a href="#_3">详细解读</a><ul>
+<li><a href="#_4">论文核心总结</a></li>
+<li><a href="#_5">一、研究背景与动机</a></li>
+<li><a href="#mllm">二、MLLM裁判的三大类型</a></li>
+<li><a href="#robustmllmjudge">三、RobustMLLMJudge框架</a></li>
+<li><a href="#mgsia">四、MGSIA攻击方法</a></li>
+<li><a href="#_6">五、实验结果</a></li>
+<li><a href="#_7">六、总结</a></li>
+</ul>
+</li>
+<li><a href="#_8">研究要点表</a></li>
+<li><a href="#_9">原文摘要</a></li>
+</ul>
+</div>
+</details></div><section><h2>引用这篇论文</h2><p id="citation-text" class="citation-text">Zihan Wang, Guansong Pang, Zelin Liu, et al.. On the Adversarial Robustness of Multimodal LLM Judges. arXiv:2606.15608, 2026.</p><button class="button secondary" type="button" data-copy-citation>复制引用</button><p class="meta-note">延伸阅读</p></section><section><h2>同方向继续阅读</h2><ul class="related-list"><li><a href="../papers/2503.03704.html">Memory Injection Attacks on LLM Agents via Query-Only Interaction</a></li><li><a href="../papers/2509.26354.html">Your Agent May Misevolve: Emergent Risks in Self-evolving LLM Agents</a></li><li><a href="../papers/2510.02373.html">A-MemGuard: A Proactive Defense Framework for LLM-Based Agent Memory</a></li><li><a href="../papers/2602.15654.html">Zombie Agents: Persistent Control of Self-Evolving LLM Agents via Self-Reinforcing Injections</a></li></ul></section></aside></div></div></main>
+<footer class="site-footer"><div><strong>Agent Memory 研究</strong><p>从保存历史，到有依据地更新长期状态。</p></div>
+<div><span>内容更新 · 2026-09-08</span><p>理解方法，比较条件，关注长期影响。</p><a href="../sources.html">阅读指南</a></div></footer>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body></html>

@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="控制器选择记忆技能，执行器构建记忆，designer 用难例修订技能库">
+<meta name="color-scheme" content="light"><title>MemSkill: Learning and Evolving Memory Skills for Self-Evolving Agents · Agent Memory 研究</title>
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/katex/katex.min.css"><script src="../assets/katex/katex.min.js" defer></script><script src="../assets/katex/auto-render.min.js" defer></script><script src="../assets/site.js" defer></script>
+</head>
+<body data-page="library">
+<a class="skip-link" href="#main">跳转到正文</a>
+<header class="site-header"><div class="header-inner">
+<a class="brand" href="../index.html" aria-label="Agent Memory 研究首页">
+<svg viewBox="0 0 36 36" width="32" height="32" aria-hidden="true"><path d="M9 9h18v18H9zM9 9l18 18M27 9L9 27" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="9" r="4"/><circle cx="27" cy="9" r="4"/><circle cx="9" cy="27" r="4"/><circle cx="27" cy="27" r="4"/></svg>
+<span>Agent Memory<small>研究文献站</small></span></a>
+<nav class="site-nav" aria-label="主导航"><a href="../index.html">研究总览</a><a href="../library.html" aria-current="page">文献库</a><a href="../reports/survey.html">综述全文</a><a href="../reports/multi-agent.html">多智能体专题</a><a href="../sources.html">阅读指南</a></nav>
+</div></header>
+<main id="main"><div class="page-wrap"><div class="breadcrumb"><a href="../library.html">文献库</a><span>/</span><a href="../library.html?topic=evolution">操作与架构演化</a></div>
+<header class="paper-hero"><div class="paper-badges"><span class="badge expanded">含详细解读</span><span class="muted">2026 · 2602.02474</span></div><h1>MemSkill: Learning and Evolving Memory Skills for Self-Evolving Agents</h1><p class="paper-authors full-authors">Haozhen Zhang, Quanyu Long, Jianzhu Bao, Tao Feng, Weizhi Zhang, Haodong Yue, Wenya Wang</p>
+<div class="hero-actions paper-actions"><a href="https://arxiv.org/abs/2602.02474" target="_blank" rel="noopener noreferrer">论文原文 <span aria-hidden="true">↗</span></a><a href="../downloads/notes/2602.02474.md">下载文献卡片 Markdown</a></div></header>
+<div class="detail-layout"><article class="prose"><h2 id="_1">核心机制</h2>
+<p>控制器选择记忆技能，执行器构建记忆，designer 用难例修订技能库</p>
+<h2 id="_2">适用范围与局限</h2>
+<p>涉及 PPO 训练和反馈协议；不是全系统 training-free</p>
+<h2 id="_3">详细解读</h2>
+<h3 id="_4">论文核心总结</h3>
+<p>MemSkill 提出了一种面向 LLM Agent 的自进化记忆管理方法。其核心思想是：将传统记忆系统中人工设计的固定操作（如增/删/改/跳过）重新定义为<strong>可学习、可进化的"记忆技能"（memory skills）</strong>。系统维护一个共享的技能库，通过一个可训练的控制器（controller）为当前上下文选择相关技能子集，再由 LLM 执行器（executor）在这些技能的指导下一次性生成结构化记忆。更关键的是，系统引入了一个设计者（designer）模块，周期性地从训练中的困难案例中挖掘失败模式，据此改进现有技能或提出新技能，形成"学习使用技能"与"进化技能本身"交替进行的闭环优化流程。实验在 LoCoMo、LongMemEval、HotpotQA 和 ALFWorld 四个基准上验证了该方法的有效性和跨场景泛化能力。</p>
+<h3 id="_5">一、研究背景与动机</h3>
+<h4 id="11-agent">1.1 现有 Agent 记忆系统的问题</h4>
+<p>当 LLM Agent 参与越来越长的开放式交互时，它们需要管理不断增长的交互历史。现有的记忆系统通常依赖一套<strong>静态的、人工设计的记忆操作原语</strong>，例如：</p>
+<ul>
+<li><strong>固定操作</strong>：add（添加）、update（更新）、delete（删除）、skip（跳过）</li>
+<li><strong>启发式模块</strong>：手动编码"什么值得存储"、"如何修改记忆"、"何时剪枝"<br />
+  这些设计将人类的先验假设硬编码到系统中，存在三个核心缺陷：</li>
+</ul>
+<ol>
+<li><strong>刚性不足</strong>：在多样化的交互模式下表现脆弱，难以适应分布变化</li>
+<li><strong>扩展性差</strong>：随着历史长度增长，逐轮（turn-by-turn）处理效率低下</li>
+<li><strong>不可进化</strong>：固定的流程无法根据任务需求自动调整</li>
+</ol>
+<h4 id="12">1.2 理想记忆系统的三个属性</h4>
+<p>论文认为理想的 Agent 记忆系统应满足：</p>
+<ul>
+<li><strong>(i) 最小化对人类先验的依赖</strong>：记忆行为应由交互数据塑造，而非手动编码</li>
+<li><strong>(ii) 支持更大粒度的提取</strong>：不应局限于逐轮处理，应能在更长的文本跨度（span）上操作</li>
+<li><strong>(iii) 技能条件化的组合式记忆构建</strong>：选择并组合一小组相关技能，在一次生成步骤中完成记忆构建，而非依赖固定的专用模块</li>
+</ul>
+<hr />
+<h3 id="_6">二、方法详解</h3>
+<h4 id="21">2.1 系统总览</h4>
+<p>MemSkill 的核心架构如 Figure 2 所示，包含两个交织的优化过程：</p>
+<ol>
+<li><strong>学习使用技能</strong>：控制器选择上下文相关的技能，执行器应用这些技能生成记忆更新</li>
+<li><strong>进化技能本身</strong>：设计者周期性地基于困难案例修改现有技能并提出新技能<br />
+   系统维护两种存储：</li>
+</ol>
+<ul>
+<li><strong>记忆库（Memory Bank）</strong>：每条交互轨迹（trace）特有的，存储该轨迹的具体记忆</li>
+<li><strong>技能库（Skill Bank）</strong>：跨所有轨迹共享的，包含可复用的记忆技能</li>
+</ul>
+<h4 id="22-skill-bank">2.2 技能库（Skill Bank）</h4>
+<p>每个记忆技能 $s \in \mathcal{S}$ 是一个结构化的指导模板，包含：</p>
+<ul>
+<li><strong>(i) 简短描述（description）</strong>：用于技能的表示和选择</li>
+<li><strong>(ii) 详细内容规范（content）</strong>：指导执行器如何进行记忆提取或修改，具体包括四个字段：</li>
+<li><strong>Purpose</strong>：技能的目的</li>
+<li><strong>When to use</strong>：何时适用</li>
+<li><strong>How to apply</strong>：如何应用</li>
+<li><strong>Constraints</strong>：约束条件<br />
+    技能库从四个基本原语初始化：<strong>INSERT</strong>（插入新记忆）、<strong>UPDATE</strong>（更新现有记忆）、<strong>DELETE</strong>（删除无效记忆）、<strong>SKIP</strong>（无操作）。设计者会在训练过程中逐步改进和扩展这个技能库。</li>
+</ul>
+<h4 id="23">2.3 学习使用记忆技能</h4>
+<h5 id="231">2.3.1 控制器：技能选择策略</h5>
+<p>MemSkill 在 <strong>span 级别</strong>（而非 turn 级别）更新记忆：将每条交互轨迹按 token 数切分为固定长度的连续文本段（span），然后顺序处理。<br />
+<strong>状态和技能表示</strong>：设 $x_t$ 为第 $t$ 步的当前文本段，$M_t = \{m_{t,1}, \ldots, m_{t,R}\}$ 为从当前记忆库中检索到的记忆。首先用固定的嵌入模型 $e(\cdot)$ 编码，然后通过可训练的网络得到状态和技能表示：  </p>
+<p>$\displaystyle h_t = f_\theta^{\text{ctx}}([e(x_t); \bar{m}_t]), \quad u_i = f_\theta^{\text{skill}}(e(\text{desc}(s_i)))$</p>
+<p>其中 $\bar{m}_t = \frac{1}{R}\sum_{r=1}^{R} e(m_{t,r})$ 是检索记忆嵌入的均值。$f_\theta^{\text{ctx}}$ 和 $f_\theta^{\text{skill}}$ 是控制器中的可训练神经网络。<br />
+<strong>兼容进化技能库的评分机制</strong>：控制器不使用固定维度的动作头，而是将状态表示与每个候选技能表示拼接后，通过共享评分器并行打分：  </p>
+<p>$\displaystyle z_{t,i} = f_\theta^{\text{score}}([h_t; u_i]), \quad p_\theta(i \mid h_t) = \text{softmax}(z_t)_i$</p>
+<p>其中 $z_t \in \mathbb{R}^{|\mathcal{S}_t|}$ 会随技能库大小变化而自适应调整。<br />
+<strong>Top-K 技能选择</strong>：给定分类分布 $p_\theta(i \mid h_t)$，控制器通过 Gumbel-Top-K 采样选择一个有序的 Top-K 技能子集 $A_t = (a_{t,1}, \ldots, a_{t,K})$，只将选中的技能传递给执行器。</p>
+<h5 id="232">2.3.2 执行器：技能条件化的记忆提取</h5>
+<p>执行器是一个固定的 LLM，以 <strong>(i) 当前文本段 $x_t$</strong>、<strong>(ii) 检索到的记忆 $M_t$</strong>、<strong>(iii) 选中的技能 $A_t$</strong> 为条件，在一次 LLM 调用中生成结构化的记忆更新（INSERT/UPDATE/DELETE 操作）。<br />
+这种设计的优势在于：通过为同一文本段组合多个技能并在一次 LLM 调用中提取记忆，减少了逐轮重复处理的开销，更好地扩展到长交互历史。</p>
+<h5 id="233">2.3.3 控制器优化</h5>
+<p>使用<strong>强化学习</strong>训练控制器，以下游任务表现作为技能选择的反馈信号。<br />
+对于每条训练轨迹，控制器做出一系列 Top-K 选择，执行器逐步构建记忆库。构建完成后，在该轨迹的记忆依赖型训练查询上评估记忆库质量，将任务表现（如 F1 或成功率）作为奖励。<br />
+由于控制器的动作是一个无放回的有序 Top-K 列表，其联合概率为：  </p>
+<p>$\displaystyle \pi_\theta(A_t \mid h_t) = \prod_{j=1}^{K} \frac{p_\theta(a_{t,j} \mid h_t)}{1 - \sum_{\ell &lt; j} p_\theta(a_{t,\ell} \mid h_t)}$</p>
+<p>当 $K=1$ 时退化为标准的单动作情况。使用 PPO 算法进行优化，将上述联合对数概率替代标准的单动作对数概率。<br />
+具体的 PPO 目标函数为：  </p>
+<p>$\displaystyle \mathcal{L}_{\text{policy}}(\theta) = \mathbb{E}_t\left[\min\left(r_t(\theta)\hat{A}_t, \text{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon)\hat{A}_t\right)\right]$</p>
+<p>其中重要性比率 $r_t(\theta) = \frac{\pi_\theta(A_t \mid h_t)}{\pi_{\theta_{\text{old}}}(A_t \mid h_t)}$。</p>
+<h4 id="24">2.4 通过设计者反馈进行技能进化</h4>
+<h5 id="hard-case-buffer">困难案例缓冲区（Hard-case Buffer）</h5>
+<p>在控制器训练过程中，维护一个滑动窗口缓冲区，记录最近观察到的困难案例。每个案例以查询为中心，记录查询、真实答案、模型预测、检索到的记忆、任务表现和失败次数。<br />
+每个案例的难度分数定义为：  </p>
+<p>$\displaystyle d(q) = (1 - r(q)) \cdot c(q)$</p>
+<p>其中 $r(q) \in [0,1]$ 是任务奖励，$c(q)$ 是累计失败次数。</p>
+<h5 id="_7">选择代表性困难案例</h5>
+<p>通过聚类（如 KMeans）将困难案例分组，在每个聚类中优先选择难度分数高的代表性案例，确保覆盖不同的错误类型。</p>
+<h5 id="_8">两阶段技能进化</h5>
+<ol>
+<li><strong>分析阶段</strong>：LLM 分析选中的困难案例，识别缺失或错误指定的记忆行为</li>
+<li><strong>提议阶段</strong>：基于分析结果，提出对现有技能的具体修改和新技能的引入<br />
+   系统维护最佳技能库的快照，如果更新导致性能下降则回滚。当连续多次更新都无法改善训练信号时，执行早停。</li>
+</ol>
+<h5 id="_9">新技能的探索激励</h5>
+<p>每次进化后，通过在 logit 层面偏向新引入的技能来短暂增加探索：  </p>
+<p>$\displaystyle z'_{t,i} = \begin{cases} z_{t,i} + \delta_q, &amp; i \in \mathcal{S}_{\text{new}} \\ z_{t,i}, &amp; \text{otherwise} \end{cases}$</p>
+<p>目标阈值线性衰减：$\tau_q = \tau_0 \cdot (1 - \frac{q}{T_{\text{explore}}})$，默认 $\tau_0 = 0.3$，在前 $T_{\text{explore}} = 50$ 步内应用。</p>
+<h4 id="25">2.5 闭环优化</h4>
+<p>MemSkill 交替进行：</p>
+<ol>
+<li><strong>学习阶段</strong>：在当前技能库上训练控制器，构建记忆并积累困难案例</li>
+<li><strong>进化阶段</strong>：设计者利用代表性困难案例更新技能库<br />
+   每个循环结束后，如果性能没有改善则回滚到之前的最佳快照。下一个循环在更新后的技能库上继续训练，并增加探索以鼓励使用新技能。</li>
+</ol>
+<hr />
+<h3 id="_10">三、实验设置</h3>
+<h4 id="31">3.1 数据集</h4>
+<ul>
+<li><strong>LoCoMo</strong>：长对话记忆基准，评估从长对话中构建记忆的能力</li>
+<li><strong>LongMemEval</strong>：长期交互记忆评估，每个样本约 100K tokens 的超长对话</li>
+<li><strong>HotpotQA</strong>：多跳问答数据集，用于研究分布偏移下的技能迁移</li>
+<li><strong>ALFWorld</strong>：具身交互任务环境，评估记忆对多步决策的支持能力</li>
+<li><strong>AppWorld</strong>（附录）：交互式工具使用基准</li>
+</ul>
+<h4 id="32">3.2 基线方法</h4>
+<p>包括 No-Memory、CoN、ReadAgent、MemoryBank、A-MEM、Mem0、LangMem、MemoryOS 等多种记忆方法。</p>
+<h4 id="33">3.3 评估指标</h4>
+<ul>
+<li>对话基准：F1 分数和 LLM 判断分数（L-J）</li>
+<li>具身任务：成功率（SR）和交互步数（#Stps）</li>
+</ul>
+<h4 id="34">3.4 实现细节</h4>
+<ul>
+<li>控制器中的 $f_\theta^{\text{ctx}}$、$f_\theta^{\text{skill}}$、$f_\theta^{\text{score}}$ 实现为独立的轻量级 MLP</li>
+<li>基础 LLM 使用 LLaMA-3.3-70B-Instruct 和 Qwen3-Next-80B-A3B-Instruct</li>
+<li>嵌入模型 $e(\cdot)$ 使用 Qwen3-Embedding-0.6B</li>
+<li>训练时每个对话 session 为一个处理单元，控制器选择 $K=3$ 个技能</li>
+<li>评估时 span 大小默认 512 tokens，对话基准 $K=7$，ALFWorld $K=5$</li>
+<li>技能进化每 100 个训练步触发一次，每轮最多 3 次技能编辑</li>
+</ul>
+<hr />
+<h3 id="_11">四、实验结果</h3>
+<h4 id="41-table-1">4.1 主实验结果（Table 1）</h4>
+<p>在所有数据集上，MemSkill 均取得了最优或最具竞争力的表现：</p>
+<ul>
+<li><strong>LoCoMo</strong>：LLaMA 上 L-J 达到 53.82（最佳基线 MemoryOS 为 48.64）</li>
+<li><strong>LongMemEval</strong>（迁移评估，无额外训练）：L-J 达到 60.89（最佳基线 CoN 为 56.44）</li>
+<li><strong>ALFWorld</strong>：平均成功率 80.36（LLaMA），81.29（Qwen 迁移）<br />
+  关键发现：</li>
+<li><strong>跨模型泛化</strong>：仅在 LLaMA 上训练，直接迁移到 Qwen 仍保持竞争力</li>
+<li><strong>跨数据集迁移</strong>：在 LoCoMo 上学到的技能直接迁移到 LongMemEval 仍取得最佳结果</li>
+</ul>
+<h4 id="42-figure-3">4.2 分布偏移下的技能泛化（Figure 3）</h4>
+<p>将 LoCoMo 训练的技能库直接应用到 HotpotQA（文档风格叙述，非多轮对话），在 50/100/200 篇拼接文档三种设置下，MemSkill 均优于 MemoryOS 和 A-MEM，且在长上下文（200 篇）设置下优势更明显。这表明学到的记忆技能不依赖于对话特定的表面形式，而是捕获了可复用的提取和修改行为。<br />
+增加选择的技能数 $K$ 通常能提升性能，$K=7$ 在所有设置下表现最佳。</p>
+<h4 id="43-table-2">4.3 消融实验（Table 2）</h4>
+<p>在 LoCoMo 上的消融结果：</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>变体</th>
+<th>LLaMA</th>
+<th>Qwen</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MemSkill（完整）</td>
+<td><strong>53.82</strong></td>
+<td><strong>54.14</strong></td>
+</tr>
+<tr>
+<td>w/o 控制器（随机选择技能）</td>
+<td>48.43</td>
+<td>42.84</td>
+</tr>
+<tr>
+<td>w/o 设计者（固定初始技能）</td>
+<td>46.50</td>
+<td>36.15</td>
+</tr>
+<tr>
+<td>仅精炼（不添加新技能）</td>
+<td>47.45</td>
+<td>48.88</td>
+</tr>
+</tbody>
+</table></div>
+<p>关键结论：</p>
+<ul>
+<li>移除控制器（随机选择技能）导致明显下降，说明学习选择相关技能很重要</li>
+<li>移除设计者导致更大下降（尤其在 Qwen 上），说明技能进化对学习可复用记忆行为至关重要</li>
+<li>仅精炼优于固定技能，但不如完整版本，说明引入新技能带来额外收益</li>
+</ul>
+<h4 id="44-figure-4">4.4 案例研究（Figure 4）</h4>
+<p>进化后的技能展现出明显的领域特化：</p>
+<ul>
+<li><strong>LoCoMo 技能</strong>：强调时间上下文（Capture Temporal Context）和活动细节（Capture Activity Details），表明对话记忆受益于轻量级事件结构</li>
+<li><strong>ALFWorld 技能</strong>：聚焦动作约束（Capture Action Constraints）和物体位置追踪（Track Object Location），表明具身任务需要可操作的世界状态记忆</li>
+</ul>
+<h4 id="45-table-3">4.5 成本分析（Table 3）</h4>
+<p>在 LoCoMo 上的运行时成本对比：</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>设置</th>
+<th>L-J</th>
+<th>输入 tokens (K)</th>
+<th>输出 tokens (K)</th>
+<th>LLM 调用次数</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MemoryOS</td>
+<td>48.64</td>
+<td>1013</td>
+<td>165</td>
+<td>1288</td>
+</tr>
+<tr>
+<td>A-MEM</td>
+<td>49.71</td>
+<td>2850</td>
+<td>362</td>
+<td>1548</td>
+</tr>
+<tr>
+<td>LightMem</td>
+<td>51.95</td>
+<td>789</td>
+<td>209</td>
+<td>685</td>
+</tr>
+<tr>
+<td>MemSkill (SS=512)</td>
+<td><strong>53.82</strong></td>
+<td><strong>249</strong></td>
+<td><strong>18</strong></td>
+<td><strong>215</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>MemSkill 在 span 大小为 512 时取得最佳质量-成本平衡：最高质量的同时，运行成本远低于基线方法。span 大小可作为调节效率的旋钮。</p>
+<h4 id="46">4.6 其他实验</h4>
+<ul>
+<li><strong>小模型实验</strong>（Table 7）：在 Llama-3.1-8B-Instruct 上，MemSkill 仍然取得最佳表现，说明技能条件化记忆构建对小模型也有效</li>
+<li><strong>AppWorld 实验</strong>（Table 6）：在交互式工具使用场景下，MemSkill 同样取得最佳通过率</li>
+<li><strong>无 in-context 示例的 ALFWorld</strong>（Table 5）：MemSkill 的优势更加明显，说明其增益不依赖于示例提供的外部记忆</li>
+</ul>
+<hr />
+<h3 id="_12">五、与先前工作的对比</h3>
+<p>与现有方法的核心区别在于：</p>
+<ol>
+<li><strong>vs. 固定操作方法</strong>（MemoryBank、A-MEM、MemoryOS 等）：这些方法使用人工设计的固定操作流程，MemSkill 将操作本身变为可学习、可进化的技能</li>
+<li><strong>vs. RL 优化记忆方法</strong>（Memory-R1、Mem-α）：这些方法用 RL 优化记忆管理，但记忆操作仍是静态的手工设计；MemSkill 不仅学习如何使用技能，还进化技能本身</li>
+<li><strong>vs. 自进化 Agent 方法</strong>（ExpeL、EvolveR、SkillWeaver 等）：这些方法关注任务技能或推理策略的进化，MemSkill 专注于记忆技能的进化——即 Agent 如何构建和维护记忆</li>
+</ol>
+<hr />
+<h3 id="_13">六、技术亮点总结</h3>
+<ol>
+<li><strong>技能抽象</strong>：将记忆操作从固定流程提升为结构化的可复用技能，每个技能包含目的、适用条件、应用方法和约束</li>
+<li><strong>Span 级处理</strong>：不逐轮处理，而是在更大粒度的文本段上操作，显著减少 LLM 调用次数</li>
+<li><strong>兼容进化的控制器设计</strong>：通过共享评分器对状态-技能对打分，天然支持技能库大小的动态变化</li>
+<li><strong>Top-K 无放回选择的 RL 优化</strong>：扩展 PPO 到有序 Top-K 动作空间，计算联合概率用于策略梯度</li>
+<li><strong>闭环进化</strong>：学习使用技能 → 收集困难案例 → 进化技能 → 继续学习，形成自改进循环</li>
+<li><strong>强泛化性</strong>：跨模型（LLaMA→Qwen）、跨数据集（LoCoMo→LongMemEval/HotpotQA）、跨领域（对话→具身任务→工具使用）均表现良好</li>
+</ol>
+<h2 id="_14">研究要点表</h2>
+<div class="table-scroll"><table class="key-value">
+<thead>
+<tr>
+<th>维度</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>论文标题</td>
+<td>MemSkill: Learning and Evolving Memory Skills for Self-Evolving Agents</td>
+</tr>
+<tr>
+<td>作者</td>
+<td>Haozhen Zhang, Quanyu Long, Jianzhu Bao, Tao Feng, Weizhi Zhang, Haodong Yue, Wenya Wang</td>
+</tr>
+<tr>
+<td>发表年份</td>
+<td>2026（预印本，2026年5月26日）</td>
+</tr>
+<tr>
+<td>研究问题</td>
+<td>大多数LLM智能体记忆系统依赖静态、手工设计的固定操作（如添加/更新/删除/跳过）来提取记忆，这些固定流程硬编码了人类先验，在多样化交互模式下缺乏灵活性且在长历史记录上效率低下。如何将记忆操作转变为可学习、可进化的记忆技能？</td>
+</tr>
+<tr>
+<td>研究方法</td>
+<td>提出MemSkill框架，包含三个核心组件：（1）控制器（Controller）通过强化学习（PPO）学习从技能库中选择Top-K相关技能；（2）执行器（Executor）基于LLM在选定技能条件下一次性生成记忆更新；（3）设计器（Designer）周期性地从困难案例中挖掘代表性失败模式，利用LLM改进现有技能并提出新技能。三者形成闭环优化流程，交替进行技能使用学习和技能库进化。</td>
+</tr>
+<tr>
+<td>主要发现</td>
+<td>MemSkill在LoCoMo、LongMemEval、HotpotQA和ALFWorld四个基准上均优于强基线方法，展现出跨数据集、跨基础模型（LLaMA到Qwen）的良好泛化能力。消融实验证实控制器的技能选择和设计器的技能进化两个组件均不可或缺。成本分析表明，span级别的记忆构建在保持高质量的同时显著减少了LLM调用次数和token消耗。</td>
+</tr>
+<tr>
+<td>创新点</td>
+<td>（1）将记忆操作重新定义为可学习、可进化的记忆技能库，将记忆构建从固定手工流程转变为自适应的技能条件生成过程；（2）提出闭环优化方法，结合强化学习进行技能选择与基于LLM的困难案例驱动技能进化，实现技能库的持续改进；（3）采用span级别（而非逐轮）的记忆构建，支持更大粒度的提取，提高了长交互历史的处理效率。</td>
+</tr>
+<tr>
+<td>局限性</td>
+<td>本工作聚焦于基准研究场景下的技能条件记忆构建，实际部署可能需要额外的隐私保护、用户同意、访问控制和数据保留机制，这些考虑与核心算法贡献正交，留待未来面向部署的研究。</td>
+</tr>
+<tr>
+<td>与本研究的关联</td>
+<td>未提及</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="_15">原文摘要</h2>
+<p>Most Large Language Model (LLM) agent memory systems rely on a small set of static, hand-designed operations for extracting memory. These fixed procedures hard-code human priors about what to store and how to revise memory, making them rigid under diverse interaction patterns and inefficient on long histories. To this end, we present \textbf{MemSkill}, which reframes these operations as learnable and evolvable memory skills, structured and reusable routines for extracting, consolidating, and pruning information from interaction traces. Inspired by the design philosophy of agent skills, MemSkill employs a \emph{controller} that learns to select a small set of relevant skills, paired with an LLM-based \emph{executor} that produces skill-guided memories. Beyond learning skill selection, MemSkill introduces a \emph{designer} that periodically reviews hard cases where selected skills yield incorrect or incomplete memories, and evolves the skill set by proposing refinements and new skills. Together, MemSkill forms a closed-loop procedure that improves both the skill-selection policy and the skill set itself. Experiments on LoCoMo, LongMemEval, HotpotQA, and ALFWorld demonstrate that MemSkill improves task performance over strong baselines and generalizes well across settings. Further analyses shed light on how skills evolve, offering insights toward more adaptive, self-evolving memory management for LLM agents.</p></article>
+<aside class="detail-aside"><div class="report-toc" aria-label="文献卡片目录"><details open><summary>本页目录</summary><div class="toc">
+<ul>
+<li><a href="#_1">核心机制</a></li>
+<li><a href="#_2">适用范围与局限</a></li>
+<li><a href="#_3">详细解读</a><ul>
+<li><a href="#_4">论文核心总结</a></li>
+<li><a href="#_5">一、研究背景与动机</a></li>
+<li><a href="#_6">二、方法详解</a></li>
+<li><a href="#_10">三、实验设置</a></li>
+<li><a href="#_11">四、实验结果</a></li>
+<li><a href="#_12">五、与先前工作的对比</a></li>
+<li><a href="#_13">六、技术亮点总结</a></li>
+</ul>
+</li>
+<li><a href="#_14">研究要点表</a></li>
+<li><a href="#_15">原文摘要</a></li>
+</ul>
+</div>
+</details></div><section><h2>引用这篇论文</h2><p id="citation-text" class="citation-text">Haozhen Zhang, Quanyu Long, Jianzhu Bao, et al.. MemSkill: Learning and Evolving Memory Skills for Self-Evolving Agents. arXiv:2602.02474, 2026.</p><button class="button secondary" type="button" data-copy-citation>复制引用</button><p class="meta-note">综述参考文献 [6]</p></section><section><h2>同方向继续阅读</h2><ul class="related-list"><li><a href="../papers/2508.19828.html">Memory-R1: Enhancing Large Language Model Agents to Manage and Utilize Memories via Reinforcement Learning</a></li><li><a href="../papers/2512.18746.html">MemEvolve: Meta-Evolution of Agent Memory Systems</a></li><li><a href="../papers/2602.07755.html">Learning to Continually Learn via Meta-learning Agentic Memory Designs</a></li><li><a href="../papers/2605.12357.html">$\delta$-mem: Efficient Online Memory for Large Language Models</a></li></ul></section></aside></div></div></main>
+<footer class="site-footer"><div><strong>Agent Memory 研究</strong><p>从保存历史，到有依据地更新长期状态。</p></div>
+<div><span>内容更新 · 2026-09-08</span><p>理解方法，比较条件，关注长期影响。</p><a href="../sources.html">阅读指南</a></div></footer>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body></html>

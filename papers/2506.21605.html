@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="事实/反思记忆、参与/观察场景与多维指标">
+<meta name="color-scheme" content="light"><title>MemBench: Towards More Comprehensive Evaluation on the Memory of LLM-based Agents · Agent Memory 研究</title>
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/katex/katex.min.css"><script src="../assets/katex/katex.min.js" defer></script><script src="../assets/katex/auto-render.min.js" defer></script><script src="../assets/site.js" defer></script>
+</head>
+<body data-page="library">
+<a class="skip-link" href="#main">跳转到正文</a>
+<header class="site-header"><div class="header-inner">
+<a class="brand" href="../index.html" aria-label="Agent Memory 研究首页">
+<svg viewBox="0 0 36 36" width="32" height="32" aria-hidden="true"><path d="M9 9h18v18H9zM9 9l18 18M27 9L9 27" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="9" r="4"/><circle cx="27" cy="9" r="4"/><circle cx="9" cy="27" r="4"/><circle cx="27" cy="27" r="4"/></svg>
+<span>Agent Memory<small>研究文献站</small></span></a>
+<nav class="site-nav" aria-label="主导航"><a href="../index.html">研究总览</a><a href="../library.html" aria-current="page">文献库</a><a href="../reports/survey.html">综述全文</a><a href="../reports/multi-agent.html">多智能体专题</a><a href="../sources.html">阅读指南</a></nav>
+</div></header>
+<main id="main"><div class="page-wrap"><div class="breadcrumb"><a href="../library.html">文献库</a><span>/</span><a href="../library.html?topic=evaluation">评测与反证</a></div>
+<header class="paper-hero"><div class="paper-badges"><span class="badge expanded">含详细解读</span><span class="muted">2025 · 2506.21605</span></div><h1>MemBench: Towards More Comprehensive Evaluation on the Memory of LLM-based Agents</h1><p class="paper-authors full-authors">Haoran Tan, Zeyu Zhang, Chen Ma, Xu Chen, Quanyu Dai, Zhenhua Dong</p>
+<div class="hero-actions paper-actions"><a href="https://arxiv.org/abs/2506.21605" target="_blank" rel="noopener noreferrer">论文原文 <span aria-hidden="true">↗</span></a><a href="../downloads/notes/2506.21605.md">下载文献卡片 Markdown</a></div></header>
+<div class="detail-layout"><article class="prose"><h2 id="_1">核心机制</h2>
+<p>事实/反思记忆、参与/观察场景与多维指标</p>
+<h2 id="_2">适用范围与局限</h2>
+<p>能力维度丰富不代表覆盖全部 Agent 行动场景</p>
+<h2 id="_3">详细解读</h2>
+<h3 id="_4">论文核心总结</h3>
+<p>这篇论文提出了一个名为<strong>MemBench</strong>的综合性基准测试，用于评估基于大语言模型（LLM）的智能体（Agent）的记忆能力。作者指出，现有的记忆评估工作存在三个主要不足：（1）只关注事实记忆（factual memory），忽略了反思记忆（reflective memory）；（2）只考虑参与场景（participation scenario），忽略了观察场景（observation scenario）；（3）评估指标单一，仅关注记忆的有效性，而忽略了效率和容量。为此，论文构建了一个多场景、多层次的数据集，并设计了包含准确率、召回率、容量和时间效率在内的多维度评估体系，在此基础上对七种主流记忆机制进行了系统性评测。</p>
+<h3 id="_5">一、研究背景与动机</h3>
+<h4 id="11-llm-based-agent">1.1 LLM-based Agent 的记忆模块</h4>
+<p>大语言模型虽然在自然语言处理方面表现出色，但原始的LLM通常在静态场景下工作，无法与外部环境交互。为了弥补这一不足，研究者们为LLM增加了额外模块（如规划模块、工具使用模块等），构建了所谓的"LLM-based Agent"。其中，<strong>记忆模块</strong>是核心组件之一，它负责保存关键信息、积累经验，使智能体能够在动态任务中持续进化。</p>
+<h4 id="12">1.2 现有评估方法的不足</h4>
+<p>论文总结了现有记忆评估的三个主要局限：<br />
+<strong>第一，记忆层次单一。</strong> 现有工作主要评估<strong>事实记忆</strong>（Factual Memory），即对话中明确提到的信息，例如"我喜欢《星球大战》这部电影"。但忽略了<strong>反思记忆</strong>（Reflective Memory），即需要从多个低层事实中归纳总结出的高层信息，例如从用户提到的多个具体菜品中推断出用户偏好"甜咸口味"。<br />
+<strong>第二，交互场景单一。</strong> 现有数据集几乎都只考虑<strong>参与场景</strong>（Participation Scenario），即智能体以第一人称与用户对话交互。但在实际使用中，还存在<strong>观察场景</strong>（Observation Scenario），即智能体作为旁观者被动接收用户的消息流，不进行交互。这两种场景对记忆机制的要求不同——参与场景中智能体需要同时记住用户的话和自己的回复，而观察场景中只需记住用户的消息。<br />
+<strong>第三，评估指标单一。</strong> 现有工作通常只关注记忆的准确性（effectiveness），而忽略了效率（efficiency，即读写记忆的时间开销）和容量（capacity，即记忆内容增长到什么程度时性能会急剧下降）。<br />
+Table 1 对比了MemBench与已有数据集（PerLTQA、LoCoMo、LongMemEval）的差异：MemBench是唯一同时支持参与和观察两种场景、同时包含事实记忆和反思记忆、并且包含用户画像（profiles）的数据集。</p>
+<h3 id="_6">二、数据集构建</h3>
+<h4 id="21">2.1 数据生成流程</h4>
+<p>数据集的构建受到MemSim框架的启发，整体流程如Figure 1所示，分为以下几个步骤：</p>
+<h5 id="users-relation-graph-sampling">用户关系图采样（User's Relation Graph Sampling）</h5>
+<p>首先为每个用户构建一个<strong>关系图</strong>（如Figure 2所示），包含：</p>
+<ul>
+<li>用户自身的画像（姓名、年龄、生日、职业、爱好等）</li>
+<li>关联实体：包括<strong>个人关系</strong>（兄弟、姐妹、老板、同事等）、<strong>事件</strong>（工作活动、社区活动等）、<strong>物品</strong>（拥有的商品）、<strong>地点</strong>（去过的地方）<br />
+  对于反思记忆所需的<strong>高层偏好属性</strong>，作者利用了三个推荐系统数据集（MovieLens、Food、Goodreads）中的用户-物品交互数据。具体做法是：找出每个用户正面评价最多的物品类别，提取其高层偏好（如电影类型偏好"喜剧"、口味偏好"甜咸"等）。如果数据集中没有类别信息，则用GPT-4o-mini来总结。然后通过随机匹配或基于相同属性的匹配，将高层偏好属性分配给构建的虚拟用户。<br />
+  同时，作者构建了三个<strong>一对多映射字典</strong>，将高层偏好映射到多个低层事实属性。例如，"Action"类型的电影偏好映射到一系列具体的动作片名称（如Star Wars、Godfather等）。</li>
+</ul>
+<h5 id="memory-dataset-construction">记忆数据集构建（Memory Dataset Construction）</h5>
+<p>基于用户关系图，生成对话数据的过程如下：</p>
+<ol>
+<li><strong>生成证据对话（Evidence Dialogues）</strong>：从用户关系图中采样属性，生成包含关键信息的对话片段。例如，选取事件"Build Start 2024"的时间属性"next week Mon 7:00 PM"，生成用户提到这个事件的对话。</li>
+<li><strong>生成填充对话</strong>：为了让对话更自然流畅，在关键证据对话之间插入基于其他属性生成的多轮对话。</li>
+<li><strong>组装完整会话（Session）</strong>：将证据对话嵌入到由其他属性生成的多轮对话中，形成完整的会话。</li>
+<li><strong>时间戳分配</strong>：采用基于时间的会话划分方法。同一会话内的对话轮次之间时间间隔很短（如一分钟），不同会话之间的时间间隔较长（如一天）。这使得时间推理类问题成为可能——例如用户说"下周一"，系统需要根据对话发生的时间戳推算出具体日期。</li>
+<li><strong>生成问答对</strong>：基于采样的属性和生成的对话，创建问题和标准答案。</li>
+</ol>
+<h4 id="22">2.2 多场景记忆</h4>
+<p><strong>参与记忆场景（Participation Memory Scenario）</strong>：数据形式为用户与智能体之间的多轮对话。智能体不仅需要记住用户说的话，还需要记住自己的回复（例如智能体推荐了什么电影）。为了消除智能体其他模块（如推理模块）对记忆评估的干扰，作者预定义了智能体的回复内容。数据由多个会话（session）组成，每个会话包含多轮对话（turns）。<br />
+<strong>观察记忆场景（Observation Memory Scenario）</strong>：数据形式为用户单方面输入的消息流。智能体被动接收这些消息，不进行交互。这个场景聚焦于智能体作为观察者的角色，只需要记住用户表达的信息。数据由消息列表组成。<br />
+两种场景的关键区别在于：参与场景中智能体的其他模块（如推理模块）会影响记忆模块，而观察场景中不会。</p>
+<h4 id="23">2.3 多层次记忆</h4>
+<h5 id="factual-memory">事实记忆（Factual Memory）</h5>
+<p>事实记忆指的是用户或其关联实体的具体事实属性，如亲属的年龄、职业、事件的时间细节等。论文设计了多种问题类型来测试不同的事实记忆能力（如Table 6和Figure 3所示）：</p>
+<ul>
+<li><strong>Single-hop（单跳）</strong>：依赖单条消息直接回答。例如"我侄女的公司叫什么？"</li>
+<li><strong>Multi-hop（多跳）</strong>：需要联合多条消息回答。例如需要先知道"我姐姐叫Amelia Brooks"，再知道"我姐姐的生日是12月11日"，才能回答"Amelia Brooks的生日是什么？"</li>
+<li><strong>Comparative（比较）</strong>：比较两个实体在某个共同属性上的差异。例如"Clara Jennings和Landon Pierce谁更大？"</li>
+<li><strong>Aggregative（聚合）</strong>：聚合多个实体在某个共同属性上的信息。例如"有多少人住在Philadelphia, PA？"需要遍历所有提到的人物的家乡。</li>
+<li><strong>Post-processing（后处理）</strong>：需要额外的推理步骤。例如给出邮箱地址，问这个邮箱对应的人的爱好是什么——需要先找到邮箱对应的人，再找到这个人的爱好。</li>
+<li><strong>Knowledge-updating（知识更新）</strong>：同一属性在不同时间被更新。例如用户先说"Policing Forum持续四天"，后来又更正为"只持续一天"。</li>
+<li><strong>Single-session-assistant（单会话助手）</strong>：需要记住智能体在单个会话中的回复。</li>
+<li><strong>Multi-session-assistant（多会话助手）</strong>：需要记住智能体在多个会话中的回复。</li>
+</ul>
+<h5 id="reflective-memory">反思记忆（Reflective Memory）</h5>
+<p>反思记忆指的是从用户对低层偏好的多次表达中提取和总结出的高层偏好。例如，用户在多次对话中提到喜欢"Prosciutto and Melon"、"Salted Maple Ice Cream"、"Pecan Praline"、"Salted Butter Toffee"等菜品，智能体需要从这些具体菜品中归纳出用户偏好"Sweet and Salty"口味。<br />
+反思记忆包含两个子类型（Table 7）：</p>
+<ul>
+<li><strong>Preference（偏好）</strong>：依赖多条消息中用户主动表达的低层偏好来推断高层偏好。</li>
+<li><strong>Emotion（情绪）</strong>：依赖特定时间段内的多条连续消息来推断用户的情绪状态。<br />
+  为了增强答案的可信度，反思记忆的内容通过用户多次表达不同的具体偏好来强化。</li>
+</ul>
+<h4 id="24">2.4 多指标评估</h4>
+<p>论文提出四个评估指标：<br />
+<strong>Memory Accuracy（记忆准确率）</strong>：为避免智能体灵活表达导致的误判，所有问题设计为选择题。智能体完成记忆过程后，将问题和选项提交给智能体，通过比较其选择与正确答案来计算准确率。<br />
+<strong>Memory Recall（记忆召回率）</strong>：针对基于检索的记忆机制，衡量检索的准确性。由于在数据生成过程中已经标记了回答问题所需的关键证据对话，因此可以计算检索的召回率（Recall@10）。<br />
+<strong>Memory Capacity（记忆容量）</strong>：探索记忆机制是否存在容量上限——即当记忆内容达到某个量级时，准确率是否会急剧下降。这个临界阈值代表了记忆的容量。<br />
+<strong>Memory Efficiency（记忆效率）</strong>：衡量记忆机制在读取和写入每轮消息时的时间开销。某些记忆机制可能导致过高的处理时间，在实际应用中不可接受。</p>
+<h4 id="25">2.5 数据集统计</h4>
+<p>数据集包含：</p>
+<ul>
+<li>500个用户关系图</li>
+<li>多组用户-助手对话、用户消息和对应的问题<br />
+  Table 2展示了详细统计：</li>
+<li>PS-RM（参与场景-反思记忆）：3.5k会话，3.5k问题，平均每条轨迹2,195 tokens</li>
+<li>PS-FM（参与场景-事实记忆）：51k会话，39k问题，平均每条轨迹10,285 tokens</li>
+<li>OS-RM（观察场景-反思记忆）：2k会话，2k问题，平均每条轨迹745 tokens</li>
+<li>OS-FM（观察场景-事实记忆）：8.5k会话，8.5k问题，平均每条轨迹617 tokens<br />
+  Figure 4(c)显示，关键证据对话在会话中的位置分布近似均匀，模拟了真实世界中答案信息可能出现在对话任何位置的情况。</li>
+</ul>
+<hr />
+<h3 id="benchmark">三、基准测试（Benchmark）</h3>
+<h4 id="31">3.1 实验设置</h4>
+<p>为了更贴合智能体在真实场景中的记忆过程，论文模拟了用户与智能体的交互流程：在时间$t$，输入用户第$t$轮的发言，而之前$t-1$轮及更早的内容只能通过记忆机制来回忆。<br />
+<strong>难度控制</strong>：使用News数据集生成大量与问题无关的噪声对话/消息，随机插入到相邻会话之间。通过控制噪声比例，创建不同难度的测试集。论文构建了两个子数据集：</p>
+<ul>
+<li><strong>Sub-dataset 1（普通规模）</strong>：每个测试约10K tokens（参与场景）或1K tokens（观察场景）</li>
+<li><strong>Sub-dataset 2（100k规模）</strong>：每个测试约100K tokens（参与场景）或10K tokens（观察场景）</li>
+</ul>
+<p><strong>测试的记忆机制</strong>：基于MemEngine框架，使用Qwen2.5-7B作为基础模型，实现了七种记忆机制：</p>
+<ol>
+<li><strong>FullMemory</strong>：将所有历史信息放入上下文窗口</li>
+<li><strong>RetrievalMemory</strong>：基于检索的记忆，使用向量检索找到相关记忆</li>
+<li><strong>RecentMemory</strong>：只保留最近的记忆（滑动窗口）</li>
+<li><strong>GenerativeAgent</strong>：来自Stanford的生成式智能体，会对记忆进行反思和总结</li>
+<li><strong>MemoryBank</strong>：带有遗忘机制的长期记忆</li>
+<li><strong>MemGPT</strong>：将LLM类比为操作系统，实现分层记忆管理</li>
+<li><strong>SCMemory（Self-Controlled Memory）</strong>：自控记忆框架<br />
+   所有涉及检索的方法使用multilingual-e5-small作为检索模型。</li>
+</ol>
+<h4 id="32">3.2 事实记忆评估结果</h4>
+<p>Table 3展示了事实记忆的测试结果：<br />
+<strong>在Sub-dataset 1（10k）上</strong>：</p>
+<ul>
+<li>FullMemory、RetrievalMemory和RecentMemory表现较好</li>
+<li>参与场景中，RetrievalMemory达到0.692，FullMemory为0.647</li>
+<li>观察场景中，RetrievalMemory达到0.883，RecentMemory为0.8</li>
+</ul>
+<p><strong>在Sub-dataset 2（100k）上</strong>：</p>
+<ul>
+<li>FullMemory和RecentMemory出现明显下降（因为目标信息可能超出上下文窗口）</li>
+<li>RecentMemory下降更严重（窗口更小）</li>
+<li>RetrievalMemory表现最稳定，在参与场景达到0.833，观察场景达到0.933</li>
+<li>其他设计的记忆机制（GenerativeAgent、MemoryBank、MemGPT、SCMemory）在两个数据集上都没有表现出明显优势</li>
+</ul>
+<p><strong>效率方面</strong>：</p>
+<ul>
+<li>FullMemory和RecentMemory的读写时间几乎可以忽略</li>
+<li>MemGPT的读取时间最长（参与场景4.549秒/操作）</li>
+<li>MemoryBank的写入时间最长（参与场景8.047秒/操作，观察场景18.243秒/操作）</li>
+</ul>
+<p><strong>召回率</strong>：RetrievalMemory在10k数据上参与场景Recall@10为0.776，100k数据上为0.749；观察场景分别为0.847和0.769。</p>
+<h4 id="33">3.3 反思记忆评估结果</h4>
+<p>Table 4展示了反思记忆的测试结果：<br />
+<strong>在Sub-dataset 1上</strong>：</p>
+<ul>
+<li>GenerativeAgent、MemGPT和MemoryBank表现很好（参与场景分别为0.742、0.733、0.692）</li>
+<li>观察场景中，MemoryBank甚至达到0.900</li>
+</ul>
+<p><strong>在Sub-dataset 2（100k）上</strong>：</p>
+<ul>
+<li>几乎所有方法性能都急剧下降</li>
+<li>只有RetrievalMemory保持了较好的结果（参与场景0.833，观察场景0.933）</li>
+<li>其他方法（GenerativeAgent 0.333、MemGPT 0.367、MemoryBank 0.400等）下降严重<br />
+  这说明：精心设计的记忆机制确实能有效捕捉反思记忆，但在长时间交互后如何维持这种能力是一个具有挑战性的研究问题。下降的原因可能是模型上下文窗口有限，或者遗忘机制导致了重要记忆的丢失。</li>
+</ul>
+<h4 id="34">3.4 记忆容量评估</h4>
+<p>Figure 5展示了四种记忆机制（SCMemory、MemGPT、GenerativeAgent、RecentMemory）在观察场景100k数据集上，随着记忆token数量增加，准确率的变化趋势。<br />
+结果显示，这些记忆机制都出现了<strong>准确率的急剧下降</strong>。这可能反映了在Qwen2.5-7B-Instruct模型上，这些记忆机制的性能保持能力存在上限。</p>
+<h4 id="35">3.5 不同推理模型的比较</h4>
+<p>Table 5比较了四种不同基础模型（Qwen2.5-7B-Instruct、GPT-4o-mini、Meta-Llama-3.1-8B-Instruct、glm-4-9b-chat）在Sub-dataset 1上的表现：</p>
+<ul>
+<li><strong>GPT-4o-mini</strong>在大多数情况下表现最好（事实记忆参与场景FullMemory达0.736，观察场景0.864）</li>
+<li><strong>Meta-Llama-3.1-8B-Instruct</strong>的事实记忆能力明显弱于其他模型，但反思记忆能力仍然相对不错</li>
+<li>有趣的是，使用GPT-4o-mini作为GenerativeAgent的基础模型时，时间消耗显著高于其他模型</li>
+<li>基础模型的选择对智能体的记忆性能有显著影响</li>
+</ul>
+<h4 id="36">3.6 各问题类型的详细结果</h4>
+<p>Table 11（事实记忆-参与场景）的细分结果显示：</p>
+<ul>
+<li><strong>Single-hop和Multi-hop</strong>类型相对简单，大多数方法准确率在0.6-0.9之间</li>
+<li><strong>Comparative和Aggregative</strong>类型较难，准确率普遍较低（0.05-0.55和0.225-0.45）</li>
+<li><strong>Knowledge-updating</strong>类型准确率中等（0.475-0.75）</li>
+<li><strong>Assistant相关类型</strong>（ssa和msa）对基于检索的方法挑战较大，因为需要记住智能体自己的回复<br />
+  Table 10（反思记忆细分）显示：</li>
+<li><strong>Preference类型</strong>普遍比<strong>Emotion类型</strong>表现更好</li>
+<li>Emotion类型最高准确率仅0.676（GenerativeAgent在观察场景），说明情绪记忆是一个更具挑战性的任务</li>
+</ul>
+<hr />
+<h3 id="_7">四、总结与局限</h3>
+<h4 id="_8">主要贡献</h4>
+<ol>
+<li>构建了首个同时包含多场景（参与+观察）和多层次记忆（事实+反思）的评估数据集</li>
+<li>提出了包含准确率、召回率、容量和时间效率的多维度评估框架</li>
+<li>系统评测了七种主流记忆机制，揭示了现有方法在不同维度上的优劣</li>
+</ol>
+<h4 id="_9">主要发现</h4>
+<ul>
+<li>RetrievalMemory在大规模数据上表现最稳定，是目前最可靠的记忆机制</li>
+<li>精心设计的记忆机制能有效捕捉反思记忆，但在长时间交互后难以维持</li>
+<li>现有记忆机制普遍存在容量瓶颈，随着记忆量增加性能急剧下降</li>
+<li>某些记忆机制（如MemoryBank、MemGPT）的时间开销过大，在实际应用中可能不可接受</li>
+<li>基础模型的选择对记忆性能有显著影响</li>
+</ul>
+<h4 id="_10">局限性</h4>
+<ul>
+<li>评估方法局限于结构化数据的记忆评估</li>
+<li>反思记忆还有很多方面值得探索，如用户的情绪记忆</li>
+<li>数据集基于用户画像和关联实体的图结构，对非结构化记忆的评估能力有限</li>
+</ul>
+<h2 id="_11">研究要点表</h2>
+<div class="table-scroll"><table class="key-value">
+<thead>
+<tr>
+<th>维度</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>论文标题</td>
+<td>MemBench: Towards More Comprehensive Evaluation on the Memory of LLM-based Agents</td>
+</tr>
+<tr>
+<td>作者</td>
+<td>Haoran Tan, Zeyu Zhang, Chen Ma, Xu Chen, Quanyu Dai, Zhenhua Dong</td>
+</tr>
+<tr>
+<td>发表年份</td>
+<td>2025</td>
+</tr>
+<tr>
+<td>研究问题</td>
+<td>如何更全面地评估基于LLM的智能体的记忆能力？现有评估在记忆层次多样性、交互场景多样性以及评估指标的综合性方面存在不足。</td>
+</tr>
+<tr>
+<td>研究方法</td>
+<td>构建了包含多场景（参与场景和观察场景）、多层次记忆内容（事实记忆和反思记忆）的数据集，并提出包含准确率、召回率、容量和时间效率四个指标的多维评估基准MemBench。基于MemEngine框架实现了七种记忆机制，使用Qwen2.5-7B等多个LLM进行实验评估。</td>
+</tr>
+<tr>
+<td>主要发现</td>
+<td>RetrievalMemory在大规模数据（100k tokens）下表现最稳定；GenerativeAgent、MemGPT和MemoryBank在小规模数据上反思记忆表现良好，但在大规模数据上性能显著下降；MemGPT和SCMemory随记忆token增加出现准确率急剧下降；GPT-4o-mini在大多数情况下表现最优；不同基座模型的选择对智能体记忆性能有显著影响。</td>
+</tr>
+<tr>
+<td>创新点</td>
+<td>首次将反思记忆（高层次隐含推理记忆）纳入评估范围；首次提出观察场景作为独立的交互评估场景；提出包含准确率、召回率、容量和时间效率的多维度综合评估框架；利用推荐数据集中的用户-物品关系构建反思记忆属性的真实分布。</td>
+</tr>
+<tr>
+<td>局限性</td>
+<td>评估方法局限于对结构化数据的记忆评估；反思记忆方面仍有许多领域待探索，如用户的情感记忆；数据集基于用户画像和实体关系图构建，可能无法完全反映非结构化场景下的记忆能力。</td>
+</tr>
+<tr>
+<td>与本研究的关联</td>
+<td>未提及</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="_12">原文摘要</h2>
+<p>Recent works have highlighted the significance of memory mechanisms in LLM-based agents, which enable them to store observed information and adapt to dynamic environments. However, evaluating their memory capabilities still remains challenges. Previous evaluations are commonly limited by the diversity of memory levels and interactive scenarios. They also lack comprehensive metrics to reflect the memory capabilities from multiple aspects. To address these problems, in this paper, we construct a more comprehensive dataset and benchmark to evaluate the memory capability of LLM-based agents. Our dataset incorporates factual memory and reflective memory as different levels, and proposes participation and observation as various interactive scenarios. Based on our dataset, we present a benchmark, named MemBench, to evaluate the memory capability of LLM-based agents from multiple aspects, including their effectiveness, efficiency, and capacity. To benefit the research community, we release our dataset and project at  this https URL .</p></article>
+<aside class="detail-aside"><div class="report-toc" aria-label="文献卡片目录"><details open><summary>本页目录</summary><div class="toc">
+<ul>
+<li><a href="#_1">核心机制</a></li>
+<li><a href="#_2">适用范围与局限</a></li>
+<li><a href="#_3">详细解读</a><ul>
+<li><a href="#_4">论文核心总结</a></li>
+<li><a href="#_5">一、研究背景与动机</a></li>
+<li><a href="#_6">二、数据集构建</a></li>
+<li><a href="#benchmark">三、基准测试（Benchmark）</a></li>
+<li><a href="#_7">四、总结与局限</a></li>
+</ul>
+</li>
+<li><a href="#_11">研究要点表</a></li>
+<li><a href="#_12">原文摘要</a></li>
+</ul>
+</div>
+</details></div><section><h2>引用这篇论文</h2><p id="citation-text" class="citation-text">Haoran Tan, Zeyu Zhang, Chen Ma, et al.. MemBench: Towards More Comprehensive Evaluation on the Memory of LLM-based Agents. arXiv:2506.21605, 2025.</p><button class="button secondary" type="button" data-copy-citation>复制引用</button><p class="meta-note">综述参考文献 [44]</p></section><section><h2>同方向继续阅读</h2><ul class="related-list"><li><a href="../papers/2307.03172.html">Lost in the Middle: How Language Models Use Long Contexts</a></li><li><a href="../papers/2402.17753.html">Evaluating Very Long-Term Conversational Memory of LLM Agents</a></li><li><a href="../papers/2410.10813.html">LongMemEval: Benchmarking Chat Assistants on Long-Term Interactive Memory</a></li><li><a href="../papers/2507.05257.html">Evaluating Memory in LLM Agents via Incremental Multi-Turn Interactions</a></li></ul></section></aside></div></div></main>
+<footer class="site-footer"><div><strong>Agent Memory 研究</strong><p>从保存历史，到有依据地更新长期状态。</p></div>
+<div><span>内容更新 · 2026-09-08</span><p>理解方法，比较条件，关注长期影响。</p><a href="../sources.html">阅读指南</a></div></footer>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body></html>

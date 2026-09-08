@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="可追溯的 Agent Memory 文献与研究综述">
+<meta name="color-scheme" content="light"><title>研究总览 · Agent Memory 研究</title>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/site.css">
+<script src="assets/site.js" defer></script>
+</head>
+<body data-page="overview">
+<a class="skip-link" href="#main">跳转到正文</a>
+<header class="site-header"><div class="header-inner">
+<a class="brand" href="index.html" aria-label="Agent Memory 研究首页">
+<svg viewBox="0 0 36 36" width="32" height="32" aria-hidden="true"><path d="M9 9h18v18H9zM9 9l18 18M27 9L9 27" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="9" r="4"/><circle cx="27" cy="9" r="4"/><circle cx="9" cy="27" r="4"/><circle cx="27" cy="27" r="4"/></svg>
+<span>Agent Memory<small>研究文献站</small></span></a>
+<nav class="site-nav" aria-label="主导航"><a href="index.html" aria-current="page">研究总览</a><a href="library.html">文献库</a><a href="reports/survey.html">综述全文</a><a href="reports/multi-agent.html">多智能体专题</a><a href="sources.html">阅读指南</a></nav>
+</div></header>
+<main id="main">
+<div class="page-wrap">
+<section class="home-hero"><div class="hero-copy"><p class="section-label">文献地图 · 2023–2026，含 RAG 基础工作</p>
+<h1>记忆如何成为<br>可复用的经验？</h1>
+<p class="lede">从单个 Agent 的长期状态，到多智能体的协作经验。沿着记忆的组织、更新、调用与治理，阅读这个领域。</p>
+<div class="hero-actions"><a class="button primary" href="library.html">浏览全部文献</a><a class="button secondary" href="reports/survey.html">阅读中文综述</a></div>
+<p class="hero-note">按研究问题阅读论文，结合方法解读、实验条件与适用范围。</p></div>
+<div class="memory-map" aria-label="记忆生命周期分类示意，不代表论文引用关系"><div class="map-caption">记忆不是终点，而是下一次行动的起点</div>
+<div class="map-flow"><div class="map-stage"><span>经历</span><strong>交互 · 轨迹 · 反馈</strong><small>保留发生了什么</small></div><span class="flow-arrow" aria-hidden="true">↓</span>
+<div class="map-stage emphasis"><span>维护</span><strong>事实 · 经验 · 技能</strong><small>决定什么值得记住</small></div><span class="flow-arrow" aria-hidden="true">↓</span>
+<div class="map-stage"><span>调用</span><strong>推理 · 分工 · 执行</strong><small>将适用经验用于新任务</small></div></div>
+<div class="map-feedback">反馈驱动下一轮更新 <span aria-hidden="true">↺</span></div><div class="map-guard">贯穿全过程：来源、权限、验证与撤销</div></div></section>
+<div class="scope-strip"><div><strong>89</strong><span>核心与扩展文献</span></div><div><strong>60</strong><span>提供详细解读</span></div><div><strong>8</strong><span>研究方向</span></div><div><a href="library.html?scope=peripheral">另有 2 篇外围文献</a><span>按问题选择阅读范围</span></div></div>
+<section class="home-section"><div class="section-heading"><div><p class="section-label">按问题进入</p><h2>八个相互连接的研究方向</h2></div><p>分类用于导航，不是互斥标签。<br>同一论文可以关联多个方向。</p></div>
+<div class="landscape"><div class="topic-list"><a class="topic-row" href="library.html?topic=foundations"><span class="topic-name">基础与综述</span><span class="topic-description">定义记忆、认知架构与研究边界</span><span class="topic-count">8 篇</span></a><a class="topic-row" href="library.html?topic=information"><span class="topic-name">信息记忆</span><span class="topic-description">事实、事件、时序与长期知识维护</span><span class="topic-count">10 篇</span></a><a class="topic-row" href="library.html?topic=experience"><span class="topic-name">经验与技能</span><span class="topic-description">从执行轨迹提取可复用的程序与教训</span><span class="topic-count">10 篇</span></a><a class="topic-row" href="library.html?topic=evolution"><span class="topic-name">操作与架构演化</span><span class="topic-description">学习如何写入、检索和组织记忆</span><span class="topic-count">8 篇</span></a><a class="topic-row" href="library.html?topic=multi-agent"><span class="topic-name">多智能体记忆</span><span class="topic-description">共享经验、角色分工与团队持续学习</span><span class="topic-count">9 篇</span></a><a class="topic-row" href="library.html?topic=multimodal"><span class="topic-name">多模态记忆</span><span class="topic-description">跨模态证据定位与视觉经验复用</span><span class="topic-count">9 篇</span></a><a class="topic-row" href="library.html?topic=evaluation"><span class="topic-name">评测与反证</span><span class="topic-description">长期收益、负迁移与预算匹配</span><span class="topic-count">8 篇</span></a><a class="topic-row" href="library.html?topic=safety"><span class="topic-name">安全与治理</span><span class="topic-description">投毒、授权、可信更新与影响撤销</span><span class="topic-count">31 篇</span></a></div><aside class="research-note"><span class="note-label">阅读时，请保留这三个区别</span>
+<h3>内容更新，不等于<br>改进机制的自我更新。</h3><p>存入新事实、学习记忆操作、搜索记忆架构，是不同层次的改变。</p>
+<h3>团队共享，不等于<br>所有角色看同一份历史。</h3><p>协作记忆还涉及经验分配、角色适配、冲突和贡献归因。</p>
+<h3>记住了来源，不等于<br>获得了行动授权。</h3><p>事实忠实、经验适用与权限有效需要分别验证。</p><a href="reports/survey.html">展开阅读这些判断</a></aside></div></section>
+<section class="mas-feature"><div><p class="section-label">新增专题</p><h2>团队应该共享什么记忆？</h2><p>从 G-Memory 的协作轨迹、LEGOMem 的角色分配，到 LLMA-Mem 的团队规模与长期学习。将「多 Agent 管理记忆」与「多 Agent 使用共享经验」分开讨论。</p></div><div class="feature-actions"><a class="button primary" href="reports/multi-agent.html">阅读多智能体专题</a><a href="library.html?topic=multi-agent">查看相关文献</a></div></section>
+<section class="home-section"><div class="section-heading"><div><p class="section-label">推荐阅读路线</p><h2>先建立问题，再深入方法</h2></div></div><div class="reading-routes"><article class="reading-route"><h3>建立全景</h3><p>从认知架构到长期知识维护</p><ol><li><a href="papers/2309.02427.html">Cognitive Architectures for Language Agents</a></li><li><a href="papers/2310.08560.html">MemGPT: Towards LLMs as Operating Systems</a></li><li><a href="papers/2502.12110.html">A-MEM: Agentic Memory for LLM Agents</a></li><li><a href="papers/2605.16045.html">RecMem: Recurrence-based Memory Consolidation for Efficient and Effective Long-Running LLM Agents</a></li></ol></article><article class="reading-route"><h3>理解团队记忆</h3><p>从协作轨迹到角色分配与团队规模</p><ol><li><a href="papers/2506.07398.html">G-Memory: Tracing Hierarchical Memory for Multi-Agent Systems</a></li><li><a href="papers/2510.04851.html">LEGOMem: Modular Procedural Memory for Multi-agent LLM Systems for Workflow Automation</a></li><li><a href="papers/2604.03295.html">Scaling Teams or Scaling Time? Memory Enabled Lifelong Learning in LLM Multi-Agent Systems</a></li></ol></article><article class="reading-route"><h3>研究可靠演化</h3><p>从经验归纳到验证、授权与撤销</p><ol><li><a href="papers/2509.25140.html">ReasoningBank: Scaling Agent Self-Evolving with Reasoning Memory</a></li><li><a href="papers/2606.25161.html">TRUSTMEM: Learning Trustworthy Memory Consolidation for LLM Agents with Long-Term Memory</a></li><li><a href="papers/2608.01679.html">When Memory Becomes Authority: Benchmarking Authority Collapse at the Memory Consolidation Boundary</a></li><li><a href="papers/2606.29788.html">MemLeak: Diagnosing Information Leaks in Multimodal Agent Memory</a></li></ol></article></div></section>
+<section class="evidence-note"><strong>从机制读到实验，再回到问题。</strong><p>文献卡片提供核心机制和适用范围，部分还包含详细解读、研究要点表与结构化提纲。比较结果时，留意模型、数据划分和计算预算。</p><a href="sources.html">查看阅读指南</a></section>
+</div></main>
+<footer class="site-footer"><div><strong>Agent Memory 研究</strong><p>从保存历史，到有依据地更新长期状态。</p></div>
+<div><span>内容更新 · 2026-09-08</span><p>理解方法，比较条件，关注长期影响。</p><a href="sources.html">阅读指南</a></div></footer>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body></html>

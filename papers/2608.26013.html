@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="用持续反馈记忆改善多模态指令数据合成">
+<meta name="color-scheme" content="light"><title>VISA: Agentic Self-Evolving Data Synthesis for Multimodal Instruction Following · Agent Memory 研究</title>
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/katex/katex.min.css"><script src="../assets/katex/katex.min.js" defer></script><script src="../assets/katex/auto-render.min.js" defer></script><script src="../assets/site.js" defer></script>
+</head>
+<body data-page="library">
+<a class="skip-link" href="#main">跳转到正文</a>
+<header class="site-header"><div class="header-inner">
+<a class="brand" href="../index.html" aria-label="Agent Memory 研究首页">
+<svg viewBox="0 0 36 36" width="32" height="32" aria-hidden="true"><path d="M9 9h18v18H9zM9 9l18 18M27 9L9 27" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="9" r="4"/><circle cx="27" cy="9" r="4"/><circle cx="9" cy="27" r="4"/><circle cx="27" cy="27" r="4"/></svg>
+<span>Agent Memory<small>研究文献站</small></span></a>
+<nav class="site-nav" aria-label="主导航"><a href="../index.html">研究总览</a><a href="../library.html" aria-current="page">文献库</a><a href="../reports/survey.html">综述全文</a><a href="../reports/multi-agent.html">多智能体专题</a><a href="../sources.html">阅读指南</a></nav>
+</div></header>
+<main id="main"><div class="page-wrap"><div class="breadcrumb"><a href="../library.html">文献库</a><span>/</span><a href="../library.html?topic=multimodal">多模态记忆</a></div>
+<header class="paper-hero"><div class="paper-badges"><span class="badge expanded">含详细解读</span><span class="muted">2026 · 2608.26013</span></div><h1>VISA: Agentic Self-Evolving Data Synthesis for Multimodal Instruction Following</h1><p class="paper-authors full-authors">Min Zeng, Guanxin Tan, Libin Cen, Yafei Wen, Rui Hu, Liuyang Bian, Xiaolong Chen, Xiaoxin Chen</p>
+<div class="hero-actions paper-actions"><a href="https://arxiv.org/abs/2608.26013" target="_blank" rel="noopener noreferrer">论文原文 <span aria-hidden="true">↗</span></a><a href="../downloads/notes/2608.26013.md">下载文献卡片 Markdown</a></div></header>
+<div class="detail-layout"><article class="prose"><h2 id="_1">核心机制</h2>
+<p>用持续反馈记忆改善多模态指令数据合成</p>
+<h2 id="_2">适用范围与局限</h2>
+<p>主要数据合成应用，未纳入正文以免偏离记忆机制</p>
+<h2 id="_3">详细解读</h2>
+<h3 id="_4">论文核心总结</h3>
+<p>VISA（Visual Instruction Synthesis Agent）是一个面向多模态指令遵循（multimodal instruction following）的自演化智能体数据合成框架。与传统"一次性生成+过滤"的数据合成流水线不同，VISA将多模态指令数据的合成建模为一个闭环优化过程，包含感知（Perception）、规划与执行（Planning &amp; Execution）、反思（Reflection）和记忆更新（Memory Update）四个阶段。每一轮迭代中，VISA会分析图像以筛选和发现可验证的约束类型，基于持久化记忆中的覆盖度和难度信号采样约束集合，生成候选指令并通过代码工具和结构化LLM评判器进行双轨验证，失败样本触发诊断引导的修复，通过验证的样本则用目标模型探测其难度。所有反馈信号被写回记忆，使后续轮次能够自适应地扩展约束空间、减少模板重复、聚焦于目标模型尚未掌握的弱点。实验表明，仅用15k合成样本训练的4B参数模型即可在MM-IFEval上超越9B参数的基线模型，同时在七个通用多模态基准上保持甚至提升了通用能力。</p>
+<h3 id="_5">一、研究背景与动机</h3>
+<h4 id="11">1.1 多模态指令遵循问题</h4>
+<p>多模态大语言模型（MLLMs）在视觉理解和推理方面取得了显著进展，但现实应用越来越要求模型能够精确遵循复杂的用户指令。这些指令可能包含多种约束，例如：</p>
+<ul>
+<li><strong>输出格式约束</strong>：要求以JSON、Markdown等特定格式输出</li>
+<li><strong>关键词约束</strong>：必须包含或排除某些关键词</li>
+<li><strong>风格约束</strong>：以特定语气、人称、时态写作</li>
+<li><strong>结构化生成约束</strong>：要求分段、加标题等</li>
+<li><strong>视觉关联推理约束</strong>：基于图像中的空间关系、物体属性等进行回答<br />
+  构建能可靠满足这些多模态约束的模型，是多模态对齐和指令微调中的重要问题。</li>
+</ul>
+<h4 id="12">1.2 现有方法的局限</h4>
+<p>现有的多模态指令合成流水线大多是<strong>一次性（one-pass）系统</strong>：从模板或提示生成指令，过滤输出，然后将通过的样本加入训练集。这种范式存在几个关键问题：</p>
+<ol>
+<li><strong>无反馈循环</strong>：失败样本的反馈、重复模板的信息、缺失验证器的信号、目标模型的错误模式——这些信息要么被丢弃，要么只在局部使用。</li>
+<li><strong>无状态</strong>：合成过程不会反思过去的输出，不会更新内部状态，也不会利用这些状态来规划下一步。</li>
+<li><strong>开环优化</strong>：即使是Self-Instruct、WizardLM、MMEvol等自演化方法，虽然通过迭代重写提升了指令复杂度，但它们优化的是"生成什么"，而合成过程本身是静态的，没有机制根据目标模型尚未掌握的内容进行适应。</li>
+</ol>
+<h4 id="13-visa">1.3 VISA的核心思想</h4>
+<p>VISA将多模态指令合成重新定义为一个<strong>闭环优化问题</strong>，而非一次性生成任务。其核心创新在于：</p>
+<ul>
+<li>引入<strong>智能体循环（agent loop）</strong>，在规划执行和反思之间迭代</li>
+<li>维护<strong>持久化记忆（persistent memory）</strong>，跨轮次积累验证结果、多样性统计和难度信号</li>
+<li>利用<strong>目标模型探测（target-model probing）</strong>，使合成过程自适应地聚焦于模型的薄弱环节</li>
+</ul>
+<hr />
+<h3 id="_6">二、方法详解</h3>
+<p>VISA将多模态指令合成建模为四阶段闭环过程：<strong>感知（Perception）→ 规划与执行（Planning &amp; Execution）→ 反思（Reflection）→ 记忆更新（Memory Update）</strong>。</p>
+<h4 id="21">2.1 问题形式化</h4>
+<p>合成被形式化为<strong>图像条件下的约束满足问题</strong>。给定图像池 $\mathcal{I}$ 和一个动态演化的约束类型注册表 $\mathcal{T}$，VISA构建多模态指令遵循数据集：  </p>
+<p>$\displaystyle \mathcal{D} = \{(I_i, Q_i, R_i, C_i, v_i)\}_{i=1}^{N}$</p>
+<p>其中：</p>
+<ul>
+<li>$I_i \in \mathcal{I}$ 是输入图像</li>
+<li>$Q_i$ 是基于 $I_i$ 的指令</li>
+<li>$C_i \subset \mathcal{T}$ 是嵌入在 $Q_i$ 中的约束集合</li>
+<li>$R_i$ 是期望满足所有 $c \in C_i$ 的响应</li>
+<li>$v_i$ 是在合成时绑定到该样本的验证程序（代码验证器或结构化LLM评判器）<br />
+  关键点在于，注册表 $\mathcal{T}$ <strong>不是固定的</strong>：新的约束类型可以在感知阶段被提出和验证，使合成数据能够超越初始范围扩展，无需人工标注。</li>
+</ul>
+<h4 id="22-perception">2.2 感知阶段（Perception）</h4>
+<p>感知阶段解决的核心问题是：<strong>手工设计的约束注册表无法预见多样图像集合中自然产生的所有指令需求</strong>。<br />
+<strong>约束过滤</strong>：对每张图像，合成模型分析当前注册表 $\mathcal{T}$ 中哪些约束类型对该场景是有意义的，返回一个兼容子集 $S_I \subseteq \mathcal{T}$。例如，对于一张近景人像照片，<code>spatial_relation</code>（空间关系）约束在语义上是无意义的，会被过滤掉。这确保了下游规划中选择的每个约束都是<strong>可验证的且视觉上有意义的</strong>。<br />
+<strong>约束发现</strong>：更重要的是，感知阶段还主动鼓励合成模型<strong>提出新的约束类型</strong>——那些当前注册表未覆盖但对该图像特别适合的约束。每个新提出的约束类型必须配对一个候选验证函数，并通过<strong>沙盒验证测试</strong>后才能被纳入 $\mathcal{T}$。这种图像驱动的发现机制用细粒度、视觉关联的需求丰富了约束空间。<br />
+实验数据显示，从初始76种手工约束类型出发，经过126轮自演化，VISA新增了234种约束类型，最终形成310种约束类型的库，增长了4.1倍。</p>
+<h4 id="23-planning-execution">2.3 规划与执行阶段（Planning &amp; Execution）</h4>
+<p>给定图像兼容的约束子集 $S_I$ 后，一个朴素的规划器会反复采样相似的约束组合，生成近乎重复的指令——这是一种<strong>数据同质化</strong>问题。VISA通过在两个层面联合管理多样性来解决这个问题。<br />
+<strong>约束层面的多样性（记忆引导）</strong>：约束采样时，$S_I$ 中每种类型的权重由持久化记忆中维护的两个信号决定：</p>
+<ul>
+<li><strong>覆盖度信号（coverage signal）</strong>：降低已在已接受语料中充分表示的类型的权重</li>
+<li><strong>难度信号（difficulty signal）</strong>：提高目标模型历史上难以满足的约束类型的权重<br />
+  这使得合成集中在<strong>同时欠表示且具有挑战性</strong>的约束组合上。</li>
+</ul>
+<p><strong>指令层面的多样性（嵌入空间距离）</strong>：VISA将指令规划与响应生成分离。对每张图像，规划器首先生成 $k$ 个候选指令（带有采样的约束集），但不立即生成响应。每个候选指令被嵌入后，与记忆中已接受指令的全局嵌入池 $\mathcal{P}$ 进行比较。采用<strong>贪心多样性选择策略</strong>，选择在 $\mathcal{P}$ 中最近邻距离最远的候选：  </p>
+<p>$\displaystyle i^\* = \arg\max_{i \in [k]} \min_{p \in \mathcal{P}} \text{dist}(e_{Q_i}, e_p)$</p>
+<p>其中 $e_{Q_i}$ 是候选指令 $Q_i$ 的嵌入，$e_p$ 是 $\mathcal{P}$ 中已有指令的嵌入，$\text{dist}(\cdot, \cdot)$ 度量两个嵌入之间的距离。只有被选中的指令 $Q_{i^\*}$ 才会传递给响应生成器产生 $R_i$。</p>
+<h4 id="24-reflection">2.4 反思阶段（Reflection）</h4>
+<p>反思阶段决定生成的样本应该被<strong>接受、修复还是丢弃</strong>。<br />
+<strong>双轨验证</strong>：给定样本 $(I, Q, R, C)$，VISA通过每个约束 $c \in C$ 绑定的验证器进行评估：</p>
+<ul>
+<li><strong>确定性约束</strong>（词数、关键词包含、输出格式等）由<strong>可执行代码工具</strong>检查</li>
+<li><strong>语义和视觉关联约束</strong>由<strong>结构化LLM评判器</strong>评估<br />
+  两种验证器共享统一的输出接口，报告二元通过/失败判定以及定位每个失败的诊断信息。</li>
+</ul>
+<p><strong>诊断引导的修复</strong>：当样本失败时，VISA利用逐约束的诊断信息作为结构化反馈，选择最合适的恢复策略：</p>
+<ul>
+<li><strong>表面级违规</strong>（如格式错误）：应用局部响应编辑</li>
+<li><strong>深层不兼容</strong>（如指令与图像之间的根本矛盾）：升级为指令重写或约束简化<br />
+  如果验证分数在连续尝试中不再提升，VISA会在预算耗尽后丢弃该样本，防止反复自我纠正收敛到错误解的退化行为。</li>
+</ul>
+<p><strong>目标模型难度探测</strong>：对通过验证的样本，VISA通过探测目标模型 $M$ 来估计其信息量。给定已接受的指令 $Q$ 和图像 $I$，$M$ 生成一个响应，然后用合成时使用的同一约束集进行评估。逐约束的结果被聚合为一个难度分数 $d \in [0, 1]$：</p>
+<ul>
+<li>较低的分数表示 $M$ 已经满足大部分约束，从该样本获益较少</li>
+<li>较高的分数表示存在未解决的失败，能提供更多信息量的监督<br />
+  聚合分数和逐约束失败模式都被写入记忆，随后在规划阶段将约束采样权重转向对 $M$ 仍具挑战性的类型。</li>
+</ul>
+<h4 id="25-memory">2.5 记忆（Memory）</h4>
+<p>VISA维护一个<strong>持久化记忆</strong> $\mathcal{M}$，积累每次合成迭代的结果，并使其对所有后续轮次可用。具体存储内容包括：</p>
+<ol>
+<li><strong>已接受样本</strong>及其约束集和验证器句柄</li>
+<li><strong>指令嵌入</strong>，填充多样性池 $\mathcal{P}$</li>
+<li><strong>逐约束难度档案</strong>，来自目标模型探测</li>
+<li><strong>感知阶段发现的约束类型</strong>及其关联的验证函数<br />
+   这些积累的状态直接反馈到下一轮迭代的每个阶段：</li>
+</ol>
+<ul>
+<li>指令嵌入池引导多样性选择器远离冗余指令</li>
+<li>难度档案将约束采样权重转向目标模型尚未解决的类型</li>
+<li>新发现的约束类型立即可用于未来合成<br />
+  因此，每一轮迭代开始时拥有的信息严格多于上一轮——关于已经生成了什么、目标模型在哪里仍然困难、系统能表达什么约束——使后续轮次能够利用越来越丰富的合成状态。</li>
+</ul>
+<hr />
+<h3 id="_7">三、基于可验证奖励的强化学习</h3>
+<p>VISA天然适配<strong>基于可验证奖励的强化学习（RLVR）</strong>范式，因为智能体在执行阶段已将每个已接受指令绑定到显式的验证器合约。合成数据时用于接受和修复的同一验证逻辑可以在RL中复用。<br />
+给定图像 $I$、指令 $Q$、模型响应 $R$ 和嵌入在指令中的约束集 $C = \{c_1, \ldots, c_m\}$，每个约束 $c_j$ 由其绑定的验证器 $v_j$ 评估。令 $v_j(I, Q, R) \in \{0, 1\}$ 表示响应是否满足 $c_j$，奖励定义为约束通过率：  </p>
+<p>$\displaystyle r(I, Q, R, C) = \frac{1}{|C|} \sum_{j=1}^{|C|} v_j(I, Q, R)$</p>
+<p>这个奖励直接度量模型响应遵循指令约束的比例，将RL优化与多模态指令遵循对齐。由于奖励从合成智能体已维护的验证器合约计算，VISA<strong>不需要额外的奖励模型</strong>，且失败的约束可以追溯到具体来源（如格式错误、缺失关键词、不正确的视觉描述）。</p>
+<h3 id="_8">四、实验设置</h3>
+<h4 id="41">4.1 数据与模型</h4>
+<ul>
+<li><strong>合成数据</strong>：基于MM-IFInstruct提供的图像池，使用VISA合成约15k样本</li>
+<li><strong>合成智能体</strong>：Qwen3.5-27B</li>
+<li><strong>目标模型</strong>：Qwen3.5-4B（用于SFT和RL）</li>
+<li><strong>参考模型</strong>：Qwen3.5-9B（更强的同系列模型）</li>
+<li><strong>对比模型</strong>：MiniCPM-V-4.5（8B）、InternVL3.5-8B/4B</li>
+</ul>
+<h4 id="42">4.2 评估基准</h4>
+<ul>
+<li><strong>指令遵循</strong>：MM-IFEval，包含C-Level（组合级约束，300个样本）和P-Level（感知级约束，100个样本）</li>
+<li><strong>通用多模态能力</strong>：MMBench、MMStar、MM-Vet、HallusionBench、MathVista、OCRBench、AI2D</li>
+</ul>
+<hr />
+<h3 id="_9">五、实验结果</h3>
+<h4 id="51-mm-ifeval">5.1 主要结果（MM-IFEval）</h4>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>模型/训练</th>
+<th>参数量</th>
+<th>C-Level</th>
+<th>P-Level</th>
+<th>平均</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Qwen3.5-9B</td>
+<td>9B</td>
+<td>63.9</td>
+<td>60.0</td>
+<td>63.0</td>
+</tr>
+<tr>
+<td>Qwen3.5-4B（基线）</td>
+<td>4B</td>
+<td>62.7</td>
+<td>55.0</td>
+<td>60.8</td>
+</tr>
+<tr>
+<td>+ MM-IFInstruct-23k</td>
+<td>4B</td>
+<td>65.7</td>
+<td>46.0</td>
+<td>60.8</td>
+</tr>
+<tr>
+<td>+ VISA-SFT-15k</td>
+<td>4B</td>
+<td>67.2</td>
+<td>54.0</td>
+<td><strong>63.9</strong></td>
+</tr>
+<tr>
+<td>+ VISA-RL-15k</td>
+<td>4B</td>
+<td>66.9</td>
+<td>59.0</td>
+<td><strong>64.9</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>关键发现：</p>
+<ul>
+<li>简单增加数据量（MM-IFInstruct-23k）几乎没有提升平均分</li>
+<li>VISA-SFT-15k仅用15k样本和不到一半的参数量就超越了9B参考模型的平均分</li>
+<li>VISA-RL-15k进一步将平均分提升到64.9，P-Level显著提升到59.0，接近Qwen3.5-9B的60.0</li>
+</ul>
+<h4 id="52">5.2 消融实验</h4>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>方法</th>
+<th>C-Level</th>
+<th>P-Level</th>
+<th>平均</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>基线</td>
+<td>62.7</td>
+<td>55.0</td>
+<td>60.8</td>
+</tr>
+<tr>
+<td>静态流水线</td>
+<td>64.9</td>
+<td>46.0</td>
+<td>60.2</td>
+</tr>
+<tr>
+<td>+ 反思</td>
+<td>65.6</td>
+<td>48.0</td>
+<td>61.2</td>
+</tr>
+<tr>
+<td>+ 反思 + 记忆</td>
+<td>67.1</td>
+<td>51.0</td>
+<td>63.1</td>
+</tr>
+<tr>
+<td>完整VISA</td>
+<td>67.2</td>
+<td>54.0</td>
+<td>63.9</td>
+</tr>
+</tbody>
+</table></div>
+<p>关键发现：</p>
+<ul>
+<li><strong>静态流水线</strong>提升了C-Level但显著降低了P-Level，说明朴素生成约束丰富的数据可能损害感知行为</li>
+<li><strong>反思模块</strong>通过诊断引导修复提升了每样本的可靠性</li>
+<li><strong>持久化记忆</strong>通过跨轮次积累的覆盖度和难度信号引导合成朝向欠表示和具有挑战性的约束</li>
+<li>各组件<strong>互补贡献</strong>：反思改善局部样本质量，记忆引导全局约束选择</li>
+</ul>
+<h4 id="53">5.3 通用多模态能力</h4>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>模型/训练</th>
+<th>MMBench</th>
+<th>MMStar</th>
+<th>MM-Vet</th>
+<th>HallusionBench</th>
+<th>MathVista</th>
+<th>OCRBench</th>
+<th>AI2D</th>
+<th>平均</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Qwen3.5-4B</td>
+<td>78.4</td>
+<td>61.7</td>
+<td>47.6</td>
+<td>56.0</td>
+<td>78.8</td>
+<td>84.9</td>
+<td>86.2</td>
+<td>70.5</td>
+</tr>
+<tr>
+<td>+ VISA-SFT-15k</td>
+<td>81.2</td>
+<td>63.2</td>
+<td>49.1</td>
+<td>54.1</td>
+<td>77.8</td>
+<td>85.2</td>
+<td>86.4</td>
+<td>71.0</td>
+</tr>
+<tr>
+<td>+ VISA-RL-15k</td>
+<td>78.8</td>
+<td>62.5</td>
+<td>50.5</td>
+<td>57.5</td>
+<td>87.9</td>
+<td>85.6</td>
+<td>87.6</td>
+<td><strong>72.9</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>关键发现：</p>
+<ul>
+<li>VISA-RL-15k在七个基准中五个上超越基线，平均分从70.5提升到72.9</li>
+<li>MathVista上获得最大提升（+9.1），可能反映了验证器驱动优化与结构化视觉推理任务的对齐</li>
+<li>更强的指令遵循能力<strong>不以牺牲通用多模态能力为代价</strong></li>
+</ul>
+<hr />
+<h3 id="_10">六、分析</h3>
+<h4 id="61">6.1 动态约束扩展</h4>
+<p>从76种初始约束类型出发，经过126轮自演化，最终形成310种约束类型。增长模式呈现<strong>先快后慢</strong>的特征：大多数新约束类型在早期轮次被发现（常见的视觉需求如物体属性、空间关系、响应结构），后期只偶尔添加罕见情况。最终注册表主要由attribute（110种，35.5%）、spatial（71种，22.9%）和structural（66种，21.3%）类别组成，说明新增类型主要与视觉内容和响应组织相关。</p>
+<h4 id="62">6.2 多样性与难度</h4>
+<p>对15,668个样本的分析显示：</p>
+<ul>
+<li><strong>约束多样性</strong>：所有90个非对角线类别对至少出现一次；指令嵌入呈现连续云状分布而非孤立的模板簇，平均成对余弦距离为0.977</li>
+<li><strong>约束数量</strong>：每样本平均4.87个约束，中位数5，标准差2.12，大多数样本组合了多个可联合满足的需求</li>
+<li><strong>难度分布</strong>：82.6%标记为简单，15.9%中等，1.5%困难；5.6%的约束实例被验证器标记为失败。失败集中在counting（11.6%）、lexical（10.2%）和format（8.1%），而style（0.16%）和conditional（0%）几乎总是被满足</li>
+</ul>
+<h4 id="63">6.3 合成效率</h4>
+<p>VISA的主要额外成本来自将单次生成替换为智能体循环。在实现中：</p>
+<ul>
+<li>每张图像生成4个候选指令</li>
+<li>端到端合成时间约为每个接受样本20秒</li>
+<li>65.3%的接受样本无需修复即通过验证</li>
+<li>14.3%需要一次修复，13.9%需要两次，6.5%达到三次（最大修复预算）</li>
+</ul>
+<hr />
+<h3 id="_11">七、总结</h3>
+<p>VISA的三个核心贡献：</p>
+<ol>
+<li><strong>自演化框架</strong>：将静态生成转化为迭代反馈驱动的过程</li>
+<li><strong>统一的验证与修复框架</strong>：支持动态验证器绑定、有界智能体修复和目标感知难度探测，同时自然产生可用于强化学习的可验证奖励信号</li>
+<li><strong>实验验证</strong>：在多个多模态指令遵循基准上一致提升指令遵循能力，同时保持强大的通用多模态能力</li>
+</ol>
+<h2 id="_12">研究要点表</h2>
+<div class="table-scroll"><table class="key-value">
+<thead>
+<tr>
+<th>维度</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>论文标题</td>
+<td>VISA: Agentic Self-Evolving Data Synthesis for Multimodal Instruction Following</td>
+</tr>
+<tr>
+<td>作者</td>
+<td>Min Zeng, Guanxin Tan, Libin Cen, Yafei Wen, Rui Hu, Liuyang Bian, Xiaolong Chen, Xiaoxin Chen（vivo AI Lab）</td>
+</tr>
+<tr>
+<td>发表年份</td>
+<td>2026</td>
+</tr>
+<tr>
+<td>研究问题</td>
+<td>现有多模态指令跟随数据合成管线采用一次性生成-过滤范式，缺乏对失败样本反馈、验证器结果和目标模型错误的闭环利用，导致合成数据在准确性、多样性和挑战性方面受限。</td>
+</tr>
+<tr>
+<td>研究方法</td>
+<td>提出VISA（Visual Instruction Synthesis Agent）自演化智能体框架，包含感知、规划与执行、反思和记忆更新四个阶段的闭环迭代过程。通过双轨验证（可执行代码工具+结构化LLM评判）、诊断引导修复、目标模型难度探测和持久化记忆实现自适应数据合成，并将验证器信号直接用作强化学习奖励。</td>
+</tr>
+<tr>
+<td>主要发现</td>
+<td>VISA-SFT-15k在MM-IFEval上以4B参数模型（平均分63.9）超越9B参考模型（63.0）；VISA-RL-15k进一步提升至64.9。在七个通用多模态基准上，VISA-RL-15k将平均分从70.5提升至72.9，表明指令遵循能力提升不以牺牲通用多模态能力为代价。约束类型注册表从76个种子类型自动扩展至310个（4.1倍增长）。</td>
+</tr>
+<tr>
+<td>创新点</td>
+<td>（1）首次将多模态指令数据合成建模为闭环自演化过程，通过持久化记忆实现跨轮次反馈驱动；（2）提出统一的验证与修复框架，支持动态验证器绑定、有界智能体修复和目标感知难度探测；（3）验证器合约可直接作为强化学习奖励信号，无需额外训练奖励模型。</td>
+</tr>
+<tr>
+<td>局限性</td>
+<td>框架优先考虑合成质量和难度自适应，而非效率优化；状态更新、迭代修复和目标感知探测相比静态一次性管线引入额外计算开销；生成数据可能继承源图像和合成模型中的偏见、不安全关联或隐私敏感内容。</td>
+</tr>
+<tr>
+<td>与本研究的关联</td>
+<td>未提及</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="_13">结构化提纲</h2>
+<h3 id="visa-agentic-self-evolving-data-synthesis-for-multimodal-instruction-following_1">VISA: Agentic Self-Evolving Data Synthesis for Multimodal Instruction Following</h3>
+<h4 id="_14">研究背景与目标</h4>
+<ul>
+<li>多模态指令遵循的挑战</li>
+<li>多模态大语言模型（MLLM）需要精确遵循复杂用户指令（格式控制、关键词包含、风格约束、结构化生成、视觉推理等）</li>
+<li>训练数据需具备准确性、多样性、可验证性和挑战性</li>
+<li>现有合成方法的局限</li>
+<li>采用一次性"生成-过滤"范式，属于开环系统</li>
+<li>丢弃失败样本的反馈、验证器结果和目标模型错误信息</li>
+<li>合成过程缺乏自适应能力，无法反思历史输出或更新内部状态</li>
+<li>核心目标</li>
+<li>将多模态指令数据合成从静态一次性任务转化为闭环自演化过程</li>
+<li>构建自适应的反馈驱动合成框架，无需额外人工标注</li>
+</ul>
+<h4 id="_15">研究方法</h4>
+<ul>
+<li>整体框架：VISA（Visual Instruction Synthesis Agent）</li>
+<li>四阶段闭环流程：感知、规划与执行、反思、记忆更新</li>
+<li>以图像条件约束满足为核心问题建模</li>
+<li>感知阶段（Perception）</li>
+<li>分析图像，过滤不兼容的约束类型，返回视觉相关的约束子集</li>
+<li>主动发现新约束类型，经沙盒验证后加入动态约束注册表</li>
+<li>约束注册表从76种初始类型扩展至310种（4.1倍增长）</li>
+<li>规划与执行阶段（Planning &amp; Execution）</li>
+<li>记忆引导的约束采样：基于覆盖度信号和难度信号加权采样</li>
+<li>贪心多样性选择：生成k个候选指令，通过嵌入空间距离选择最远邻候选</li>
+<li>指令规划与响应生成分离，减少数据同质化</li>
+<li>反思阶段（Reflection）</li>
+<li>双轨验证：代码工具验证确定性约束 + 结构化LLM判断语义约束</li>
+<li>失败样本触发诊断引导恢复（局部编辑、指令重写或约束简化）</li>
+<li>通过样本通过验证后探测目标模型，估计难度分数 d ∈ [0,1]</li>
+<li>设置修复预算上限，防止退化行为</li>
+<li>持久记忆（Memory）</li>
+<li>存储已接受样本、指令嵌入池、约束难度画像、新发现约束类型</li>
+<li>每轮迭代积累更多信息，驱动后续轮次自适应演化</li>
+<li>可验证奖励的强化学习（RLVR）</li>
+<li>验证器合约直接作为RL奖励信号，无需单独训练奖励模型</li>
+<li>奖励定义为约束通过率：r = (1/|C|) Σ vⱼ(I, Q, R)</li>
+<li>采用GRPO优化策略</li>
+</ul>
+<h4 id="_16">关键研究结果</h4>
+<ul>
+<li>MM-IFEval主实验</li>
+<li>VISA-SFT-15k（4B参数）平均分63.9，超越9B参考模型（63.0）</li>
+<li>VISA-RL-15k平均分达64.9，P-Level提升至59.0，接近9B模型（60.0）</li>
+<li>仅用15k样本即超越23k样本的MM-IFInstruct基线</li>
+<li>消融实验</li>
+<li>静态管道提升C-Level但损害P-Level（平均分60.2 &lt; 基线60.8）</li>
+<li>反思模块将平均分从60.2提升至61.2</li>
+<li>加入持久记忆进一步提升至63.1</li>
+<li>完整VISA达到最佳性能63.9，各组件互补贡献</li>
+<li>通用多模态能力评估</li>
+<li>VISA-RL-15k在7个基准上平均分从70.5提升至72.9</li>
+<li>MathVista提升最大（+9.1），MMBench提升+2.8</li>
+<li>指令遵循能力提升不以牺牲通用能力为代价</li>
+<li>数据多样性与难度分析</li>
+<li>约束注册表从76种扩展至310种，属性、空间、结构类别占主导</li>
+<li>每样本平均4.87个约束，90个类别对均有共现覆盖</li>
+<li>指令嵌入呈连续分布，平均余弦距离0.977，无模板聚类</li>
+<li>82.6%样本为简单、15.9%中等、1.5%困难，失败集中在计数和词汇约束</li>
+</ul>
+<h4 id="_17">研究结论与意义</h4>
+<ul>
+<li>核心贡献</li>
+<li>提出首个自演化闭环多模态指令数据合成框架</li>
+<li>统一验证与恢复机制，支持动态验证器绑定和目标感知难度探测</li>
+<li>验证器合约自然产生RL奖励信号，无需额外奖励模型</li>
+<li>实际意义</li>
+<li>以更少数据（15k vs 23k）实现更强指令遵循能力</li>
+<li>4B模型超越9B模型，展示高效数据合成的价值</li>
+<li>为自适应反馈驱动的多模态数据合成提供可行路径</li>
+<li>局限性</li>
+<li>迭代合成引入额外计算开销（约20秒/样本）</li>
+<li>生成数据可能继承源图像和合成模型的偏见</li>
+<li>当前优先合成质量而非效率优化</li>
+</ul>
+<h2 id="_18">原文摘要</h2>
+<p>Multimodal instruction-following models require training data that is accurate, diverse, verifiable, and challenging. Existing synthesis pipelines typically follow a one-pass generate-and-filter paradigm, discarding feedback from failed samples, verifier outcomes, and target-model errors. We present VISA (Visual Instruction Synthesis Agent), an agentic framework that reformulates multimodal instruction synthesis as a self-evolving loop. At each round, VISA analyzes an image to filter incompatible constraints and discover new verifiable ones, samples diversity- and difficulty-aware constraint sets from persistent memory, generates candidate instructions, and verifies the resulting samples with executable tools and structured large language model judges. Failed samples trigger diagnostic-guided recovery, while accepted samples are probed against the target model to estimate difficulty. The resulting verifier signals and target-model failure profiles are written back to memory, allowing subsequent rounds to adaptively expand the constraint space, reduce template repetition, and focus on unresolved model weaknesses. The same verifier contracts further provide reward signals for reinforcement learning without a separately trained reward model. Experiments on MM-IFEval show that VISA consistently improves multimodal instruction following over strong baselines, while preserving general multimodal capability across seven public benchmarks.</p></article>
+<aside class="detail-aside"><div class="report-toc" aria-label="文献卡片目录"><details open><summary>本页目录</summary><div class="toc">
+<ul>
+<li><a href="#_1">核心机制</a></li>
+<li><a href="#_2">适用范围与局限</a></li>
+<li><a href="#_3">详细解读</a><ul>
+<li><a href="#_4">论文核心总结</a></li>
+<li><a href="#_5">一、研究背景与动机</a></li>
+<li><a href="#_6">二、方法详解</a></li>
+<li><a href="#_7">三、基于可验证奖励的强化学习</a></li>
+<li><a href="#_8">四、实验设置</a></li>
+<li><a href="#_9">五、实验结果</a></li>
+<li><a href="#_10">六、分析</a></li>
+<li><a href="#_11">七、总结</a></li>
+</ul>
+</li>
+<li><a href="#_12">研究要点表</a></li>
+<li><a href="#_13">结构化提纲</a><ul>
+<li><a href="#visa-agentic-self-evolving-data-synthesis-for-multimodal-instruction-following_1">VISA: Agentic Self-Evolving Data Synthesis for Multimodal Instruction Following</a></li>
+</ul>
+</li>
+<li><a href="#_18">原文摘要</a></li>
+</ul>
+</div>
+</details></div><section><h2>引用这篇论文</h2><p id="citation-text" class="citation-text">Min Zeng, Guanxin Tan, Libin Cen, et al.. VISA: Agentic Self-Evolving Data Synthesis for Multimodal Instruction Following. arXiv:2608.26013, 2026.</p><button class="button secondary" type="button" data-copy-citation>复制引用</button><p class="meta-note">延伸阅读</p></section><section><h2>同方向继续阅读</h2><ul class="related-list"><li><a href="../papers/2507.07957.html">MIRIX: Multi-Agent Memory System for LLM-Based Agents</a></li><li><a href="../papers/2511.21678.html">Agentic Learner with Grow-and-Refine Multimodal Semantic Memory</a></li><li><a href="../papers/2602.16493.html">MMA: Multimodal Memory Agent</a></li><li><a href="../papers/2604.01007.html">Omni-SimpleMem: Autoresearch-Guided Discovery of Lifelong Multimodal Agent Memory</a></li></ul></section></aside></div></div></main>
+<footer class="site-footer"><div><strong>Agent Memory 研究</strong><p>从保存历史，到有依据地更新长期状态。</p></div>
+<div><span>内容更新 · 2026-09-08</span><p>理解方法，比较条件，关注长期影响。</p><a href="../sources.html">阅读指南</a></div></footer>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body></html>

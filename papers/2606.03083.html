@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="以基础经验和残差节点分别组织任务与环境知识">
+<meta name="color-scheme" content="light"><title>DELTAMEM: Incremental Experience Memory for LLM Agents via Residual Trees · Agent Memory 研究</title>
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/katex/katex.min.css"><script src="../assets/katex/katex.min.js" defer></script><script src="../assets/katex/auto-render.min.js" defer></script><script src="../assets/site.js" defer></script>
+</head>
+<body data-page="library">
+<a class="skip-link" href="#main">跳转到正文</a>
+<header class="site-header"><div class="header-inner">
+<a class="brand" href="../index.html" aria-label="Agent Memory 研究首页">
+<svg viewBox="0 0 36 36" width="32" height="32" aria-hidden="true"><path d="M9 9h18v18H9zM9 9l18 18M27 9L9 27" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="9" r="4"/><circle cx="27" cy="9" r="4"/><circle cx="9" cy="27" r="4"/><circle cx="27" cy="27" r="4"/></svg>
+<span>Agent Memory<small>研究文献站</small></span></a>
+<nav class="site-nav" aria-label="主导航"><a href="../index.html">研究总览</a><a href="../library.html" aria-current="page">文献库</a><a href="../reports/survey.html">综述全文</a><a href="../reports/multi-agent.html">多智能体专题</a><a href="../sources.html">阅读指南</a></nav>
+</div></header>
+<main id="main"><div class="page-wrap"><div class="breadcrumb"><a href="../library.html">文献库</a><span>/</span><a href="../library.html?topic=experience">经验与技能</a></div>
+<header class="paper-hero"><div class="paper-badges"><span class="badge expanded">含详细解读</span><span class="muted">2026 · 2606.03083</span></div><h1>DELTAMEM: Incremental Experience Memory for LLM Agents via Residual Trees</h1><p class="paper-authors full-authors">Haoran Tan, Zeyu Zhang, Zhicheng Cao, Rui Li, Xu Chen</p>
+<div class="hero-actions paper-actions"><a href="https://arxiv.org/abs/2606.03083" target="_blank" rel="noopener noreferrer">论文原文 <span aria-hidden="true">↗</span></a><a href="../downloads/notes/2606.03083.md">下载文献卡片 Markdown</a></div></header>
+<div class="detail-layout"><article class="prose"><h2 id="_1">核心机制</h2>
+<p>以基础经验和残差节点分别组织任务与环境知识</p>
+<h2 id="_2">适用范围与局限</h2>
+<p>重建链和情境匹配正确性影响实际复用</p>
+<h2 id="_3">详细解读</h2>
+<h3 id="_4">论文核心总结</h3>
+<p>这篇论文提出了DELTAMEM，一种面向LLM智能体的增量式经验记忆框架。其核心思想是：智能体在持续交互中获取的新经验，往往只是已有知识的增量变体（residual），而非全新的独立信息。基于这一洞察，DELTAMEM将经验记忆组织为两棵独立的"残差树"（residual tree）——一棵存储面向目标的任务策略（Task-Tree），另一棵存储场景级环境知识（Env-Tree）。每棵树用根节点存储通用的基础经验，用增量的delta节点记录后续变体的差异部分，从而避免了传统扁平存储方式带来的大量冗余和检索冲突。在检索时，系统通过带失败惩罚的全局相似度扫描定位最佳匹配节点，并沿根节点到匹配节点的路径重构完整经验上下文。此外，框架还引入了自主记忆巩固机制，将高频使用的路径蒸馏为新的根节点，使记忆树能够从通用启发式知识自组织演化为专业化变体的层次结构。</p>
+<h3 id="_5">一、问题背景与动机</h3>
+<h4 id="11-llm">1.1 LLM智能体的记忆需求</h4>
+<p>基于LLM的自主智能体在网页导航、具身操控、科学实验等长时序复杂决策任务中展现了巨大潜力。然而，LLM本身是无状态的，且受限于上下文窗口长度，每个交互回合（episode）都需要从头推理，无法利用过去的经验。因此，为智能体配备<strong>记忆机制</strong>成为关键——记忆使智能体能够积累过去的交互经验，适应变化的环境，并在连续的回合中逐步改进行为策略。</p>
+<h4 id="12">1.2 现有记忆方法的两大范式及其局限</h4>
+<p>如图1所示，当前的经验记忆方法主要分为两类：<br />
+<strong>第一类：轨迹存储（Raw Trajectory）</strong>。将完整或压缩后的历史交互轨迹作为记忆单元存储。推理时检索最相似的过去回合作为few-shot示范。代表工作如Synapse。<br />
+<strong>第二类：洞察提取（Compact Storage）</strong>。从过去经验中提取高层次的洞察、反思或规则（如工作流描述、成功/失败教训），而非使用原始轨迹步骤。代表工作如AWM和ReasoningBank。<br />
+<strong>两类方法的共同问题</strong>是：它们都将每条记忆视为<strong>独立、扁平的单元</strong>。这带来两个核心缺陷：</p>
+<ol>
+<li><strong>大量冗余</strong>：来自相似场景的多个回合会重复存储大量相同的内容。例如在两个不同房间布局中执行"把物体放到桌上"的任务，两条记忆会重复放置步骤。</li>
+<li><strong>检索冲突</strong>：当检索到来自不同源任务或上下文的记忆时，它们可能提供相互矛盾的指导。例如上述两个回合在"去哪里找物体"这个问题上会给出冲突建议，因为它们把可复用的任务逻辑和场景特定的空间事实混在了同一条扁平记录中。</li>
+</ol>
+<hr />
+<h3 id="residual-experience">二、核心概念：残差经验（Residual Experience）</h3>
+<p>论文提出了一个关键概念——<strong>残差经验</strong>（residual experience）。其核心假设是：新获取的经验往往是已有知识的<strong>增量变体</strong>。就像信号处理中的残差编码一样，新经验不需要完整存储，只需记录与已有最相似经验之间的<strong>差异部分（delta）</strong>即可。<br />
+这一思想直接对应了图1右侧的"Residual Storage"范式：用一个通用的基础技能（Base Skill）作为根节点，后续变体只存储增量的$\Delta_{\text{skill}}$（如"物体在抽屉里→先打开抽屉"）和$\Delta_{\text{knowledge}}$（如"炉子要用toggle on，不是use"）。</p>
+<h3 id="deltamem">三、DELTAMEM框架详解</h3>
+<h4 id="31-dual-tree-memory-architecture">3.1 双树记忆架构（Dual-Tree Memory Architecture）</h4>
+<p>DELTAMEM的第一个设计原则是<strong>结构解耦</strong>：将智能体经验分解为两个质性不同的维度，分别用两棵独立的树来管理。<br />
+<strong>Task-Tree（任务树，$\mathcal{T}_{\text{task}}$）</strong>：存储面向目标的过程性经验，每条记录组织为一个可复用的<strong>技能（Skill）</strong>：  </p>
+<p>$\displaystyle \text{Skill} = \langle \alpha, \pi, \omega \rangle$</p>
+<p>其中$\alpha$是激活条件（描述该技能何时适用），$\pi$是执行过程（一个自包含的有序动作序列），$\omega$是终止条件（指示技能何时完成）。推理时，从当前任务指令中提取的任务目标作为查询。<br />
+<strong>Env-Tree（环境树，$\mathcal{T}_{\text{env}}$）</strong>：存储场景级的声明性知识：  </p>
+<p>$\displaystyle \text{Knowledge} = \langle \alpha, \kappa \rangle$</p>
+<p>其中$\alpha$是场景级的描述性触发条件，$\kappa$是声明性内容（如物体布局、交互规则）。环境树的查询来自任务指令或初始观测中与环境相关的部分，与目标规格解耦。<br />
+<strong>为什么要解耦？</strong> 举例来说，"找到物体并放到指定位置"的逐步动作序列属于任务策略，而"某类物体通常存放在哪里"属于场景知识，后者可以跨多个不同任务目标复用。如果把两者混在一起，当智能体在熟悉环境中尝试新目标时，就会产生跨任务的知识干扰。<br />
+两棵树<strong>异步独立演化</strong>，仅在推理时将各自检索到的链融合，确保干净、无干扰的记忆表示。</p>
+<h4 id="32-residual-tree-structure">3.2 残差树结构（Residual Tree Structure）</h4>
+<p>DELTAMEM的第二个设计原则是<strong>残差压缩</strong>。每棵树中的节点$v$形式化定义为：  </p>
+<p>$\displaystyle v = \langle \text{type}, \text{label}, d(v), c(v), \mathbf{e}_v, P \rangle$</p>
+<p>各字段含义：</p>
+<ul>
+<li>$\text{type} \in \{\text{ROOT}, \text{RESIDUAL}\}$：节点类型，根节点或残差节点</li>
+<li>$\text{label} \in \{\text{SUCCESS}, \text{FAILURE}\}$：该回合的结果标签</li>
+<li>$d(v)$：节点深度</li>
+<li>$c(v)$：成功命中计数，当成功回合终止于该节点时递增</li>
+<li>$\mathbf{e}_v$：节点描述性触发条件的稠密嵌入向量</li>
+<li>$P$：实际负载，即Skill或Knowledge</li>
+</ul>
+<p><strong>根节点（Root nodes）</strong>是基础锚点，存储某个场景类别的<strong>完整、通用化的基础经验</strong>。<br />
+<strong>残差节点（Residual nodes）</strong>只存储<strong>增量负载$\Delta P$</strong>。这个delta编码了相对于其父链的增量修改——包括额外步骤、边界条件扩展、新发现的物体状态等——而不重复共享的历史内容。这样，同一场景的多个变体共享一个公共根节点，只记录各自的增量行为差异，消除了轨迹重复。</p>
+<h5 id="write-decision">写入决策（Write Decision）</h5>
+<p>每个回合结束后，系统根据检索结果决定新提取节点$v_{\text{new}}$的类型：  </p>
+<p>$\displaystyle \text{type}(v_{\text{new}}) = \begin{cases} \text{ROOT} &amp; s(v^\*) &lt; \tau_{\text{base}} \\ \text{RESIDUAL} &amp; s(v^\*) \geq \tau_{\text{base}} \end{cases}$</p>
+<p>其中$s(v^\*)$是最佳匹配节点的相似度分数，$\tau_{\text{base}}$是阈值。<strong>冷启动</strong>（没有足够相似的已有经验）时插入一个自包含的根节点；<strong>热启动</strong>（找到足够相似的已有经验）时追加一个增量残差delta到最佳匹配链上。</p>
+<h5 id="attachment-rule">挂载规则（Attachment Rule）</h5>
+<p>为防止链无限增长并保持高效检索深度，新节点按以下规则挂载（$r_0$为虚拟根）：  </p>
+<p>$\displaystyle \text{parent}(v_{\text{new}}) = \begin{cases} r_0 &amp; \text{type} = \text{ROOT} \\ v^\* &amp; d(v^\*) &lt; D_{\max} \\ \text{parent}(v^\*) &amp; \text{otherwise} \end{cases}$</p>
+<p>如果最佳匹配节点$v^\*$已达到最大允许深度$D_{\max}$，新节点作为$v^\*$的<strong>兄弟节点</strong>挂载，而非进一步加深分支。</p>
+<h4 id="33-retrieval-and-chain-reconstruction">3.3 检索与链重构（Retrieval and Chain Reconstruction）</h4>
+<p>标准的扁平检索往往聚合来自不同过去场景的记忆，导致矛盾的计划。DELTAMEM通过<strong>全局扫描+层次重构</strong>来确保一致、无冲突的上下文。<br />
+给定查询文本$q$，系统扫描对应树中的<strong>所有节点</strong>$v$，计算调整后的相似度分数：  </p>
+<p>$\displaystyle s(v) = \cos(\mathbf{e}_q, \mathbf{e}_v) - \varepsilon \cdot \mathbb{I}(\text{label}_v = \text{FAILURE})$</p>
+<p>其中$\mathbb{I}(\cdot)$是指示函数，$\varepsilon$是可配置的失败节点惩罚（默认$\varepsilon = 0.05$）。全局最高分节点$v^\* = \arg\max_v s(v)$在$s(v^\*) \geq \tau_{\text{base}}$时被接受为$v_{\text{match}}$。<br />
+<strong>失败惩罚的作用</strong>：抑制之前不成功的策略而不丢弃它们，将过去的错误转化为检索护栏。<strong>全局扁平搜索</strong>直接定位任意深度的最佳匹配节点，绕过无关分支。<br />
+一旦确定$v_{\text{match}}$，系统沿根到$v_{\text{match}}$的路径组装完整的经验上下文：  </p>
+<p>$\displaystyle \mathcal{C} = \langle P^{(0)}_{v_0}, \Delta P_{v_1}, \ldots, \Delta P_{v_{\text{match}}} \rangle$</p>
+<p>重构的任务链$\mathcal{C}_{\text{task}}$和环境链$\mathcal{C}_{\text{env}}$随后拼接，为LLM提供一个聚焦的、无噪声的决策上下文。</p>
+<h4 id="34-experience-extraction-protocol">3.4 经验提取协议（Experience Extraction Protocol）</h4>
+<p>每个回合结束后，DELTAMEM使用LLM将原始轨迹（以及检索到的记忆链，如果有的话）蒸馏为结构化节点。根据节点类型和回合结果，设计了不同的提取模板：<br />
+<strong>Task-Tree方面：</strong></p>
+<ul>
+<li><strong>Root-Success</strong>：提取完整的基础技能$\langle \alpha, \pi, \omega \rangle$，抽象掉环境特定常量以最大化泛化性</li>
+<li><strong>Root-Failure</strong>：记录观察到的动作和意外的环境响应，不臆造替代方案</li>
+<li><strong>Residual-Success</strong>：提取最小的$\Delta\text{Skill}$，仅覆盖检索到的父链未涵盖的过程变化；如果父链完美覆盖新回合，则不写入冗余节点</li>
+<li><strong>Residual-Failure</strong>：记录相对于检索链的精确崩溃点和对应的环境反馈</li>
+</ul>
+<p><strong>Env-Tree方面：</strong></p>
+<ul>
+<li><strong>Root-Knowledge</strong>：首次遇到某场景类别时触发，提取基础条目$\langle \alpha, \kappa \rangle$，映射物体布局和基线交互规则</li>
+<li><strong>Residual-Knowledge</strong>：后续与场景变体交互时触发，提取增量$\Delta\kappa$，仅记录新的空间关系或新观察到的规则偏差</li>
+</ul>
+<h4 id="35-autonomous-memory-consolidation">3.5 自主记忆巩固（Autonomous Memory Consolidation）</h4>
+<p>为防止残差树在长期持续学习中过度碎片化，DELTAMEM引入了受神经科学记忆巩固理论启发的自主巩固机制（如图3所示）。<br />
+系统为每个非根节点跟踪<strong>成功命中计数$c(v)$</strong>。当某条路径被证明高度可靠（$c(v) \geq K_{\text{cons}}$）时，调用LLM将根到$v$的链融合为单个优化节点$P^\*$：  </p>
+<p>$\displaystyle \mathcal{C} = \langle P^{(0)}_{v_0}, \Delta P_{v_1}, \ldots, \Delta P_{v_k} \rangle \xrightarrow{\text{Distill}} P^\*$</p>
+<p>蒸馏后的经验$P^\*$作为新的根节点写回树中，原节点$v$被标记为已巩固以防止重复触发。<br />
+巩固机制对两棵树的影响不同：</p>
+<ul>
+<li><strong>Task-Tree</strong>：将收敛的多步动作策略巩固为自包含的技能</li>
+<li><strong>Env-Tree</strong>：将稳定的观察巩固为可复用的场景描述<br />
+  随时间推移，高频交互路径被提升为根节点，低频或高度特定的变体保留为细粒度残差。记忆架构由此从通用启发式知识<strong>自组织</strong>为专业化变体的层次结构。<br />
+  巩固过程分三个阶段（图3）：</li>
+</ul>
+<ol>
+<li><strong>经验积累阶段</strong>：残差节点随成功命中逐步累积计数</li>
+<li><strong>技能/知识编译阶段</strong>：达到$K_{\text{cons}}$阈值后，LLM将链融合为新的基础技能/知识</li>
+<li><strong>巩固后命中阶段</strong>：后续查询直接命中新根节点$R^\*$，绕过链遍历</li>
+</ol>
+<hr />
+<h3 id="_6">四、实验设置</h3>
+<h4 id="41">4.1 基准测试环境</h4>
+<p>论文在三个交互式决策基准上进行评估：</p>
+<ol>
+<li><strong>ALFWorld</strong>：基于文本的家庭环境，包含6类任务（取放、加热/冷却物体、在灯下检查物品等）。评估Seen（140回合）和Unseen（134回合）两个划分，每回合最多30步。</li>
+<li><strong>ScienceWorld</strong>：基于文本的科学实验环境，涵盖24种任务类型（测量熔点、测试导电性、物种分类等）。评估Seen（194回合）和Unseen（211回合）。</li>
+<li><strong>WebShop</strong>：模拟电商环境，智能体需搜索并购买匹配自然语言指令的商品，评估200个回合。</li>
+</ol>
+<h4 id="42">4.2 基线方法</h4>
+<ul>
+<li><strong>No Memory</strong>：每个回合独立求解，仅使用系统提示和一个ICL示范</li>
+<li><strong>Synapse</strong>：从稠密嵌入索引的池中检索最相似的成功轨迹作为few-shot示范</li>
+<li><strong>AWM</strong>：从成功轨迹中归纳可复用的工作流描述，维护按任务类型组织的工作流文件</li>
+<li><strong>ReasoningBank</strong>：积累标记为成功策略或失败警告的蒸馏教训</li>
+</ul>
+<h4 id="43">4.3 实现细节</h4>
+<p>所有方法使用DeepSeek-V4-flash API，解码温度为0，采用ReAct框架。节点嵌入使用E5-base-v2计算。每个基准保留一个人工标注的任务示例作为上下文示范。所有方法遵循<strong>在线学习协议</strong>：智能体从空记忆开始，顺序处理回合，每个回合后提取经验并更新记忆。主要评估指标为<strong>平均奖励（AvgRew）</strong>。</p>
+<h3 id="_7">五、实验结果</h3>
+<h4 id="51-1">5.1 主要结果（表1）</h4>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>方法</th>
+<th>ALFWorld Seen</th>
+<th>ALFWorld Uns.</th>
+<th>SciWorld Seen</th>
+<th>SciWorld Uns.</th>
+<th>WebShop</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>No Memory</td>
+<td>0.7071</td>
+<td>0.7985</td>
+<td>0.7716</td>
+<td>0.7186</td>
+<td>0.3674</td>
+</tr>
+<tr>
+<td>Synapse</td>
+<td>0.7929</td>
+<td>0.7015</td>
+<td>0.8452</td>
+<td>0.8558</td>
+<td>0.5890</td>
+</tr>
+<tr>
+<td>AWM</td>
+<td>0.6429</td>
+<td>0.8134</td>
+<td>0.8052</td>
+<td>0.7453</td>
+<td>0.3337</td>
+</tr>
+<tr>
+<td>RBank</td>
+<td>0.7429</td>
+<td>0.7463</td>
+<td>0.7942</td>
+<td>0.6898</td>
+<td>0.3498</td>
+</tr>
+<tr>
+<td><strong>DELTAMEM</strong></td>
+<td><strong>0.8500</strong></td>
+<td><strong>0.8358</strong></td>
+<td><strong>0.8498</strong></td>
+<td><strong>0.8688</strong></td>
+<td><strong>0.6254</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>关键发现：</p>
+<ul>
+<li><strong>ALFWorld</strong>：DELTAMEM在两个划分上一致领先。Synapse在Seen上表现不错但在Unseen上急剧下降（甚至低于No Memory），说明完整轨迹存储记住了特定布局但未能捕获可迁移的知识。AWM在Seen上挣扎，可能因为高层工作流抽象丢弃了细粒度动作细节。</li>
+<li><strong>ScienceWorld</strong>：DELTAMEM在两个划分上均最优，Unseen上差距更明显，表明双树结构积累了越来越可靠的知识，而扁平存储方法随着记忆冗余的稳步积累而趋于平台。</li>
+<li><strong>WebShop：表格间需区分设置。</strong> 本页主结果表中 DELTAMEM 为 0.6254，Synapse 为 0.5890；后面的消融表则将完整 DELTAMEM 列为 0.5889。不能将这两处数值混用，也不能直接概括为“与最佳基线持平”。两表的实验设置及数值对应关系仍需对照论文确认，本页不据此推断 Env-Tree 的贡献大小。<br />
+  关于存储效率：残差节点平均存储的token数约为根节点的一半（根节点257 tokens vs 残差节点145 tokens），确认共享内容未在回合间重复。</li>
+</ul>
+<h4 id="52-2">5.2 离线记忆库利用（表2）</h4>
+<p>论文还测试了"训练-测试"协议：先在训练集上构建记忆库，再迁移到Seen划分上评估。分为Frozen（记忆库固定）和Unfrozen（记忆库继续更新）两种设置。<br />
+DELTAMEM在两个基准和两种设置下均取得最佳结果。值得注意的是，DELTAMEM的Frozen和Unfrozen变体在ALFWorld上表现相当，说明记忆库已足够指导新回合；在ScienceWorld上Unfrozen略有提升，与更丰富的科学环境中的持续精炼一致。<br />
+相比之下，AWM的Unfrozen变体在ALFWorld上反而下降，说明对扁平工作流的在线更新引入了冲突修改。DELTAMEM的非破坏性树结构通过追加新delta节点而非覆盖已有条目来避免这一问题。</p>
+<h4 id="53-3">5.3 消融实验（表3）</h4>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>方法</th>
+<th>ALFWorld</th>
+<th>SciWorld</th>
+<th>WebShop</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DELTAMEM（完整）</td>
+<td>0.8500</td>
+<td>0.8498</td>
+<td>0.5889</td>
+</tr>
+<tr>
+<td>仅Env-Tree</td>
+<td>0.7857</td>
+<td>0.7540</td>
+<td>0.5112</td>
+</tr>
+<tr>
+<td>仅Task-Tree</td>
+<td>0.8143</td>
+<td>0.7669</td>
+<td>0.5346</td>
+</tr>
+</tbody>
+</table></div>
+<p>移除任一棵树都导致所有基准上的一致性能下降，确认两棵树提供了独立且互补的贡献。在ALFWorld上Task-Tree贡献更大（家庭操控的瓶颈在于细粒度动作序列）；在ScienceWorld上两棵单树变体都大幅低于完整模型（精确的场景知识和目标条件化的任务策略对科学实验规划都是必要的）。</p>
+<h4 id="54-45">5.4 参数敏感性分析（图4和图5）</h4>
+<p>论文研究了检索阈值$\tau^{\text{task}}_{\text{base}}$、$\tau^{\text{env}}_{\text{base}}$和巩固阈值$K_{\text{cons}}$对性能和树拓扑的联合影响。<br />
+<strong>性能敏感性</strong>：当巩固机制激活时（$K_{\text{cons}} &lt; \infty$），性能景观宽广且平坦——大范围的阈值组合都能产生接近最优的结果，确认DELTAMEM对精确阈值值不敏感。随着$K_{\text{cons}}$增大到$\infty$（无巩固），最优区域变窄，最佳和最差阈值配置之间的差距扩大。这表明巩固机制对检索质量具有<strong>正则化效应</strong>，使系统对次优检索阈值设置更加容忍。<br />
+<strong>$K_{\text{cons}}$对树结构的影响</strong>：$K_{\text{cons}}$较小时，高频路径更频繁地被巩固为根级节点，Depth-1节点占比更大。$K_{\text{cons}}$增大到$\infty$时，巩固很少触发，节点在更大深度处积累。<br />
+<strong>检索阈值对树结构的影响</strong>：更严格的$\tau^{\text{task}}_{\text{base}}$导致Task-Tree中更多的根级条目（当回合无法匹配任何超过阈值的已有节点时，被存储为新根而非残差delta）。更宽松的阈值则将更多回合附加到已有链上，产生更深的树。</p>
+<h3 id="_8">六、局限性</h3>
+<p>论文也坦诚讨论了几个局限：</p>
+<ol>
+<li>每个回合都需要LLM生成经验提取，产生超出基础智能体的额外推理成本</li>
+<li>提取的经验条目和delta的质量依赖于底层LLM的能力，低质量提取可能向记忆树引入噪声</li>
+<li>阈值$\tau_{\text{base}}$和$K_{\text{cons}}$需要在每个基准上通过小规模样本选择，可能无法自动泛化到新任务域</li>
+<li>当前框架不建模过时经验的时间衰减——反映陈旧环境状态的节点可能持续存在并误导未来检索</li>
+</ol>
+<h2 id="_9">研究要点表</h2>
+<div class="table-scroll"><table class="key-value">
+<thead>
+<tr>
+<th>维度</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>论文标题</td>
+<td>DELTAMEM: Incremental Experience Memory for LLM Agents via Residual Trees</td>
+</tr>
+<tr>
+<td>作者</td>
+<td>Haoran Tan, Zeyu Zhang, Zhicheng Cao, Rui Li, Xu Chen（中国人民大学、杜克大学医学院）</td>
+</tr>
+<tr>
+<td>发表年份</td>
+<td>2026年（arXiv预印本，2026年6月2日）</td>
+</tr>
+<tr>
+<td>研究问题</td>
+<td>LLM智能体的经验记忆存储存在大量冗余和检索冲突问题：将经验作为独立、扁平的单元存储会导致相似场景间内容重复，且检索时来自不同场景的记忆可能提供矛盾指导，降低决策质量并限制持续适应能力。</td>
+</tr>
+<tr>
+<td>研究方法</td>
+<td>提出DELTAMEM双树残差记忆框架，将经验解耦为Task-Tree（目标导向的任务策略）和Env-Tree（场景级环境知识）两棵独立的残差树。每棵树以根节点存储泛化基础经验，以增量delta节点记录后续变体的差异。检索时采用带失败惩罚的全局相似度扫描，通过根到匹配节点的链式重构组装完整经验上下文。同时设计自主记忆巩固机制，将高频路径蒸馏为新的根节点。在ALFWorld、ScienceWorld和WebShop三个交互环境上进行实验评估。</td>
+</tr>
+<tr>
+<td>主要发现</td>
+<td>DELTAMEM在所有基准测试中均取得最优或具有竞争力的表现，在ALFWorld和ScienceWorld上显著优于所有基线方法。残差节点平均存储的token数约为根节点的一半，证实了共享内容未被重复存储。消融实验表明Task-Tree和Env-Tree提供独立且互补的贡献。记忆巩固机制对检索质量具有正则化效果，使系统对阈值设置更加鲁棒。</td>
+</tr>
+<tr>
+<td>创新点</td>
+<td>（1）提出残差经验的概念，通过增量delta存储消除记忆冗余和检索冲突；（2）设计双树架构将任务策略与环境知识解耦，实现独立检索和演化；（3）引入受神经科学记忆巩固启发的自主巩固机制，将高频收敛路径蒸馏为新根节点，使记忆层次从通用启发式自组织为专门化变体。</td>
+</tr>
+<tr>
+<td>局限性</td>
+<td>每个episode依赖LLM生成经验提取，增加额外推理成本；提取质量依赖底层LLM能力，低质量提取可能引入噪声；检索阈值和巩固阈值需按基准调参，可能无法自动泛化到新任务领域；当前框架未建模过时经验的时间衰减，过时节点可能误导未来检索。</td>
+</tr>
+<tr>
+<td>与本研究的关联</td>
+<td>该论文为LLM智能体的经验记忆管理提供了一种结构化、增量式的组织范式，对研究智能体持续学习、记忆高效存储与检索、跨场景知识迁移等问题具有重要参考价值。其双树解耦和残差压缩思想可启发相关记忆增强型智能体系统的设计。</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="_10">原文摘要</h2>
+<p>Large Language Model (LLM)-based agents increasingly rely on memory to learn from experiences over continual interactions. However, storing experiences as independent, flat units leads to substantial redundancy and retrieval conflicts, as similar episodes repeat overlapping content and subtle scene variations cause retrieved memories to offer contradictory guidance. To address this, we introduce residual experience, positing that newly acquired experience is often an incremental variation of existing knowledge. We propose DeltaMem, a framework that organizes experience memory into two independent residual trees, one storing goal-conditioned task experience as reusable skills and another for scene-level environment knowledge. Each tree uses a root node for generalized base experiences and incremental delta nodes for subsequent variations, allowing related experiences to share a common foundation without duplication. For retrieval, a failure-penalized similarity scan locates the best match, reconstructing the full experience via root-to-match chain composition. An autonomous consolidation mechanism distills high-frequency paths into new root nodes, enabling the trees to self-organize from general heuristics to specialized variants. Experiments across diverse interactive environments show that DeltaMem consistently outperforms existing baselines. To facilitate future research, we release the code at  this https URL .</p></article>
+<aside class="detail-aside"><div class="report-toc" aria-label="文献卡片目录"><details open><summary>本页目录</summary><div class="toc">
+<ul>
+<li><a href="#_1">核心机制</a></li>
+<li><a href="#_2">适用范围与局限</a></li>
+<li><a href="#_3">详细解读</a><ul>
+<li><a href="#_4">论文核心总结</a></li>
+<li><a href="#_5">一、问题背景与动机</a></li>
+<li><a href="#residual-experience">二、核心概念：残差经验（Residual Experience）</a></li>
+<li><a href="#deltamem">三、DELTAMEM框架详解</a></li>
+<li><a href="#_6">四、实验设置</a></li>
+<li><a href="#_7">五、实验结果</a></li>
+<li><a href="#_8">六、局限性</a></li>
+</ul>
+</li>
+<li><a href="#_9">研究要点表</a></li>
+<li><a href="#_10">原文摘要</a></li>
+</ul>
+</div>
+</details></div><section><h2>引用这篇论文</h2><p id="citation-text" class="citation-text">Haoran Tan, Zeyu Zhang, Zhicheng Cao, et al.. DELTAMEM: Incremental Experience Memory for LLM Agents via Residual Trees. arXiv:2606.03083, 2026.</p><button class="button secondary" type="button" data-copy-citation>复制引用</button><p class="meta-note">综述参考文献 [23]</p></section><section><h2>同方向继续阅读</h2><ul class="related-list"><li><a href="../papers/2303.11366.html">Reflexion: Language Agents with Verbal Reinforcement Learning</a></li><li><a href="../papers/2305.16291.html">Voyager: An Open-Ended Embodied Agent with Large Language Models</a></li><li><a href="../papers/2409.07429.html">Agent Workflow Memory</a></li><li><a href="../papers/2509.25140.html">ReasoningBank: Scaling Agent Self-Evolving with Reasoning Memory</a></li></ul></section></aside></div></div></main>
+<footer class="site-footer"><div><strong>Agent Memory 研究</strong><p>从保存历史，到有依据地更新长期状态。</p></div>
+<div><span>内容更新 · 2026-09-08</span><p>理解方法，比较条件，关注长期影响。</p><a href="../sources.html">阅读指南</a></div></footer>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body></html>

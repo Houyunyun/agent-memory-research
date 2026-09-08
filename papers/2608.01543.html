@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="按查询与证据模态路由检索，并构造更接近目标的检索锚点">
+<meta name="color-scheme" content="light"><title>V-Mem: Modality-Routed Retrieval for Long-Term Multimodal Agentic Memory · Agent Memory 研究</title>
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/katex/katex.min.css"><script src="../assets/katex/katex.min.js" defer></script><script src="../assets/katex/auto-render.min.js" defer></script><script src="../assets/site.js" defer></script>
+</head>
+<body data-page="library">
+<a class="skip-link" href="#main">跳转到正文</a>
+<header class="site-header"><div class="header-inner">
+<a class="brand" href="../index.html" aria-label="Agent Memory 研究首页">
+<svg viewBox="0 0 36 36" width="32" height="32" aria-hidden="true"><path d="M9 9h18v18H9zM9 9l18 18M27 9L9 27" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="9" r="4"/><circle cx="27" cy="9" r="4"/><circle cx="9" cy="27" r="4"/><circle cx="27" cy="27" r="4"/></svg>
+<span>Agent Memory<small>研究文献站</small></span></a>
+<nav class="site-nav" aria-label="主导航"><a href="../index.html">研究总览</a><a href="../library.html" aria-current="page">文献库</a><a href="../reports/survey.html">综述全文</a><a href="../reports/multi-agent.html">多智能体专题</a><a href="../sources.html">阅读指南</a></nav>
+</div></header>
+<main id="main"><div class="page-wrap"><div class="breadcrumb"><a href="../library.html">文献库</a><span>/</span><a href="../library.html?topic=multimodal">多模态记忆</a></div>
+<header class="paper-hero"><div class="paper-badges"><span class="badge expanded">含详细解读</span><span class="muted">2026 · 2608.01543</span></div><h1>V-Mem: Modality-Routed Retrieval for Long-Term Multimodal Agentic Memory</h1><p class="paper-authors full-authors">Dingyi Kang, Dongming Jiang, Yi Li, Guanpeng Li, Bingzhe Li</p>
+<div class="hero-actions paper-actions"><a href="https://arxiv.org/abs/2608.01543" target="_blank" rel="noopener noreferrer">论文原文 <span aria-hidden="true">↗</span></a><a href="../downloads/notes/2608.01543.md">下载文献卡片 Markdown</a></div></header>
+<div class="detail-layout"><article class="prose"><h2 id="_1">核心机制</h2>
+<p>按查询与证据模态路由检索，并构造更接近目标的检索锚点</p>
+<h2 id="_2">适用范围与局限</h2>
+<p>主要证据定位问题，不等于学习视觉技能</p>
+<h2 id="_3">详细解读</h2>
+<h3 id="_4">核心总结</h3>
+<p>V-Mem是一个面向多模态长期对话记忆的智能体记忆系统。它针对现有基于相似度搜索的记忆检索方法在多模态场景下的两个根本性失败——<strong>模态鸿沟</strong>（跨模态查询时，查询总是更接近同模态内容而非真正的证据）和<strong>相似度-相关性鸿沟</strong>（最相似的内容往往不是最相关的证据，尤其当查询同时携带文本和图像时）——提出了一种<strong>按模态路由检索</strong>的方案。V-Mem根据查询本身推断出（查询模态，目标证据模态）的组合，据此决定激活哪些检索通道、用什么作为搜索锚点、返回什么内容。它通过"共享轮次匹配"跨越模态鸿沟（在同模态内匹配后返回同一轮次中另一模态的内容），通过LLM生成的搜索锚点（假设性描述或富化锚点）弥合相似度-相关性鸿沟。在Mem-Gallery和LoCoMo两个基准上，V-Mem显著超越现有基线，尤其在视觉相关问题上优势最为突出，且记忆构建阶段零LLM调用、仅需数秒完成。</p>
+<h3 id="_5">一、研究动机与问题背景</h3>
+<h4 id="11">1.1 多模态对话记忆的需求</h4>
+<p>当前LLM智能体越来越多地处理多模态交互：用户在对话中交替发送文本、图片、语音消息，并且后续的提问可能针对其中任何一种模态。例如，用户拍了一张植物的照片发给助手，过了几天又问"那是什么品种？"；或者用户发了一张Google总部的照片并问"我们之前讨论过这个组织的什么内容？"<br />
+然而，LLM的上下文窗口有限，早期的对话内容会被挤出窗口而无法被后续查询访问。即使扩大窗口，也存在"lost-in-the-middle"和"context decay"等问题——模型对长输入中远离查询位置的证据关注度很低。</p>
+<h4 id="12-mag">1.2 记忆增强生成（MAG）</h4>
+<p>为解决上述问题，<strong>记忆增强生成（Memory-Augmented Generation, MAG）</strong>将交互历史写入外部存储，在每次新查询时检索相关片段并注入生成过程。形式化地：  </p>
+<p>$\displaystyle a_t = \text{LLM}\big(q_t,\, \mathcal{R}(q_t, \mathcal{M}_t)\big), \quad \mathcal{M}_{t+1} = \mathcal{U}(\mathcal{M}_t, x_t)$</p>
+<p>其中$\mathcal{R}$从记忆$\mathcal{M}_t$中检索与查询$q_t$相关的证据，$\mathcal{U}$将新内容$x_t$写入记忆。<br />
+几乎所有现有系统将$\mathcal{R}$实现为<strong>相似度搜索</strong>：  </p>
+<p>$\displaystyle \mathcal{R}(q, \mathcal{M}) = \underset{u \in \mathcal{M}}{\text{top-}k}\; s\big(e(q),\, e(u)\big)$</p>
+<p>其中$e(\cdot)$将查询或记忆项映射到表示空间，$s(\cdot, \cdot)$计算相似度，查询$q$本身作为搜索锚点。这种方法成功的前提是：<strong>相关证据$u^\star$在索引空间中与锚点距离近，从而排在top-$k$之内</strong>。</p>
+<h4 id="13">1.3 多模态场景下相似度搜索的两个失败</h4>
+<p>论文指出，在多模态场景下，上述前提被两个"鸿沟"打破：<br />
+<strong>（1）模态鸿沟（Modality Gap）</strong><br />
+当查询和证据处于不同模态时（如文本查询、图像证据），即使在CLIP、SigLIP等经过对比学习训练的联合嵌入空间中，查询仍然更接近同模态的记忆内容，而非真正的跨模态证据。这导致相似度搜索总是把同模态内容排在跨模态证据之前。<br />
+<strong>（2）相似度-相关性鸿沟（Similarity-Relevance Gap）</strong><br />
+记忆中与查询最相似的内容，往往不是真正回答查询的相关证据。这在多模态场景中尤为严重：当查询同时携带文本和图像，而证据既不像文本部分也不像图像部分时，单独搜索任一模态都找不到它。<br />
+论文用Figure 1中的三个案例具体说明：</p>
+<ul>
+<li><strong>Case 1</strong>：用户附上一张植物照片问品种。相似度搜索找到了正确的图片，但证据实际上是图片旁边的文字对话（提到了品种名），而图片嵌入本身不包含品种信息。</li>
+<li><strong>Case 2</strong>：用户问"对话中哪张图片是关于友谊的？"查询文本中只有"friends"这个词，而正确图片的描述中没有这个词，导致文本搜索找不到目标图片。</li>
+<li><strong>Case 3</strong>：用户附上Google总部的照片问"我们讨论过这个组织的什么？"证据是"Google正在给学生免费提供一年Gemini Pro订阅"。这条证据既不像照片（一栋建筑），也不像查询文本（只说了"organization"没提"Google"），所以单独搜索任一模态都失败。</li>
+</ul>
+<hr />
+<h3 id="v-mem">二、V-Mem系统设计</h3>
+<h4 id="21">2.1 整体架构概览</h4>
+<p>V-Mem的核心思想是<strong>按模态路由检索</strong>：根据查询本身推断出（查询模态，目标证据模态）的组合，然后针对不同组合采用不同的检索策略。<br />
+系统分为三个阶段：</p>
+<ol>
+<li><strong>记忆构建</strong>：保持对话原样，组织成"轮次"（rounds），不做任何LLM摘要或提取</li>
+<li><strong>路由检索</strong>：识别模态组合，激活对应的检索通道，使用合适的搜索锚点</li>
+<li><strong>按轮次重排与上下文组装</strong>：按轮次评分，融合多通道结果，返回top轮次及其邻居</li>
+</ol>
+<h4 id="22-rounds-units-lanes">2.2 轮次、单元和通道（Rounds, Units, Lanes）</h4>
+<p><strong>轮次（Round）</strong>：V-Mem将对话历史表示为轮次序列$\mathcal{C} = (r_1, \ldots, r_T)$，每个轮次$r_t$是一次用户-助手交换。<br />
+<strong>记忆单元（Memory Unit）</strong>：每个轮次中的每段文本和每张图片都是一个独立的记忆单元$u$，模态$m(u) \in \{\text{txt}, \text{img}\}$。同一轮次中的单元共同出现在一次交换中，因此很可能彼此相关——这是后续"共享轮次匹配"的基础。<br />
+<strong>通道（Lane）</strong>：所有单元按模态分组：</p>
+<ul>
+<li><strong>文本通道</strong>：存放文本单元</li>
+<li><strong>图像通道</strong>：存放图像单元</li>
+</ul>
+<p><strong>索引</strong>：</p>
+<ul>
+<li>文本索引包含两种互补信号：密集嵌入（来自编码器$\phi$，语义层面）和稀疏BM25索引（词汇层面），覆盖文本单元的内容和图像单元的描述文本（caption）</li>
+<li>图像索引包含每张原始图像的视觉嵌入$\psi$<br />
+  通过分离通道，V-Mem可以只搜索查询需要的通道，避免无关模态的干扰。</li>
+</ul>
+<h4 id="23-routed-retrieval">2.3 路由检索（Routed Retrieval）</h4>
+<p>路由检索将公式(2)的简单相似度搜索推广为：  </p>
+<p>$\displaystyle \mathcal{R}_{\text{V-Mem}}(q, \mathcal{M}) = \Pi_c\bigg(\underset{r}{\text{top-}k}\; \text{Fuse}_{\ell \in L_c}\; S_\ell\big(a_{c,\ell}(q),\, \mathcal{U}_{c,\ell}\big)\bigg)$</p>
+<p>其中：</p>
+<ul>
+<li>$c = \text{Route}(q)$是查询的"案例"（case）</li>
+<li>$L_c$是该案例激活的通道集合</li>
+<li>$\mathcal{U}_{c,\ell}$是该案例在通道$\ell$中搜索的单元子集</li>
+<li>$a_{c,\ell}(q)$是搜索锚点（原始查询或LLM生成的锚点）</li>
+<li>$S_\ell$是通道内的评分函数</li>
+<li>$\text{Fuse}$将多通道排名融合</li>
+<li>$\Pi_c$将top-$k$轮次组装成返回给LLM的内容</li>
+</ul>
+<h5 id="_6">路由规则</h5>
+<p>V-Mem通过关键词规则从查询本身推断两个模态，<strong>无需LLM调用</strong>：</p>
+<ul>
+<li><strong>查询模态</strong>：查询是否附带图片→纯文本 或 图像+文本</li>
+<li><strong>目标模态</strong>：查询是否在问"哪张图片/照片"或"有多少张图片"→图像目标；否则→文本目标<br />
+  这产生四种案例（2×2矩阵）：</li>
+</ul>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th></th>
+<th>目标=文本</th>
+<th>目标=图像</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>查询=文本</td>
+<td>text→text</td>
+<td>text→image</td>
+</tr>
+<tr>
+<td>查询=图像+文本</td>
+<td>image+text→text</td>
+<td>image+text→image</td>
+</tr>
+<tr>
+<td>- <strong>同模态检索</strong>（text→text, image+text→image）：直接在共享模态的通道内搜索</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>- <strong>跨模态检索</strong>（text→image, image+text→text）：同时面临模态鸿沟和相似度-相关性鸿沟，需要特殊处理</td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table></div>
+<h5 id="matching-through-shared-rounds">机制一：共享轮次匹配（Matching Through Shared Rounds）</h5>
+<p>核心思想：<strong>不做跨模态比较</strong>。在查询自身模态的通道内找到最匹配的单元，然后返回该单元所在轮次中目标模态的内容。因为同一轮次的内容共同出现，所以很可能相关。<br />
+具体操作：</p>
+<ul>
+<li><strong>Text→image</strong>：在文本通道中搜索，但<strong>限制在包含图片的轮次</strong>的文本中搜索（因为不含图片的轮次无法返回图像）。找到匹配后，返回该轮次中的图片。</li>
+<li><strong>Image+text→text</strong>：在图像通道中搜索，将查询图片与存储图片做视觉嵌入相似度比较。找到匹配后，返回该轮次中的文本。<br />
+  这样，每次匹配都在同一模态内进行，轮次（而非共享嵌入空间）充当了连接两种模态的桥梁。</li>
+</ul>
+<h5 id="llmsearching-with-an-llm-generated-anchor">机制二：LLM生成的搜索锚点（Searching with an LLM-Generated Anchor）</h5>
+<p>在跨模态场景中，原始查询往往不像目标证据，直接用它搜索会错过证据。V-Mem让LLM生成一个更接近目标证据的搜索锚点：</p>
+<ul>
+<li><strong>Text→image（假设性描述，hypo-caption）</strong>：查询是纯文本，要找一张图片。V-Mem让LLM根据查询生成一个"目标图片可能具有的描述"，然后用这个假设性描述去匹配存储图片的描述。例如Case 2中，查询问"关于友谊的图片"，LLM生成"朋友们围坐在篝火旁烤棉花糖"的描述，这个描述与正确图片的caption更匹配。</li>
+<li>特殊情况：如果查询是在数图片（如"有多少张..."），则不生成hypo-caption，因为没有单一目标图片可以描述。</li>
+<li><strong>Image+text→text（富化锚点，enriched anchor）</strong>：查询同时携带文本和图片，目标是文本证据。V-Mem让视觉LLM从查询图片中提取相关关键词，附加到查询文本上，形成富化锚点。例如Case 3中，从Tesla照片中提取"Tesla"等关键词，附加到"我们讨论过这个组织的什么"上，使得文本搜索能找到提到"Google"和"Tesla"的对话轮次。</li>
+</ul>
+<h5 id="_7">评分与融合</h5>
+<p>每个激活的通道可能有多种评分信号。文本通道有密集嵌入和BM25两种信号，图像通道有视觉嵌入（当查询带图时）或描述文本的密集/稀疏信号（当查询不带图时）。<br />
+对于信号$j$，单元$u$的得分为：  </p>
+<p>$\displaystyle s_j(u) = \cos\big(e_j(a_{c,\ell}),\, e_j(u)\big)$</p>
+<p>（密集和视觉信号用余弦相似度，稀疏信号用BM25）<br />
+评分按单元计算，但检索按轮次排名。每个轮次取其单元中的最高分：  </p>
+<p>$\displaystyle S_j(r) = \max_{u \in r_\ell} s_j(u)$</p>
+<p>由于不同信号的分数尺度不同（余弦有界 vs BM25无界），V-Mem使用<strong>倒数排名融合（Reciprocal Rank Fusion, RRF）</strong>：  </p>
+<p>$\displaystyle \text{score}(r) = \sum_{j \in J_c} \frac{1}{\kappa + \text{rank}_j(r)}$</p>
+<p>其中$\kappa$是平滑常数（取60），$\text{rank}_j(r)$是轮次$r$在信号$j$下的排名位置。</p>
+<h5 id="_8">上下文组装</h5>
+<p>对于大多数查询，V-Mem将每个top轮次与其前后各1个相邻轮次包装成一个时间有序的片段返回。相邻轮次往往延续同一话题，可以补充证据（类似于图记忆中实体间的链接）。<br />
+对于<strong>聚合类问题</strong>（如"我们讨论过多少个不同的博物馆？"），证据分散在许多远距离的轮次中。此时V-Mem不添加邻居，而是返回更多轮次（从12个增加到30个）。聚合问题通过关键词规则识别，无需LLM调用。</p>
+<h4 id="24">2.4 记忆构建</h4>
+<p>V-Mem的记忆构建<strong>完全不调用LLM</strong>，仅使用本地编码器：</p>
+<ul>
+<li>保持对话原样，不做摘要、笔记或图提取</li>
+<li>每个轮次生成一个文本单元/段和一个图像单元/张</li>
+<li>每个单元被索引并存入对应通道</li>
+<li>音频被转录为文本，作为文本单元存储<br />
+  这种构建方式是<strong>增量式</strong>的：新轮次的单元直接追加，不影响已有记忆。构建在数秒内完成，token消耗为零。</li>
+</ul>
+<hr />
+<h3 id="_9">三、实验</h3>
+<h4 id="31">3.1 实验设置</h4>
+<p><strong>基准数据集</strong>：</p>
+<ul>
+<li><strong>Mem-Gallery</strong>：多模态基准，20个多会话对话，1,711个问题，9个类别。其中3个是视觉类（VS视觉搜索、VR视觉推理、TTL测试时学习——查询提供新图片），6个是文本类（FR事实检索、TR时间推理、MR多实体推理、KR知识解析、CD冲突检测、AR拒答）。</li>
+<li><strong>LoCoMo</strong>：10个对话，1,986个问题（评估非对抗类的1,540个），5个类别。图片仅以描述文本形式给出。</li>
+</ul>
+<p><strong>基线系统</strong>：</p>
+<ul>
+<li><strong>Omni（SimpleMem）</strong>：基于图和摘要的记忆，用LLM提取记忆单元，图片仅通过描述索引</li>
+<li><strong>M2A</strong>：多模态智能体记忆，保留图片的描述和嵌入，通过融合密集、稀疏和图像信号的迭代LLM管道检索</li>
+<li><strong>A-Mem</strong>：纯文本智能体记忆，每轮用LLM构建和演化笔记抽象</li>
+</ul>
+<p><strong>评估指标</strong>：主要使用gpt-4o-mini的LLM-as-judge评分（0-1），所有系统使用相同的评判模型和提示。</p>
+<h4 id="32">3.2 主要结果</h4>
+<p><strong>Mem-Gallery</strong>（Table 1）：</p>
+<ul>
+<li>V-Mem在gpt-4o-mini骨干下达到0.825，远超Omni的0.561、A-Mem的0.460和M2A的0.314</li>
+<li>在Qwen2.5-VL-32B骨干下达到0.829 vs Omni的0.628</li>
+<li><strong>视觉类别差距最大</strong>：TTL上V-Mem达0.872，无基线超过0.472；VR上0.575 vs 最高0.273</li>
+</ul>
+<p><strong>LoCoMo</strong>（Table 2）：</p>
+<ul>
+<li>V-Mem达0.690 vs Omni的0.583</li>
+<li>单跳问题上优势明显（0.818 vs 0.663），时间推理也领先</li>
+<li>唯一不足是开放域问题，M2A领先</li>
+</ul>
+<h4 id="33">3.3 消融实验</h4>
+<p>论文通过增量消融（Table 3）逐步构建V-Mem：</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>配置</th>
+<th>TTL</th>
+<th>VR</th>
+<th>VS</th>
+<th>Overall</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Vanilla（所有通道，单元级）</td>
+<td>0.740</td>
+<td>0.362</td>
+<td>0.655</td>
+<td>0.680</td>
+</tr>
+<tr>
+<td>+ 路由</td>
+<td>0.708</td>
+<td>0.356</td>
+<td>0.647</td>
+<td>0.689</td>
+</tr>
+<tr>
+<td>+ 共享轮次匹配</td>
+<td>0.890</td>
+<td>0.537</td>
+<td>0.801</td>
+<td>0.818</td>
+</tr>
+<tr>
+<td>+ 生成锚点</td>
+<td>0.872</td>
+<td>0.575</td>
+<td>0.833</td>
+<td>0.825</td>
+</tr>
+</tbody>
+</table></div>
+<p>关键发现：</p>
+<ul>
+<li><strong>路由</strong>本身对整体提升不大（+0.009），但它为后续步骤奠定基础，且在文本类别上有稳定提升</li>
+<li><strong>共享轮次匹配</strong>是最大的提升步骤（+0.129 overall），主要提升视觉类别</li>
+<li><strong>生成锚点</strong>在其触发的类别上有效（VR +0.038, VS +0.032）</li>
+</ul>
+<p><strong>路由的必要性</strong>：Table 11的通道开关实验表明，同一个通道在一个案例中帮助+0.04，在另一个案例中损害-0.24。没有统一的融合策略能同时满足所有案例，这正是V-Mem按案例路由的原因。</p>
+<h4 id="34">3.4 效率分析</h4>
+<p><strong>记忆构建</strong>（Table 4）：</p>
+<ul>
+<li>V-Mem：0 token，120秒（Mem-Gallery）/ 18秒（LoCoMo）</li>
+<li>Omni：2.77M token，6.5小时</li>
+<li>A-Mem：6.92M token，5.2小时</li>
+<li>M2A：4.3B token，73小时<br />
+  V-Mem的零token构建是其检索设计的直接结果——保持对话原样而非提取。</li>
+</ul>
+<h3 id="v-memtokenqa"><strong>回答成本</strong>：V-Mem在视觉问题上消耗更多token（因为需要调用视觉模型提取关键词），但这正是产生视觉QA优势的机制。</h3>
+<h3 id="_10">四、关键设计细节</h3>
+<h4 id="41">4.1 图像轮次过滤</h4>
+<p>当目标是图像时，V-Mem丢弃任何不包含图片（自身或±1邻居内）的排名轮次。因为这样的轮次无法返回图像，只会占据返回名额。</p>
+<h4 id="42-caption-folding">4.2 描述折叠（Caption Folding）</h4>
+<p>V-Mem将图片的描述文本不仅附加到图片单元上，还写入该图片所在轮次的文本中，使其可以通过文本通道被搜索到。消融实验显示这带来了+0.020的提升。</p>
+<h4 id="43">4.3 图像编码器选择</h4>
+<p>论文比较了SigLIP（对比学习，图文对齐）和DINOv2（纯图像自监督）作为图像编码器。结果几乎相同（整体差异仅-0.003），因为DINOv2在实例识别上略好，SigLIP在从描述找图上略好，两者抵消。</p>
+<h3 id="_11">五、局限性</h3>
+<ol>
+<li><strong>仅评估了图文对话记忆</strong>：音频被当作文本处理，但基准中不包含音频数据，音频/视频作为独立可检索模态未被测试</li>
+<li><strong>依赖骨干模型能力</strong>：V-Mem通过返回匹配轮次及其邻居来提供证据，需要骨干模型从中提取答案。在较弱的7B骨干上，V-Mem反而不如Omni（0.509 vs 0.534），因为额外上下文成为噪声</li>
+<li><strong>生成锚点有成本</strong>：hypo-caption和enriched anchor在回答时消耗额外token和延迟，enriched anchor还需要视觉模型</li>
+</ol>
+<hr />
+<h3 id="_12">六、核心贡献总结</h3>
+<ol>
+<li>识别了多模态记忆检索中相似度搜索失败的两个根本原因（模态鸿沟和相似度-相关性鸿沟）</li>
+<li>提出按（查询模态，目标模态）组合路由检索的框架</li>
+<li>设计了两个互补机制：共享轮次匹配（跨越模态鸿沟）和LLM生成搜索锚点（弥合相似度-相关性鸿沟）</li>
+<li>实现了零LLM调用的记忆构建，在两个基准上显著超越现有基线</li>
+</ol>
+<h2 id="_13">研究要点表</h2>
+<div class="table-scroll"><table class="key-value">
+<thead>
+<tr>
+<th>维度</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>论文标题</td>
+<td>V-Mem: Modality-Routed Retrieval for Long-Term Multimodal Agentic Memory</td>
+</tr>
+<tr>
+<td>作者</td>
+<td>Dingyi Kang, Dongming Jiang, Yi Li, Guanpeng Li, Bingzhe Li</td>
+</tr>
+<tr>
+<td>发表年份</td>
+<td>2026（arXiv预印本，2026年8月2日）</td>
+</tr>
+<tr>
+<td>研究问题</td>
+<td>现有多模态智能体记忆系统在视觉相关问题上检索失败，根本原因在于相似性搜索的两个假设被打破：模态间隙（跨模态查询与证据距离远）和相似性-相关性间隙（最相似内容并非最相关证据），尤其当查询同时包含文本和图像时问题更为突出。</td>
+</tr>
+<tr>
+<td>研究方法</td>
+<td>提出V-Mem系统，通过模态路由检索机制解决问题：(1) 将对话组织为轮次(rounds)，通过共享轮次匹配跨越模态间隙，避免跨模态比较；(2) 利用LLM生成搜索锚点（假设性描述caption或富化搜索锚点）缩小相似性-相关性间隙；(3) 基于关键词规则从查询中识别(查询, 目标)模态对，按需激活对应检索通道。在Mem-Gallery和LoCoMo两个基准上进行评估。</td>
+</tr>
+<tr>
+<td>主要发现</td>
+<td>在Mem-Gallery上，V-Mem的LLM评判分数达到0.825，远超第二名Omni的0.561，在携带图像的查询上优势最大（0.872 vs. 基线最高0.472）；在LoCoMo上得分0.690 vs. 0.583。V-Mem的记忆构建零LLM调用，仅需数秒完成，而基线系统需数小时和数百万token。</td>
+</tr>
+<tr>
+<td>创新点</td>
+<td>(1) 识别并形式化了多模态记忆检索中的模态间隙和相似性-相关性间隙两大问题；(2) 提出基于(查询, 目标)模态对的路由检索框架，按需激活不同检索通道和策略；(3) 通过共享轮次匹配跨越模态间隙，无需学习跨模态对齐；(4) 通过LLM生成假设性描述和富化搜索锚点缩小相似性-相关性间隙；(5) 记忆构建零LLM token开销，保留原始对话不做摘要或重写。</td>
+</tr>
+<tr>
+<td>局限性</td>
+<td>(1) 评估仅限于图文对话记忆，音频和视频作为独立可检索模态尚未测试；(2) 依赖骨干模型能力，较弱的模型（如7B）反而不如基线；(3) 生成锚点在回答时增加token和延迟开销，尤其是携带图像的查询需要视觉模型调用；(4) 剩余的图像相关错误源于回答模型而非检索失败。</td>
+</tr>
+<tr>
+<td>与本研究的关联</td>
+<td>该论文针对多模态长期对话记忆的检索问题提出了模态路由方案，对研究LLM智能体的外部记忆系统、多模态检索增强生成（RAG）、以及跨模态信息检索具有重要参考价值，特别是其对模态间隙和相似性-相关性间隙的分析框架可为相关记忆系统设计提供理论指导。</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="_14">原文摘要</h2>
+<p>Interaction between users and LLM agents is increasingly multimodal: conversations interleave text with images, and a later question may target either. Yet most agent memories are designed around text, and even the few that support multimodal conversations still fail on vision-related questions. We trace this failure to an assumption behind the similarity search they rely on: in the index space, a query lies close to the relevant evidence that answers it. In multimodal settings, two gaps break it. By the modality gap, a query lies closer to memory content of its own modality than to evidence in another, even in a trained joint embedding space. By the similarity-relevance gap, the content most similar to a query is often not the evidence that answers it, most acutely when a query carries both text and image and its evidence resembles neither part alone. We present V-Mem, a multimodal agentic memory system that routes retrieval by the modality of the query and that of the target evidence, both recognized from the query alone. To cross the modality gap, V-Mem organizes the conversation into rounds and returns the target-modality content from the same round as the match, without comparing across modalities. To close the similarity-relevance gap, it searches with an LLM-generated anchor that sits closer to the relevant evidence than the query does: a hypothetical caption for a text-only query seeking an image, and an enriched search anchor, the query text plus relevant keywords extracted from the query image, when the evidence is reachable only by combining the two. On Mem-Gallery, V-Mem reaches an LLM-judge score of 0.82 versus 0.56 for the second best, with the largest margin on questions carrying an image (0.87, no baseline above 0.47); on LoCoMo it scores 0.69 versus 0.58.</p></article>
+<aside class="detail-aside"><div class="report-toc" aria-label="文献卡片目录"><details open><summary>本页目录</summary><div class="toc">
+<ul>
+<li><a href="#_1">核心机制</a></li>
+<li><a href="#_2">适用范围与局限</a></li>
+<li><a href="#_3">详细解读</a><ul>
+<li><a href="#_4">核心总结</a></li>
+<li><a href="#_5">一、研究动机与问题背景</a></li>
+<li><a href="#v-mem">二、V-Mem系统设计</a></li>
+<li><a href="#_9">三、实验</a></li>
+<li><a href="#v-memtokenqa">回答成本：V-Mem在视觉问题上消耗更多token（因为需要调用视觉模型提取关键词），但这正是产生视觉QA优势的机制。</a></li>
+<li><a href="#_10">四、关键设计细节</a></li>
+<li><a href="#_11">五、局限性</a></li>
+<li><a href="#_12">六、核心贡献总结</a></li>
+</ul>
+</li>
+<li><a href="#_13">研究要点表</a></li>
+<li><a href="#_14">原文摘要</a></li>
+</ul>
+</div>
+</details></div><section><h2>引用这篇论文</h2><p id="citation-text" class="citation-text">Dingyi Kang, Dongming Jiang, Yi Li, et al.. V-Mem: Modality-Routed Retrieval for Long-Term Multimodal Agentic Memory. arXiv:2608.01543, 2026.</p><button class="button secondary" type="button" data-copy-citation>复制引用</button><p class="meta-note">综述参考文献 [34]</p></section><section><h2>同方向继续阅读</h2><ul class="related-list"><li><a href="../papers/2507.07957.html">MIRIX: Multi-Agent Memory System for LLM-Based Agents</a></li><li><a href="../papers/2511.21678.html">Agentic Learner with Grow-and-Refine Multimodal Semantic Memory</a></li><li><a href="../papers/2602.16493.html">MMA: Multimodal Memory Agent</a></li><li><a href="../papers/2604.01007.html">Omni-SimpleMem: Autoresearch-Guided Discovery of Lifelong Multimodal Agent Memory</a></li></ul></section></aside></div></div></main>
+<footer class="site-footer"><div><strong>Agent Memory 研究</strong><p>从保存历史，到有依据地更新长期状态。</p></div>
+<div><span>内容更新 · 2026-09-08</span><p>理解方法，比较条件，关注长期影响。</p><a href="../sources.html">阅读指南</a></div></footer>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body></html>

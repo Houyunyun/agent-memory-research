@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="实例/类别双粒度记忆与规则贡献归因">
+<meta name="color-scheme" content="light"><title>Dual-Grained Agent Memory and Shapley Context Attribution for Multimodal Agentic Learner · Agent Memory 研究</title>
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/katex/katex.min.css"><script src="../assets/katex/katex.min.js" defer></script><script src="../assets/katex/auto-render.min.js" defer></script><script src="../assets/site.js" defer></script>
+</head>
+<body data-page="library">
+<a class="skip-link" href="#main">跳转到正文</a>
+<header class="site-header"><div class="header-inner">
+<a class="brand" href="../index.html" aria-label="Agent Memory 研究首页">
+<svg viewBox="0 0 36 36" width="32" height="32" aria-hidden="true"><path d="M9 9h18v18H9zM9 9l18 18M27 9L9 27" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="9" r="4"/><circle cx="27" cy="9" r="4"/><circle cx="9" cy="27" r="4"/><circle cx="27" cy="27" r="4"/></svg>
+<span>Agent Memory<small>研究文献站</small></span></a>
+<nav class="site-nav" aria-label="主导航"><a href="../index.html">研究总览</a><a href="../library.html" aria-current="page">文献库</a><a href="../reports/survey.html">综述全文</a><a href="../reports/multi-agent.html">多智能体专题</a><a href="../sources.html">阅读指南</a></nav>
+</div></header>
+<main id="main"><div class="page-wrap"><div class="breadcrumb"><a href="../library.html">文献库</a><span>/</span><a href="../library.html?topic=multimodal">多模态记忆</a></div>
+<header class="paper-hero"><div class="paper-badges"><span class="badge expanded">含详细解读</span><span class="muted">2026 · 2608.23268</span></div><h1>Dual-Grained Agent Memory and Shapley Context Attribution for Multimodal Agentic Learner</h1><p class="paper-authors full-authors">Jieke Wang, Tiancheng Shen, Yibo Yang, Ming-Hsuan Yang</p>
+<div class="hero-actions paper-actions"><a href="https://arxiv.org/abs/2608.23268" target="_blank" rel="noopener noreferrer">论文原文 <span aria-hidden="true">↗</span></a><a href="../downloads/notes/2608.23268.md">下载文献卡片 Markdown</a></div></header>
+<div class="detail-layout"><article class="prose"><h2 id="_1">核心机制</h2>
+<p>实例/类别双粒度记忆与规则贡献归因</p>
+<h2 id="_2">适用范围与局限</h2>
+<p>训练期构建、测试只读，不能算测试时在线演化</p>
+<h2 id="_3">详细解读</h2>
+<h3 id="_4">核心总结</h3>
+<p>这篇论文提出了<strong>DG-Mem</strong>（Dual-Grained Memory），一个为冻结参数的多模态大语言模型（MLLM）设计的<strong>双粒度智能体记忆框架</strong>。其核心思想是：在不更新模型参数的前提下，通过外部非参数化记忆存储来让模型从已解决的训练题目中"学习经验"，并在测试时利用这些经验提升科学与数学推理能力。该框架受认知科学中<strong>互补学习系统（CLS）</strong>理论启发，将记忆分为<strong>实例级的范例记忆</strong>（exemplar memory）和<strong>类别级的模式记忆</strong>（schema memory，以IF-THEN规则形式存储），两者通过一个临时的"反思存储"中介构建，确保模式记忆仅从抽象反思中合成，不被具体实例文本污染。框架的两大技术亮点是：（1）<strong>在线概念分类器</strong>在训练过程中增量式地扩展类别空间，无需预定义分类体系；（2）<strong>Shapley上下文归因</strong>将同时检索到的多条规则视为合作博弈中的玩家，利用Shapley值分解每条规则对正确回答的贡献，从而在测试时用"历史有用性"来重新加权检索排序。整个流程无需梯度更新，可部署于闭源或端侧模型。</p>
+<h3 id="_5">一、问题背景与动机</h3>
+<h4 id="11-mllm">1.1 当前MLLM的困境</h4>
+<p>当前前沿的多模态大语言模型（如GPT系列、Gemini、Qwen等）在视觉-语言感知任务上表现出色，但在<strong>科学和数学推理</strong>基准测试上仍然存在明显不足。<br />
+要弥补这个差距，传统上有两条路径：</p>
+<ul>
+<li><strong>参数级适配</strong>（如指令微调、RLHF）：需要梯度访问和完整监督，对闭源模型或端侧模型不可行，且当底层模型更换时容易失效。</li>
+<li><strong>提示级适配</strong>（prompt engineering）：虽然便宜且模块化，但<strong>无状态</strong>——模型不会从已经解决过的问题中获得累积收益。</li>
+</ul>
+<p><strong>智能体记忆框架</strong>（agentic memory）正好弥合了这个鸿沟：通过维护一个外部的、非参数化的存储，在问题间积累经验，并在测试时为冻结的骨干模型提供条件化上下文。</p>
+<h4 id="12">1.2 现有记忆系统的不足</h4>
+<p>现有的智能体记忆系统大多走向两个极端：</p>
+<ol>
+<li><strong>轨迹/案例库</strong>（trajectory/case banks）：保存原始的解题过程，通过相似度检索。上下文丰富但绑定于具体实例，聚合多个案例时容易放大而非抽象其特异性。</li>
+<li><strong>单粒度规则手册</strong>（prescriptive playbooks）：将经验蒸馏为一个扁平的规则列表。上下文紧凑但失去了具体的实例基础，面对陌生新问题时缺乏参照。<br />
+   即使有少数系统尝试组合不同粒度，也没有真正分离"实例基础"与"跨案例抽象"。此外，两个关键设计问题几乎完全悬而未决：</li>
+</ol>
+<ul>
+<li><strong>分类问题</strong>：当概念空间事先未知时，如何对记忆进行分类？固定分类体系要么太粗（如一个"几何"桶），要么太细（每个概念签名一个桶）。</li>
+<li><strong>信用分配问题</strong>：当多条记忆被同时检索时，如何将正确回答的功劳分配到各条记忆上，以便检索排序能随时间改善？现有方法将成功或失败归因于单条检索项，混淆了它与其余上下文的贡献。</li>
+</ul>
+<h4 id="13">1.3 认知科学启发</h4>
+<p>论文从认知科学的<strong>互补学习系统（CLS）</strong>理论中获得灵感。CLS认为人类灵活的行为来自两个交互的记忆系统：</p>
+<ul>
+<li><strong>快速的、实例特定的系统</strong>：支持基于范例的泛化（类似海马体）。</li>
+<li><strong>缓慢的、结构化的系统</strong>：围绕抽象模式（schema）组织（类似新皮层）。<br />
+  关键在于，这两个系统的构建方式不同：情景痕迹被逐步离线整合为可复用的模式，这是一个"巩固"步骤。此外，离线重放偏向于有奖励的经验，记忆的检索可及性由线索匹配强度和历史有用性共同决定。<br />
+  DG-Mem正是基于这三个认知原则设计的：<strong>粒度分离</strong>、<strong>模式中介的巩固</strong>、<strong>价值加权的检索</strong>。</li>
+</ul>
+<hr />
+<h3 id="_6">二、方法详解</h3>
+<p>DG-Mem的整体架构如图1所示，分为两个离线阶段和一个测试时推理流程。</p>
+<h4 id="21">2.1 整体架构</h4>
+<p>一个冻结的MLLM骨干模型配合一个非参数化的外部记忆 $\mathcal{M}$，该记忆从训练语料的rollout中一次性构建，测试时以只读方式查询。不对MLLM或任何额外层进行梯度更新。<br />
+对于每个测试问题 $q$，智能体执行以下流程：</p>
+<ol>
+<li>分析 $q$ 生成概念摘要 $\mathcal{K}(q)$</li>
+<li>用 $\mathcal{K}(q)$ 和多模态表示 $(I_q, t_q)$ 查询 $\mathcal{M}$，获取相关子集 $\mathcal{M}_q \subseteq \mathcal{M}$</li>
+<li>将检索到的记忆作为上下文，让骨干模型生成答案 $\hat{a}_q = \text{MLLM}(q, \mathcal{M}_q)$</li>
+</ol>
+<h4 id="22-stage-1">2.2 Stage 1：记忆构建</h4>
+<p>记忆从MLLM在训练语料上的rollout离线构建。对于每个训练问题 $q$（已知金标答案 $a_q^\star$），执行以下步骤：<br />
+<strong>（1）生成并标注rollout</strong><br />
+抽样 $N$ 条温度采样的解题轨迹 $\{\text{MLLM}_i(q)\}_{i=1}^N$，通过验证级联（原生基准匹配器 → 符号解析器 → LLM判官）将每条标注为CORRECT或INCORRECT。这是唯一的训练信号，不需要推理过程的标注，只需要金标答案。<br />
+<strong>（2）三路并行摘要</strong><br />
+给定标注后的rollout组，并行产生三种摘要，写入不同的存储：  </p>
+<p>$\displaystyle \rho(q) = \text{Refl}_R\left(q, a_q^\star, \{\text{MLLM}_i(q)\}_{i=1}^N\right) \quad \text{（IF-THEN规则）}$</p>
+<p>$\displaystyle e(q) = \text{Refl}_E\left(q, a_q^\star, \{\text{MLLM}_i(q)\}_{i=1}^N\right) \quad \text{（范例记录）}$</p>
+<p>$\displaystyle \kappa(q) = \text{Cat}(q) \quad \text{（类别标签）}$</p>
+<p>其中分类器 $\text{Cat}$ 是唯一只消费问题 $q$ 本身的模型，它将问题路由到已有的类别注册表中，不检查rollout。<br />
+<strong>三个存储之间的严格依赖关系</strong>：</p>
+<ul>
+<li><strong>反思存储</strong> $\mathcal{M}_R = \{\rho(q)\}_q$：一个中间对象，推理时<strong>永远不被检索</strong>。它仅作为下游两个存储的源材料。</li>
+<li><strong>范例记忆</strong> $\mathcal{M}_E$：将 $\rho(q)$ 共置于每个范例内部，使得单次检索同时获得实例基础策略和相关的抽象规则。</li>
+<li><strong>模式记忆</strong> $\mathcal{M}_S$：在训练遍历完成后合成，<strong>专门从按类别分组的 $\mathcal{M}_R$ 中合成</strong>，永远不查看 $\mathcal{M}_E$ 的内容。</li>
+</ul>
+<p><strong>抽象约束</strong>：所有三种摘要都禁止包含来自 $q$ 的数值、选项字母、变量绑定和命名实体。这是一个正确性要求而非风格偏好——因为每个存储项在测试时会被用于不同问题的上下文中，任何泄露的具体信息都会直接传播到求解器的条件化过程中。<br />
+<strong>（3）范例记忆 $\mathcal{M}_E$ 的具体构造</strong><br />
+每个范例 $e(q) \in \mathcal{M}_E$ 是一个自包含的记录，由反射器 $\text{Refl}_E$ 将标注的rollout组蒸馏为两个字段：</p>
+<ul>
+<li><strong>推理策略</strong>（reasoning strategy）：一个适用于同类型任何问题的逐步过程描述</li>
+<li><strong>验证检查</strong>（verification check）：命名错误轨迹中表现出的主要错误模式<br />
+  每个范例通过<strong>多模态嵌入</strong> $\text{Emb}_M(I_q, t_q)$ 索引，其中 $I_q$ 是问题图像，$t_q$ 是短查询文本"This problem tests $\mathcal{K}(q)$. Question: $q$."。使用联合索引很重要，因为文本概念相同但视觉不同的问题（如完整圆 vs. 扇形，条形图 vs. 堆叠条形图）是纯文本检索器无法区分的近似干扰项。</li>
+</ul>
+<p><strong>（4）模式记忆 $\mathcal{M}_S$ 的具体构造</strong><br />
+模式 $\sigma_\kappa \in \mathcal{M}_S$ 捕获一个概念等价类问题中稳定的内容。在线遍历训练集为每个问题分配类别 $\kappa(q)$ 后，按类别分区 $\mathcal{M}_R$，对每个分区应用模式合成器 $\text{Synth}$：  </p>
+<p>$\displaystyle \sigma_\kappa = \text{Synth}\left(\kappa, \text{concepts}(\kappa), \bigcup_{q:\kappa(q)=\kappa} \rho(q)\right)$</p>
+<p>$\text{Synth}$ 被指示消除冗余、调和近重复规则、将实例特定的措辞提升为适用于整个类别的原则。其输出是一个紧凑的<strong>规范性建议列表</strong>，告诉求解器<strong>该做什么</strong>而非仅仅该避免什么。<br />
+两个关键性质：</p>
+<ul>
+<li><strong>巩固约束</strong>：合成严格在 $\mathcal{M}_R$ 上操作，轨迹和范例级文本永远不展示给 $\text{Synth}$，将 $\sigma_\kappa$ 限制在可从抽象规则推导的原则上。</li>
+<li><strong>鲁棒性</strong>：因为 $\sigma_\kappa$ 聚合了共享 $\kappa$ 的许多问题，单次 $\text{Refl}_R$ 调用产生的虚假规则被稀释而非放大。</li>
+</ul>
+<p><strong>（5）在线分类</strong><br />
+分区 $\mathcal{M}_R$ 需要每个问题的类别标签，但固定分类体系要么太粗要么太细，正确的粒度事先未知。DG-Mem采用<strong>在线增长</strong>的注册表：$\text{Cat}$ 提取 $\mathcal{K}(q)$，与仅限于标识符-名称对的运行注册表比较（以最小化提示开销），然后要么将 $q$ 分配到现有类别，要么引入一个新的类别（带有新标识符和代表性概念）。注册表更新是序列化的，类别空间单调增长。分类步骤与 $\text{Refl}_E$ 和 $\text{Refl}_R$ 并发运行，不增加顺序开销。</p>
+<h4 id="23-stage-2">2.3 Stage 2（测试时推理前）：记忆访问</h4>
+<p>测试时 $\mathcal{M} = \mathcal{M}_S \cup \mathcal{M}_E$ 被冻结；$\mathcal{M}_R$ 永远不被直接查询。访问分三个检索阶段：<br />
+<strong>（1）模式检索</strong><br />
+在代表性概念与 $\mathcal{K}(q)$ 最匹配的类别内，以<strong>单条规则</strong>为粒度检索。规则 $r_i$ 与查询之间的线索相似度为：  </p>
+<p>$\displaystyle \text{sim}(r_i, q) = \cos\left(\text{Emb}_T(r_i), \text{Emb}_T(q)\right)$</p>
+<p>将线索相似度与规则的累积效用 $U(r_i)$（在§2.4中定义）组合：  </p>
+<p>$\displaystyle s_i = \alpha \cdot \widehat{\text{sim}}(r_i, q) + (1-\alpha) \cdot \widehat{U}(r_i)$</p>
+<p>其中 $\widehat{(\cdot)}$ 表示在活跃类别下候选集上的min-max归一化，分别独立应用于相似度和效用，使两个尺度的量级差异不主导排序。$\alpha = 1$ 退化为纯相似度检索；$\alpha = 0$ 纯按累积效用排序。<br />
+<strong>（2）范例检索</strong><br />
+通过查询的多模态嵌入 $\text{Emb}_M(I_q, t_q)$ 与每个候选范例存储的多模态嵌入之间的余弦相似度检索。设有相似度阈值 $\tau_E$：若无候选超过阈值，则不注入范例。<br />
+<strong>（3）记忆注入</strong><br />
+检索到的记忆以两种互补模式插入求解器上下文：</p>
+<ul>
+<li><strong>启动模式</strong>（priming）：置于问题之前，先验地框定求解器的方法</li>
+<li><strong>验证模式</strong>（verification）：置于问题之后，保留相同内容用于对产生的答案进行事后审计</li>
+</ul>
+<h4 id="24-stage-2shapley">2.4 Stage 2：效用训练（Shapley上下文归因）</h4>
+<p>Stage 1之后，$\mathcal{M}_S$ 中每条规则被检索时被同等对待。但一个类别的规则很少是均匀有用的：有些编码了广泛迁移的主要失败模式，有些是条件很少触发的狭窄技巧。<br />
+第二个离线阶段将同一个骨干模型转化为<strong>归因设备</strong>：通过额外的rollout（唯一变化因素是注入了哪个规则子集），将奖励信号转化为每条规则的效用列，在测试时重新加权检索。<br />
+<strong>（1）冻结类别分配</strong><br />
+Stage 2读回Stage 1产生的 $\mathcal{M}_S$ 和类别注册表，两者在训练剩余时间内冻结，使效用统计在固定的规则支撑上累积。<br />
+<strong>（2）子集rollout</strong><br />
+对于问题 $q$，抽取 $B$ 个规则子集 $\{S_b\}_{b=1}^B$，始终包含空子集 $\emptyset$（纯查询基线）和完整子集 $\mathcal{R}_{\kappa^\star}$；其余 $B-2$ 个子集从严格中间层 $\{S \subseteq \mathcal{R}_{\kappa^\star} : 1 \leq |S| \leq K-1\}$ 中均匀无放回采样。当 $B \geq 2^K$ 时，批次就是精确的幂集，Shapley值变为精确。<br />
+对每个子集，骨干模型在相同问题上被条件化，唯一变化的是注入的规则集：$o_b = \text{MLLM}(q, S_b)$，二值奖励 $v(S_b) = \text{Verify}(o_b, a_q^\star) \in \{0, 1\}$ 隔离了 $S_b$ 本身的贡献（温度、解码种子和图像内容在 $b$ 之间保持固定）。<br />
+<strong>（3）上下文归因</strong><br />
+将规则视为玩家，观察到的子集奖励 $v(\cdot)$ 作为合作价值，规则 $r_i$ 对问题 $q$ 的贡献是其在 $\mathcal{R}_{\kappa^\star}$ 所有排列上的平均边际增益：  </p>
+<p>$\displaystyle \Delta_q(r_i) = \frac{1}{K!} \sum_{\pi \in \mathfrak{S}_K} \left[v\left(P_i^\pi \cup \{r_i\}\right) - v\left(P_i^\pi\right)\right]$</p>
+<p>其中 $P_i^\pi$ 是排列 $\pi$ 中 $r_i$ 之前的规则集合，未观察到的联盟被估算为0。Shapley值按每条规则最能增加边际奖励的程度不均匀地分配信用，精确极限下的代价为 $O(K!)$。<br />
+每条规则 $r_i$ 维护一个运行总和和计数 $n_i$，其累积效用是经验均值：  </p>
+<p>$\displaystyle U(r_i) = \sum_{q: r_i \in \mathcal{R}_{\kappa(q)}} \Delta_q(r_i) / \max(n_i, 1)$</p>
+<p><strong>范例被有意排除在此更新之外</strong>：因为Stage 2的问题可能与Stage 1的问题重叠，对一个嵌入索引相同问题的范例归因效用会导致泄露。因此范例继续仅按相似度排序。<br />
+测试时，$U(r_i)$ 被代入公式(5)，完成"理性分析"组合：两条线索匹配度相同的规则按其累积历史记录排序。</p>
+<h3 id="_7">三、实验</h3>
+<h4 id="31">3.1 实验设置</h4>
+<p><strong>数据集</strong>：MathVista、MMMU、MMMU-Pro，均为多模态科学问题求解和推理基准。每个基准采用固定的3:1训练/测试划分。训练集仅消费金标答案作为监督，不需要思维链或逐步推理标注。<br />
+<strong>模型</strong>：四个骨干模型，涵盖开源和闭源：</p>
+<ul>
+<li>Qwen3.5-27B、Qwen3.5-122B-A10B（开源）</li>
+<li>GPT-5-Nano、Gemini-3-Flash（闭源）<br />
+  除验证级联使用的LLM判官固定为Qwen-3.5-Flash外，智能体图中的每个节点（rollout求解器、反射器、模式合成器、在线分类器）都使用<strong>同一个骨干模型</strong>，强制"自我进化"设置，防止从更大或异构模型中隐式知识蒸馏。</li>
+</ul>
+<p><strong>基线</strong>：</p>
+<ul>
+<li><strong>No-memory</strong>：相同骨干、相同解码配置，但无检索</li>
+<li><strong>ViLoMem (offline)</strong>：训练后冻结记忆，在测试集上评估</li>
+<li><strong>ViLoMem (online)</strong>：在测试集上继续增长和精炼记忆</li>
+</ul>
+<h4 id="32">3.2 主要结果</h4>
+<p>Table 2展示了跨三个基准和四个骨干的测试准确率：<br />
+DG-Mem在所有骨干上都<strong>一致优于No-memory基线</strong>。具体来看：</p>
+<ul>
+<li><strong>Qwen3.5-122B-A10B</strong>：平均提升+5.6%</li>
+<li><strong>Qwen3.5-27B</strong>：平均提升+2.3%（与ViLoMem online持平）</li>
+<li><strong>GPT-5-Nano</strong>：平均提升+12.5%（最大提升，因为该模型基线能力较弱，从记忆中获益最多）</li>
+<li><strong>Gemini-3-Flash</strong>：平均提升+5.2%<br />
+  值得注意的是，ViLoMem在某些骨干上甚至低于No-memory基线（如Gemini-3-Flash上offline和online都是-0.2），而DG-Mem始终保持正向提升。</li>
+</ul>
+<h4 id="33">3.3 消融实验</h4>
+<p>在Gemini-3-Flash骨干上逐一移除组件（Table 3）：</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>配置</th>
+<th>MathVista*</th>
+<th>MMMU*</th>
+<th>MMMU-Pro*</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Baseline (No-memory)</td>
+<td>86.2</td>
+<td>82.4</td>
+<td>69.0</td>
+</tr>
+<tr>
+<td>w/o $\mathcal{M}_E$（仅模式记忆）</td>
+<td>88.4</td>
+<td>82.1</td>
+<td>73.4</td>
+</tr>
+<tr>
+<td>w/o $\mathcal{M}_S$（仅范例记忆）</td>
+<td>87.6</td>
+<td>84.0</td>
+<td>73.4</td>
+</tr>
+<tr>
+<td>w/o utility（$\alpha=1$，两种记忆但无效用）</td>
+<td>91.0</td>
+<td>84.0</td>
+<td>75.0</td>
+</tr>
+<tr>
+<td><strong>Full method</strong></td>
+<td><strong>91.6</strong></td>
+<td><strong>84.7</strong></td>
+<td><strong>77.1</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>关键发现：</p>
+<ol>
+<li><strong>范例记忆的效果</strong>：移除 $\mathcal{M}_E$ 在MMMU-Pro上损失最大（-3.7），因为许多问题依赖于特定的图表配置（电路拓扑、几何构造），IF-THEN规则会抽象掉这些细节，但多模态最近邻能保留。仅模式记忆在MMMU上甚至略低于No-memory（82.1 vs. 82.4），说明模式记忆单独使用可能过度泛化。</li>
+<li><strong>模式记忆的效果</strong>：仅范例记忆在MathVista上落后最多（-4.0），因为许多测试问题共享高层解题模板（解析条形图、单位转换）但与任何单个训练实例视觉上不相似——正是可迁移规则胜过字面最近邻的场景。</li>
+<li><strong>两种记忆互补</strong>：仅范例和仅模式的性能接近（约1%以内），但完整方法超过两者，说明两种粒度覆盖了<strong>不重叠的失败模式</strong>。</li>
+<li><strong>效用的效果</strong>：设 $\alpha=1$（纯相似度检索）相对完整方法损失-0.6/-0.7/-2.1，差距在更难的MMMU-Pro上更大。这表明并非每条嵌入相似的规则都有用，Shapley导出的效用将检索重新加权到历史上带来奖励的规则上。</li>
+</ol>
+<h4 id="34">3.4 定性结果</h4>
+<p>Figure 2展示了三个测试实例，其中No-memory骨干回答错误，但加上DG-Mem检索的记忆后回答正确：</p>
+<ol>
+<li><strong>视觉枚举+属性过滤</strong>：基线跳过了完整枚举，检索到的模式规则要求"执行所有对象的详尽初始普查"，范例提供了类似的已解模板。</li>
+<li><strong>图表阈值计数</strong>：基线通过视觉估计误判了接近90%线的柱子，检索到的规则要求"系统地计算每个不同项目的指标，而非依赖视觉估计"。</li>
+<li><strong>实体基础算术</strong>：基线使用了错误的出生年份，检索到的范例验证检查要求"交叉验证不太知名个体的身份"。</li>
+</ol>
+<hr />
+<h3 id="_8">四、与现有方法的对比</h3>
+<p>Table 1从五个维度对比了DG-Mem与现有方法：</p>
+<div class="table-scroll"><table class="key-value">
+<thead>
+<tr>
+<th>维度</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Multimodal</td>
+<td>是否处理视觉+文本输入</td>
+</tr>
+<tr>
+<td>Exemplar</td>
+<td>是否维护实例级范例</td>
+</tr>
+<tr>
+<td>Schema</td>
+<td>是否维护抽象模式规则</td>
+</tr>
+<tr>
+<td>Credit Assn.</td>
+<td>是否进行超越纯相似度的每规则信用分配</td>
+</tr>
+<tr>
+<td>Grad-Free</td>
+<td>是否无需模型参数更新</td>
+</tr>
+<tr>
+<td>DG-Mem是唯一在所有五个维度上都满足的方法。</td>
+<td></td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+<h3 id="_9">五、局限性</h3>
+<ol>
+<li><strong>归因的随机性</strong>：Shapley上下文归因将骨干视为规则子集上的确定性价值函数，但GPU内核的非确定性、动态批处理和浮点非结合性意味着二值奖励 $v(S_b)$ 在相同上下文调用间可能变化。论文通过跨多个共享相同规则的问题取平均来缓解，但残余方差是价值函数的固有属性。</li>
+<li><strong>测试时冻结记忆</strong>：论文在评估时冻结 $\mathcal{M}$，使测试准确率反映检索和条件化而非额外的在线学习。这是一个干净的实验选择，但放弃了持续学习的可能性——测试时的错误本可以播种新的范例或规则。将离线巩固与有界在线更新结合仍是一个开放的设计问题。</li>
+</ol>
+<hr />
+<h3 id="_10">六、技术细节补充</h3>
+<h4 id="table-5">超参数设置（Table 5）</h4>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>超参数</th>
+<th>值</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>$\alpha$</td>
+<td>0.8</td>
+<td>相似度/效用插值权重</td>
+</tr>
+<tr>
+<td>类别相似度阈值</td>
+<td>0.40</td>
+<td>类别检索的最小余弦相似度</td>
+</tr>
+<tr>
+<td>模式规则相似度阈值</td>
+<td>0.35</td>
+<td>规则检索的最小余弦相似度</td>
+</tr>
+<tr>
+<td>$K_{\max}$</td>
+<td>2</td>
+<td>每个活跃类别检索的top-k规则数</td>
+</tr>
+</tbody>
+</table></div>
+<h4 id="table-4">数据集划分（Table 4）</h4>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>基准</th>
+<th>训练集</th>
+<th>测试集</th>
+<th>总计</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MathVista (MINI)</td>
+<td>750</td>
+<td>250</td>
+<td>1,000</td>
+</tr>
+<tr>
+<td>MMMU (DEV+VAL)</td>
+<td>788</td>
+<td>262</td>
+<td>1,050</td>
+</tr>
+<tr>
+<td>MMMU-Pro</td>
+<td>1,298</td>
+<td>432</td>
+<td>1,730</td>
+</tr>
+</tbody>
+</table></div>
+<h4 id="gpt-5-nanoqwen35-122b-a10b">附加消融（GPT-5-Nano和Qwen3.5-122B-A10B）</h4>
+<p>在GPT-5-Nano上（Table 6），完整方法相对基线的提升更为显著（MathVista +9.6, MMMU +11.8, MMMU-Pro +16.2），且完整方法大幅超过任何单粒度消融，进一步验证了双粒度的互补性。<br />
+在Qwen3.5-122B-A10B上（Table 7），模式一致：每种粒度单独都优于基线，完整方法在每个单元格上都超过两种单粒度消融中较好的那个。</p>
+<h2 id="_11">研究要点表</h2>
+<div class="table-scroll"><table class="key-value">
+<thead>
+<tr>
+<th>维度</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>论文标题</td>
+<td>Dual-Grained Agent Memory and Shapley Context Attribution for Multimodal Agentic Learner</td>
+</tr>
+<tr>
+<td>作者</td>
+<td>Jieke Wang, Tiancheng Shen, Yibo Yang, Ming-Hsuan Yang</td>
+</tr>
+<tr>
+<td>发表年份</td>
+<td>2026</td>
+</tr>
+<tr>
+<td>研究问题</td>
+<td>前沿多模态大语言模型在科学和数学推理上仍存在不足，参数级适配对闭源或端侧模型不可用，而无状态提示无法从已解决问题中获得累积收益。本文研究如何通过非参数化的外部记忆框架增强冻结的MLLM骨干网络，同时解决记忆分类和多条检索记忆间的信用分配问题。</td>
+</tr>
+<tr>
+<td>研究方法</td>
+<td>提出DG-Mem框架，将外部记忆分为实例级样例记忆和类别级模式记忆（IF-THEN规则），通过瞬态反思存储中介两者的构建；采用在线概念分类器增量式增长类别空间；引入Shapley上下文归因方法，将共同检索的规则视为合作博弈中的参与者，计算每条规则的效用值以在测试时重新加权检索排序。整个流程无需梯度更新。</td>
+</tr>
+<tr>
+<td>主要发现</td>
+<td>DG-Mem在MathVista、MMMU和MMMU-Pro三个基准上，跨四个骨干模型（Qwen3.5-27B、Qwen3.5-122B-A10B、GPT-5-Nano、Gemini-3-Flash）一致性地超越无记忆基线和竞争性记忆基线ViLoMem。消融实验表明样例记忆和模式记忆覆盖不重叠的失败模式，Shapley效用加权在所有基准上带来一致提升。</td>
+</tr>
+<tr>
+<td>创新点</td>
+<td>（1）受互补学习系统（CLS）理论启发，将记忆严格分为实例级样例和类别级模式两个粒度，模式仅从抽象反思中合成，避免样例文本污染；（2）在线概念分类器在训练过程中增量式增长类别空间，无需预定义分类体系；（3）提出Shapley上下文归因，将规则视为合作博弈参与者进行信用分配，实现基于历史效用的检索加权。</td>
+</tr>
+<tr>
+<td>局限性</td>
+<td>Shapley归因的随机性问题——非确定性GPU计算和有限子集预算导致效用估计存在噪声；测试时记忆冻结，放弃了持续学习的可能性，无法利用测试时错误来更新记忆。</td>
+</tr>
+<tr>
+<td>与本研究的关联</td>
+<td>未提及</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="_12">原文摘要</h2>
+<p>Frontier multimodal large language models (MLLMs) deliver impressive perception yet still falter on scientific and mathematical reasoning. Parameter-level adaptation is unavailable for closed-weight or on-device backbones, and stateless prompting forfeits any compounding benefit from problems already solved. We propose \textbf{DG-Mem}, a dual-grained agentic memory framework that augments a frozen MLLM with a non-parametric, externally stored memory built once from training-time rollouts and consulted read-only at test time. Motivated by the Complementary Learning Systems (CLS) account of human memory, DG-Mem factors its store into an instance-grounded exemplar memory and a category-level schema memory of IF-THEN rules, with a transient reflection store mediating their construction so that schemas are synthesized only from abstract reflections, never from exemplar text. Two design choices distinguish DG-Mem: an online concept categorizer that grows the category space incrementally during training rather than committing to a predefined taxonomy, and a Shapley context attribution procedure that decomposes correctness across the entire retrieved rule set and yields a per-rule utility that re-weights retrieval at test time. The pipeline introduces no gradient updates and is deployable on closed-weight or on-device backbones. Across MathVista, MMMU, and MMMU-Pro on four open-weight and proprietary backbones (Qwen3.5-27B, Qwen3.5-122B-A10B, GPT-5-Nano, Gemini-3-Flash), DG-Mem improves consistently over no-memory and competitive memory baselines.</p></article>
+<aside class="detail-aside"><div class="report-toc" aria-label="文献卡片目录"><details open><summary>本页目录</summary><div class="toc">
+<ul>
+<li><a href="#_1">核心机制</a></li>
+<li><a href="#_2">适用范围与局限</a></li>
+<li><a href="#_3">详细解读</a><ul>
+<li><a href="#_4">核心总结</a></li>
+<li><a href="#_5">一、问题背景与动机</a></li>
+<li><a href="#_6">二、方法详解</a></li>
+<li><a href="#_7">三、实验</a></li>
+<li><a href="#_8">四、与现有方法的对比</a></li>
+<li><a href="#_9">五、局限性</a></li>
+<li><a href="#_10">六、技术细节补充</a></li>
+</ul>
+</li>
+<li><a href="#_11">研究要点表</a></li>
+<li><a href="#_12">原文摘要</a></li>
+</ul>
+</div>
+</details></div><section><h2>引用这篇论文</h2><p id="citation-text" class="citation-text">Jieke Wang, Tiancheng Shen, Yibo Yang, et al.. Dual-Grained Agent Memory and Shapley Context Attribution for Multimodal Agentic Learner. arXiv:2608.23268, 2026.</p><button class="button secondary" type="button" data-copy-citation>复制引用</button><p class="meta-note">综述参考文献 [39]</p></section><section><h2>同方向继续阅读</h2><ul class="related-list"><li><a href="../papers/2507.07957.html">MIRIX: Multi-Agent Memory System for LLM-Based Agents</a></li><li><a href="../papers/2511.21678.html">Agentic Learner with Grow-and-Refine Multimodal Semantic Memory</a></li><li><a href="../papers/2602.16493.html">MMA: Multimodal Memory Agent</a></li><li><a href="../papers/2604.01007.html">Omni-SimpleMem: Autoresearch-Guided Discovery of Lifelong Multimodal Agent Memory</a></li></ul></section></aside></div></div></main>
+<footer class="site-footer"><div><strong>Agent Memory 研究</strong><p>从保存历史，到有依据地更新长期状态。</p></div>
+<div><span>内容更新 · 2026-09-08</span><p>理解方法，比较条件，关注长期影响。</p><a href="../sources.html">阅读指南</a></div></footer>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body></html>

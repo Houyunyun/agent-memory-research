@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="在线小型关联状态为冻结骨干注意力提供低秩修正">
+<meta name="color-scheme" content="light"><title>$\delta$-mem: Efficient Online Memory for Large Language Models · Agent Memory 研究</title>
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/katex/katex.min.css"><script src="../assets/katex/katex.min.js" defer></script><script src="../assets/katex/auto-render.min.js" defer></script><script src="../assets/site.js" defer></script>
+</head>
+<body data-page="library">
+<a class="skip-link" href="#main">跳转到正文</a>
+<header class="site-header"><div class="header-inner">
+<a class="brand" href="../index.html" aria-label="Agent Memory 研究首页">
+<svg viewBox="0 0 36 36" width="32" height="32" aria-hidden="true"><path d="M9 9h18v18H9zM9 9l18 18M27 9L9 27" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="9" r="4"/><circle cx="27" cy="9" r="4"/><circle cx="9" cy="27" r="4"/><circle cx="27" cy="27" r="4"/></svg>
+<span>Agent Memory<small>研究文献站</small></span></a>
+<nav class="site-nav" aria-label="主导航"><a href="../index.html">研究总览</a><a href="../library.html" aria-current="page">文献库</a><a href="../reports/survey.html">综述全文</a><a href="../reports/multi-agent.html">多智能体专题</a><a href="../sources.html">阅读指南</a></nav>
+</div></header>
+<main id="main"><div class="page-wrap"><div class="breadcrumb"><a href="../library.html">文献库</a><span>/</span><a href="../library.html?topic=evolution">操作与架构演化</a></div>
+<header class="paper-hero"><div class="paper-badges"><span class="badge expanded">含详细解读</span><span class="muted">2026 · 2605.12357</span></div><h1>$\delta$-mem: Efficient Online Memory for Large Language Models</h1><p class="paper-authors full-authors">Jingdi Lei, Di Zhang, Junxian Li, Weida Wang, Kaixuan Fan, Xiang Liu, Qihan Liu, Xiaoteng Ma, Baian Chen, Soujanya Poria</p>
+<div class="hero-actions paper-actions"><a href="https://arxiv.org/abs/2605.12357" target="_blank" rel="noopener noreferrer">论文原文 <span aria-hidden="true">↗</span></a><a href="../downloads/notes/2605.12357.md">下载文献卡片 Markdown</a></div></header>
+<div class="detail-layout"><article class="prose"><h2 id="_1">核心机制</h2>
+<p>在线小型关联状态为冻结骨干注意力提供低秩修正</p>
+<h2 id="_2">适用范围与局限</h2>
+<p>神经状态记忆，与文本外部库的解释和删除接口不同</p>
+<h2 id="_3">详细解读</h2>
+<h3 id="_4">论文核心总结</h3>
+<p>这篇论文提出了δ-mem，一种轻量级的在线记忆机制，用于增强冻结的（frozen）全注意力Transformer大语言模型的长期记忆能力。其核心思想是：不扩展上下文窗口，也不修改骨干模型参数，而是在骨干模型旁边维护一个极其紧凑的在线关联记忆状态矩阵（仅$8 \times 8$大小），通过delta规则学习不断将历史信息压缩写入该状态，并在生成时从状态中读取信号，以低秩修正的方式注入骨干模型的注意力计算中。实验表明，这种设计在记忆密集型任务上取得了显著提升（MemoryAgentBench提升1.31倍，LoCoMo提升1.20倍），同时基本保持了模型的通用能力，且仅引入约0.12%的额外可训练参数。</p>
+<h3 id="_5">一、研究动机与问题背景</h3>
+<h4 id="11">1.1 为什么需要记忆机制？</h4>
+<p>随着大语言模型（LLM）越来越多地被部署在需要<strong>持续交互</strong>的场景中——例如长期个性化助手（如MemGPT）和长周期智能体系统（如ReAct、Claude Code、OpenAI Codex）——模型不能仅仅回答孤立的提示，而是需要在多轮交互中<strong>积累、更新和复用历史信息</strong>。</p>
+<h4 id="12">1.2 简单扩展上下文窗口的局限</h4>
+<p>一个直觉的做法是扩大输入上下文窗口，把更多的交互历史塞进去。但这个策略有两个根本问题：</p>
+<ol>
+<li><strong>计算代价高</strong>：标准注意力机制的计算复杂度关于上下文长度是二次方的（$O(N^2)$）。</li>
+<li><strong>上下文利用效率低</strong>：即使上下文窗口扩展到百万token级别，模型也会出现"上下文退化"（context degradation）或"上下文腐烂"（context rot）现象——即模型无法有效利用过长上下文中的信息。<br />
+   这说明，简单扩展上下文窗口并不能从根本上解决记忆问题，需要更高级的记忆机制。</li>
+</ol>
+<h4 id="13">1.3 现有记忆机制的分类与不足</h4>
+<p>论文从两个维度对现有记忆机制进行了统一分析：</p>
+<ul>
+<li><strong>记忆状态（memory state）</strong>：历史信息如何存储</li>
+<li><strong>记忆引导（memory steering）</strong>：存储的信息如何影响骨干模型的推理<br />
+  基于此，现有方法分为三类：</li>
+</ul>
+<p><strong>（1）文本记忆机制（Textual Memory Mechanisms, TMMs）</strong></p>
+<ul>
+<li>代表：BM25 RAG、LLMLingua-2、MemoryBank</li>
+<li>做法：将记忆存储为文本（摘要、检索文档等），通过输入上下文注入</li>
+<li>优点：不需要修改模型架构</li>
+<li>缺点：受上下文窗口限制、检索噪声、压缩信息损失</li>
+</ul>
+<p><strong>（2）外部通道记忆机制（Outside-channel Memory Mechanisms, OMMs）</strong></p>
+<ul>
+<li>代表：Memorizing Transformers、LongMem、MLP Memory</li>
+<li>做法：在骨干模型外部维护记忆模块，通过检索或编码与骨干交互</li>
+<li>优点：模块化</li>
+<li>缺点：引入额外开销、集成复杂性、与骨干模型可能不对齐</li>
+</ul>
+<p><strong>（3）参数化记忆机制（Parametric Memory Mechanisms, PMMs）</strong></p>
+<ul>
+<li>代表：LoRA、Prefix-Tuning、ROME、MEMIT</li>
+<li>做法：将记忆编码到额外参数（前缀、适配器、权重编辑）中</li>
+<li>优点：高效、兼容冻结骨干</li>
+<li>缺点：静态性——记忆在训练后固定，无法随交互动态演化<br />
+  这三类方法各有局限，共同指向一个需求：<strong>需要一种能维护紧凑且动态演化的记忆状态，同时通过与骨干模型内部注意力计算紧密耦合的路径来引导推理的记忆机制</strong>。</li>
+</ul>
+<hr />
+<h3 id="delta">二、预备知识：Delta规则与关联记忆</h3>
+<h4 id="21">2.1 基本设定</h4>
+<p>考虑Transformer的某一层，输入隐藏序列为$\mathbf{x} \in \mathbb{R}^{N \times d}$，其中$N$是序列长度，$d$是隐藏维度。单个位置的隐藏状态为$\mathbf{x}_t \in \mathbb{R}^d$。<br />
+δ-mem维护一个矩阵$\mathbf{S}$作为<strong>在线关联记忆状态（Online State of Associative Memory, OSAM）</strong>。这个状态随着token的处理被顺序更新，紧凑地编码历史上下文中的键-值关联。</p>
+<h4 id="22">2.2 关联记忆的读取与更新</h4>
+<p>给定位置$t$的记忆键$\mathbf{k}_t \in \mathbb{R}^r$和值$\mathbf{v}_t \in \mathbb{R}^r$，状态需要存储关联$\mathbf{k}_t \mapsto \mathbf{v}_t$。前一个状态对当前键的预测为：  </p>
+<p>$\displaystyle \hat{\mathbf{v}}_t = \mathbf{S}_{t-1} \mathbf{k}_t$</p>
+<h4 id="23-delta">2.3 Delta规则更新</h4>
+<p>记忆更新可以看作是对在线回归损失进行SGD优化：  </p>
+<p>$\displaystyle \mathcal{L}_t(\mathbf{S}) = \frac{1}{2} \|\mathbf{S}\mathbf{k}_t - \mathbf{v}_t\|^2$</p>
+<p>$\displaystyle \mathbf{S}_t = \mathbf{S}_{t-1} - \beta_t \nabla_{\mathbf{S}_{t-1}} \mathcal{L}_t(\mathbf{S}_{t-1}) = \mathbf{S}_{t-1} + \beta_t (\mathbf{v}_t - \mathbf{S}_{t-1}\mathbf{k}_t) \mathbf{k}_t^\top$</p>
+<p>这个公式的关键洞察是：<strong>只写入残差信息</strong>。如果当前状态已经能很好地预测$\mathbf{v}_t$（即$\mathbf{S}_{t-1}\mathbf{k}_t \approx \mathbf{v}_t$），则更新量很小；只有预测偏差大时才会显著修正状态。</p>
+<h4 id="24-delta">2.4 带遗忘门的Delta规则</h4>
+<p>受Qwen-Next中门控保留设计的启发，进一步引入遗忘门：  </p>
+<p>$\displaystyle \mathbf{S}_t = \lambda_t \mathbf{S}_{t-1} + \beta_t (\mathbf{v}_t - \mathbf{S}_{t-1}\mathbf{k}_t) \mathbf{k}_t^\top$</p>
+<p>其中$\lambda_t$控制保留多少旧记忆，$\beta_t$控制残差写入的强度。这种带门控的delta更新构成了δ-mem中稳定在线记忆动态的基础。</p>
+<h3 id="-mem">三、δ-mem方法详解</h3>
+<p>δ-mem在每个位置遵循相同的计算顺序：<strong>先从旧状态读取关联记忆信号 → 用信号引导注意力计算 → 将当前信息写入状态</strong>。骨干模型完全冻结，δ-mem只训练自己的少量参数。</p>
+<h4 id="31-memory-projections">3.1 记忆投影（Memory Projections）</h4>
+<p>给定当前位置的隐藏状态$\mathbf{x}_t \in \mathbb{R}^d$，δ-mem将其投影到低维关联记忆空间：  </p>
+<p>$\displaystyle \mathbf{q}_t^m = L_2\text{norm}(\tanh(\mathbf{W}_q^m \mathbf{x}_t)), \quad \mathbf{k}_t^m = L_2\text{norm}(\tanh(\mathbf{W}_k^m \mathbf{x}_t)), \quad \mathbf{v}_t^m = \mathbf{W}_v^m \mathbf{x}_t$</p>
+<p>其中$\mathbf{q}_t^m, \mathbf{k}_t^m, \mathbf{v}_t^m \in \mathbb{R}^r$（实验中$r=8$）。这三个向量分别用于：</p>
+<ul>
+<li>$\mathbf{q}_t^m$：查询旧状态（读取）</li>
+<li>$\mathbf{k}_t^m, \mathbf{v}_t^m$：描述当前信息如何写入状态<br />
+  对query和key做$L_2$归一化和$\tanh$是为了减少长序列递归中尺度漂移导致的状态不稳定。<br />
+  写入门和保留门也由当前隐藏状态决定：  </li>
+</ul>
+<p>$\displaystyle \boldsymbol{\beta}_t = \sigma(\mathbf{W}_\beta \mathbf{x}_t + \mathbf{b}), \quad \boldsymbol{\lambda}_t = \mathbf{1} - \boldsymbol{\beta}_t$</p>
+<p>其中$\boldsymbol{\beta}_t, \boldsymbol{\lambda}_t \in \mathbb{R}^r$，$\sigma$是sigmoid函数。这允许<strong>逐维度</strong>调整状态更新：某些维度保留旧记忆，另一些维度更积极地写入当前信息。</p>
+<h4 id="32-reading">3.2 从在线状态读取（Reading）</h4>
+<p>在写入当前信息之前，δ-mem先从旧状态读取：  </p>
+<p>$\displaystyle \mathbf{r}_t = \mathbf{S}_{t-1} \mathbf{q}_t^m$</p>
+<p>读取向量$\mathbf{r}_t \in \mathbb{R}^r$是用当前输入查询在线记忆状态的结果。由于$\mathbf{S}_{t-1}$的大小是固定的（$r \times r$，即$8 \times 8$），这一步的代价与历史长度无关。<br />
+这种读取形式与标准注意力是互补的：注意力将query与显式上下文中的所有key比较，而δ-mem直接从压缩状态中获取连续的关联记忆信号。它不返回文本片段，也不添加上下文token，而是在注意力计算之前提供依赖于历史的引导信号。</p>
+<h4 id="33-steering">3.3 通过低秩修正引导注意力（Steering）</h4>
+<p>关联记忆信号通过两个轻量线性映射引导注意力计算：  </p>
+<p>$\displaystyle \Delta\mathbf{q}_t = \mathbf{W}_q^\Delta \mathbf{r}_t, \quad \Delta\mathbf{o}_t = \mathbf{W}_o^\Delta \mathbf{r}_t$</p>
+<p><strong>Query侧修正</strong>：将修正加到骨干模型的原始query上：  </p>
+<p>$\displaystyle \mathbf{q}_t^0 = \mathbf{W}_Q \mathbf{x}_t, \quad \tilde{\mathbf{q}}_t = \mathbf{q}_t^0 + \frac{\alpha}{r} \Delta\mathbf{q}_t$</p>
+<p><strong>Output侧修正</strong>：注意力输出后加上修正：  </p>
+<p>$\displaystyle \mathbf{a}_t = \text{Attn}(\tilde{\mathbf{q}}_t, \mathbf{K}_{\leq t}, \mathbf{V}_{\leq t}), \quad \tilde{\mathbf{y}}_t = \mathbf{a}_t + \frac{\alpha}{r} \Delta\mathbf{o}_t$</p>
+<p>这里的低秩修正与静态适配器（如LoRA）有本质区别：虽然$\mathbf{W}_q^\Delta$和$\mathbf{W}_o^\Delta$在训练后固定，但它们的输入$\mathbf{r}_t$来自动态状态$\mathbf{S}_{t-1}$。因此，<strong>同一组参数在不同历史下可以产生不同的引导效果</strong>。</p>
+<h4 id="34-writing">3.4 写入在线状态（Writing）</h4>
+<p>注意力计算完成后，δ-mem将当前位置的信息写入在线状态。使用逐维度门控的delta规则：  </p>
+<p>$\displaystyle \mathbf{S}_t = \text{Diag}(\boldsymbol{\lambda}_t)\mathbf{S}_{t-1} + \text{Diag}(\boldsymbol{\beta}_t)(\mathbf{v}_t^m - \mathbf{S}_{t-1}\mathbf{k}_t^m)(\mathbf{k}_t^m)^\top$</p>
+<p>展开后：  </p>
+<p>$\displaystyle \mathbf{S}_t = \text{Diag}(\boldsymbol{\lambda}_t)\mathbf{S}_{t-1} - \text{Diag}(\boldsymbol{\beta}_t)\mathbf{S}_{t-1}\mathbf{k}_t^m(\mathbf{k}_t^m)^\top + \text{Diag}(\boldsymbol{\beta}_t)\mathbf{v}_t^m(\mathbf{k}_t^m)^\top$</p>
+<p>三项的角色清晰：</p>
+<ol>
+<li><strong>第一项</strong>：保留旧状态</li>
+<li><strong>第二项</strong>：沿当前key方向移除旧预测分量</li>
+<li><strong>第三项</strong>：在同一方向写入新值<br />
+   因此，记忆状态通过<strong>带控制遗忘的误差修正</strong>来更新，而不是无选择地累积新的外积。<br />
+   逐行展开可以看到逐维度门控的效果。设$\mathbf{s}_t^{(i)}$为$\mathbf{S}_t$的第$i$行：  </li>
+</ol>
+<p>$\displaystyle \mathbf{s}_t^{(i)} = \lambda_{t,i} \mathbf{s}_{t-1}^{(i)} + \beta_{t,i} \left(v_{t,i}^m - \mathbf{s}_{t-1}^{(i)} \mathbf{k}_t^m\right) (\mathbf{k}_t^m)^\top$</p>
+<p>每个记忆维度可以独立控制保留多少旧信息和多强地写入当前残差。</p>
+<h4 id="35-writing-granularity">3.5 写入粒度（Writing Granularity）</h4>
+<p>论文研究了三种写入策略：<br />
+<strong>（1）Token级写入（Token-State Write, TSW）</strong><br />
+每个token位置都更新一次状态：  </p>
+<p>$\displaystyle \mathbf{S}_t = \text{Update}(\mathbf{S}_{t-1}, \mathbf{x}_t)$</p>
+<p>保留最细粒度的信息，但状态容易受格式符号、重复表达和短期噪声影响。<br />
+<strong>（2）序列级写入（Sequence-State Write, SSW）</strong><br />
+将写入粒度提升到消息段级别。设$\mathcal{M}^{(j)}$为第$j$条消息的token索引集合，先计算段表示：  </p>
+<p>$\displaystyle \bar{\mathbf{x}}^{(j)} = \frac{1}{|\mathcal{M}^{(j)}|} \sum_{t \in \mathcal{M}^{(j)}} \mathbf{x}_t$</p>
+<p>然后每条消息更新一次状态：  </p>
+<p>$\displaystyle \mathbf{S}_{(j)} = \text{Update}(\mathbf{S}_{(j-1)}, \bar{\mathbf{x}}^{(j)})$</p>
+<p>减少冗余写入，平滑状态演化，代价是一些细粒度token级细节被平均段表示吸收。<br />
+<strong>（3）多状态写入（Multi-State Write, MSW）</strong><br />
+将记忆分解为多个并行子状态：  </p>
+<p>$\displaystyle \mathcal{S}_t = \{\mathbf{S}_t^{(1)}, \ldots, \mathbf{S}_t^{(N)}\}, \quad \mathbf{S}_t^{(i)} = \text{Update}^{(i)}(\mathbf{S}_{t-1}^{(i)}, \mathbf{x}_t), \quad \mathbf{r}_t = \text{Concat}(\mathbf{r}_t^{(1)}, \ldots, \mathbf{r}_t^{(N)})$</p>
+<p>不同子状态可以积累不同类型的信息（事实、偏好、任务进度等），减少单一状态内的相互干扰。实验中$N=4$。</p>
+<h4 id="36">3.6 训练目标</h4>
+<p>δ-mem使用标准的监督微调（SFT）损失。对每个样本，上下文token先被写入在线状态产生$\mathbf{S}_C$，但在预测时不作为显式骨干输入重放。冻结的骨干只接收查询$Q$和响应$Y$，存储的状态通过δ-mem引导注意力。损失是响应token上的自回归交叉熵：  </p>
+<p>$\displaystyle \mathcal{L}_{\text{SFT}} = -\sum_{j=1}^{|Y|} \log p_{\phi,\theta}(y_j \mid Q, y_{&lt;j}, \mathbf{S}_C)$</p>
+<p>其中$\theta$是可训练的δ-mem参数，$\phi$是冻结的骨干参数。<br />
+训练数据仅使用QASPER数据集的最短2,219个样本，最大序列长度8,269 tokens。骨干训练序列长度上限512，记忆写入预算8,192 tokens。</p>
+<h3 id="_6">四、实验</h3>
+<h4 id="41">4.1 实验设置</h4>
+<p><strong>评测基准</strong>分为两类：</p>
+<ul>
+<li><strong>通用能力</strong>：HotpotQA（多跳推理）、GPQA-Diamond（知识密集QA）、IFEval（指令遵循）</li>
+<li><strong>记忆密集型</strong>：LoCoMo（长期对话记忆）、MemoryAgentBench（多任务记忆评测，包含精确检索、测试时学习、长程理解、选择性遗忘四个类别）</li>
+</ul>
+<p><strong>基线方法</strong>（全部基于Qwen3-4B-Instruct骨干）：</p>
+<ul>
+<li>文本记忆：BM25 RAG、LLMLingua-2、MemoryBank</li>
+<li>参数化记忆：Context2LoRA、MemGen</li>
+<li>外部通道记忆：MLP Memory</li>
+</ul>
+<p><strong>骨干模型</strong>：Qwen3-4B-Instruct、Qwen3-8B、SmolLM3-3B</p>
+<h4 id="42">4.2 主要结果</h4>
+<p><strong>Table 1</strong>（Qwen3-4B-Instruct骨干上的结果）：</p>
+<ul>
+<li>δ-mem的TSW变体达到最佳平均分51.66%，比骨干模型（46.79%）提高+4.87个点，比最强基线Context2LoRA（44.90%）提高+6.76个点</li>
+<li>在记忆密集型任务上提升更为显著：</li>
+<li>MemoryAgentBench：从29.54%提升到38.85%（MSW最佳）</li>
+<li>LoCoMo：MSW达到最高49.12%</li>
+<li>LoCoMo的TTL（测试时学习）子任务从26.14%几乎翻倍到50.50%</li>
+<li>HotpotQA：TSW将EM/F1从42.35%/56.00%提升到49.41%/63.66%</li>
+<li>通用能力基本保持：IFEval从81.89%略微提升到82.99%<br />
+  各类基线的局限：</li>
+<li>文本记忆方法增益不一致，受检索噪声和压缩损失影响</li>
+<li>参数化记忆（如Context2LoRA）跨任务泛化不够稳健，容易过拟合训练分布</li>
+<li>MLP Memory表现有限，缺乏顺序状态累积能力</li>
+</ul>
+<h4 id="43">4.3 跨骨干模型结果</h4>
+<p><strong>Table 2</strong>显示δ-mem在三个骨干上都有一致提升：</p>
+<ul>
+<li>Qwen3-4B-Instruct：46.79% → 51.66%</li>
+<li>Qwen3-8B：47.20% → 50.86%</li>
+<li>SmolLM3-3B：26.08% → 36.96%（提升最大）<br />
+  有趣的发现：</li>
+<li>更强的骨干（Qwen3-8B）上，SSW（序列级写入）效果最好，因为段级写入能平滑状态更新、缓解token级噪声</li>
+<li>更小的骨干（SmolLM3-3B）上，MSW（多状态写入）效果最好，因为小模型更需要将记忆分离到多个状态以减少干扰</li>
+</ul>
+<hr />
+<h3 id="_7">五、消融实验</h3>
+<h4 id="51">5.1 上下文恢复实验</h4>
+<p>这个实验验证了在线状态是否能在<strong>没有显式上下文</strong>的情况下保留有用的历史信息。移除原始历史上下文，只注入压缩的记忆状态。<br />
+结果（Figure 2）：</p>
+<ul>
+<li>HotpotQA：整体EM从0.08%提升到6.48%，F1从8.27%提升到15.20%</li>
+<li>Bridge子集（需要多跳证据）：EM从0.08%提升到3.97%</li>
+<li>LoCoMo：整体平均从3.49%提升到8.05%<br />
+  这说明仅$8 \times 8$的在线状态确实存储了可复用的上下文相关历史信号。</li>
+</ul>
+<h4 id="52-heads-ablation">5.2 注入位置消融（Heads Ablation）</h4>
+<p>研究记忆修正应该注入注意力块的哪些分支（q/k/v/o）：<br />
+<strong>Table 3</strong>的关键发现：</p>
+<ul>
+<li>单分支中，output分支（o）效果最好（平均47.05%）</li>
+<li>query+output（qo）组合已经很强（47.97%）</li>
+<li>全部四个分支（qkvo）达到最高48.05%，但相对qo的边际增益不足以证明额外参数开销的合理性</li>
+<li>因此默认使用qo配置，兼顾性能和效率</li>
+</ul>
+<h4 id="53">5.3 插入深度消融</h4>
+<p>研究δ-mem应该插入模型的哪些层：<br />
+<strong>Table 4</strong>的关键发现：</p>
+<ul>
+<li>所有层都插入效果最好（平均47.97%）</li>
+<li>部分层中，中间层效果最好（46.66%），优于前层（44.39%）和后层（44.06%）</li>
+<li>前层表示过于局部，后层留给记忆信号传播的深度不够，中间层在语义抽象和任务特定计算之间取得了平衡</li>
+</ul>
+<hr />
+<h3 id="_8">六、效率分析</h3>
+<h4 id="61">6.1 参数开销</h4>
+<p>δ-mem（SSW/TSW）仅引入4.87M可训练参数，占骨干参数的0.12%。MSW为19.47M（0.48%）。相比之下，MemGen需要46.20M（1.13%），MLP Memory需要3078M（76.40%）。</p>
+<h4 id="62">6.2 推理效率</h4>
+<ul>
+<li><strong>GPU内存</strong>：δ-mem与Vanilla和Context2LoRA几乎相同，即使prompt长度增加到32K也几乎没有额外内存开销</li>
+<li><strong>解码吞吐量</strong>：δ-mem比Vanilla和Context2LoRA慢（因为每步需要读取和更新在线状态），但比MemGen快得多且更稳定</li>
+</ul>
+<hr />
+<h3 id="_9">七、与相关工作的区别</h3>
+<h4 id="lora">与LoRA的区别</h4>
+<p>LoRA的低秩更新是<strong>静态的</strong>——训练后固定，不随输入历史变化。δ-mem虽然也使用低秩接口，但其修正来自<strong>动态的在线状态</strong>，同一组参数在不同历史下产生不同效果。</p>
+<h4 id="rag">与RAG的区别</h4>
+<p>RAG将压缩的历史路由回token空间，受上下文窗口和检索质量限制。δ-mem不经过token空间，直接从紧凑状态产生注意力修正。</p>
+<h4 id="_10">与外部记忆模块的区别</h4>
+<h3 id="memorizing-transformerslongmem-mem">外部记忆（如Memorizing Transformers、LongMem）通过单独的检索或读取路径与骨干交互，引入检索开销和融合复杂性。δ-mem的记忆直接参与当前前向传播的注意力计算。</h3>
+<h3 id="_11">八、总结</h3>
+<p>δ-mem的核心贡献在于证明了：<strong>有效的记忆可以通过一个极其紧凑的在线状态（$8 \times 8$矩阵）直接耦合到注意力计算来实现</strong>，无需全量微调、替换骨干架构或显式扩展上下文。其设计将关联记忆的在线学习（delta规则）与Transformer注意力的低秩修正巧妙结合，在记忆密集型任务上取得了显著提升，同时保持了极低的参数和计算开销。</p>
+<h2 id="_12">研究要点表</h2>
+<div class="table-scroll"><table class="key-value">
+<thead>
+<tr>
+<th>维度</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>论文标题</td>
+<td>δ-mem: Efficient Online Memory for Large Language Models</td>
+</tr>
+<tr>
+<td>作者</td>
+<td>Jingdi Lei, Di Zhang, Junxian Li, Weida Wang, Kaixuan Fan, Xiang Liu, Qihan Liu, Xiaoteng Ma, Baian Chen, Soujanya Poria</td>
+</tr>
+<tr>
+<td>发表年份</td>
+<td>2026</td>
+</tr>
+<tr>
+<td>研究问题</td>
+<td>大语言模型在长期助手和智能体系统中需要积累和复用历史信息，但简单扩展上下文窗口成本高昂且无法保证有效的上下文利用，如何设计一种紧凑、动态且高效的记忆机制来增强冻结骨干模型的历史信息利用能力。</td>
+</tr>
+<tr>
+<td>研究方法</td>
+<td>提出δ-mem，一种轻量级记忆机制，通过delta规则学习将历史信息压缩到固定大小（8×8）的在线关联记忆状态矩阵中，并利用其读出生成低秩修正信号注入冻结骨干模型的注意力计算（查询侧和输出侧），同时探索了三种写入粒度策略（Token-State Write、Sequence-State Write、Multi-State Write）。使用标准SFT损失训练，骨干参数保持冻结。</td>
+</tr>
+<tr>
+<td>主要发现</td>
+<td>仅使用8×8的在线记忆状态，δ-mem将平均分数提升至冻结骨干的1.10倍和最强非δ-mem基线的1.15倍；在记忆密集型基准上提升更大，MemoryAgentBench达1.31倍，LoCoMo达1.20倍，TTL子任务从26.14近乎翻倍至50.50；在无上下文设置下，δ-mem仍能从压缩状态中恢复有用的历史信息；中间层注入记忆修正效果最佳；查询+输出侧修正提供了最优的性能-效率权衡。</td>
+</tr>
+<tr>
+<td>创新点</td>
+<td>首次提出将紧凑的在线关联记忆状态与冻结Transformer的注意力计算直接耦合的记忆机制；通过delta规则学习实现基于误差修正的动态记忆更新（而非无选择性累积）；仅用极小的8×8状态矩阵即可实现有效记忆，无需全量微调、替换骨干架构或显式扩展上下文；提出三种不同粒度的写入策略以适应不同场景。</td>
+</tr>
+<tr>
+<td>局限性</td>
+<td>δ-mem的解码速度比原始模型和Context2LoRA略慢（因每步需读写在线状态）；记忆状态固定大小可能限制对极长交互历史中细粒度信息的保留能力；训练数据仅使用了QASPER的2219个样本，泛化性有待进一步验证；论文未深入讨论记忆状态容量上限和信息遗忘的定量分析。</td>
+</tr>
+<tr>
+<td>与本研究的关联</td>
+<td>未提及</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="_13">原文摘要</h2>
+<p>Large language models increasingly need to accumulate and reuse historical information in long-term assistants and agent systems. Simply expanding the context window is costly and often fails to ensure effective context utilization. We propose $\delta$-mem, a lightweight memory mechanism that augments a frozen full-attention backbone with a compact online state of associative memory. $\delta$-mem compresses past information into a fixed-size state matrix updated by delta-rule learning, and uses its readout to generate low-rank corrections to the backbone's attention computation during generation. With only an $8\times8$ online memory state, $\delta$-mem improves the average score to $1.10\times$ that of the frozen backbone and $1.15\times$ that of the strongest non-$\delta$-mem memory baseline. It achieves larger gains on memory-heavy benchmarks, reaching $1.31\times$ on MemoryAgentBench and $1.20\times$ on LoCoMo, while largely preserving general capabilities. These results show that effective memory can be realized through a compact online state directly coupled with attention computation, without full fine-tuning, backbone replacement, or explicit context extension.</p></article>
+<aside class="detail-aside"><div class="report-toc" aria-label="文献卡片目录"><details open><summary>本页目录</summary><div class="toc">
+<ul>
+<li><a href="#_1">核心机制</a></li>
+<li><a href="#_2">适用范围与局限</a></li>
+<li><a href="#_3">详细解读</a><ul>
+<li><a href="#_4">论文核心总结</a></li>
+<li><a href="#_5">一、研究动机与问题背景</a></li>
+<li><a href="#delta">二、预备知识：Delta规则与关联记忆</a></li>
+<li><a href="#-mem">三、δ-mem方法详解</a></li>
+<li><a href="#_6">四、实验</a></li>
+<li><a href="#_7">五、消融实验</a></li>
+<li><a href="#_8">六、效率分析</a></li>
+<li><a href="#_9">七、与相关工作的区别</a></li>
+<li><a href="#memorizing-transformerslongmem-mem">外部记忆（如Memorizing Transformers、LongMem）通过单独的检索或读取路径与骨干交互，引入检索开销和融合复杂性。δ-mem的记忆直接参与当前前向传播的注意力计算。</a></li>
+<li><a href="#_11">八、总结</a></li>
+</ul>
+</li>
+<li><a href="#_12">研究要点表</a></li>
+<li><a href="#_13">原文摘要</a></li>
+</ul>
+</div>
+</details></div><section><h2>引用这篇论文</h2><p id="citation-text" class="citation-text">Jingdi Lei, Di Zhang, Junxian Li, et al.. $\delta$-mem: Efficient Online Memory for Large Language Models. arXiv:2605.12357, 2026.</p><button class="button secondary" type="button" data-copy-citation>复制引用</button><p class="meta-note">综述参考文献 [32]</p></section><section><h2>同方向继续阅读</h2><ul class="related-list"><li><a href="../papers/2508.19828.html">Memory-R1: Enhancing Large Language Model Agents to Manage and Utilize Memories via Reinforcement Learning</a></li><li><a href="../papers/2512.18746.html">MemEvolve: Meta-Evolution of Agent Memory Systems</a></li><li><a href="../papers/2602.02474.html">MemSkill: Learning and Evolving Memory Skills for Self-Evolving Agents</a></li><li><a href="../papers/2602.07755.html">Learning to Continually Learn via Meta-learning Agentic Memory Designs</a></li></ul></section></aside></div></div></main>
+<footer class="site-footer"><div><strong>Agent Memory 研究</strong><p>从保存历史，到有依据地更新长期状态。</p></div>
+<div><span>内容更新 · 2026-09-08</span><p>理解方法，比较条件，关注长期影响。</p><a href="../sources.html">阅读指南</a></div></footer>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body></html>

@@ -1,0 +1,1 @@
+KaTeX 0.16.22; npm package katex; MIT license in LICENSE. Vendored for offline rendering.

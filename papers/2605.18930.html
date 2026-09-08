@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="利用局部正确但不可迁移经验诱发过度泛化">
+<meta name="color-scheme" content="light"><title>OEP: Poisoning Self-Evolving LLM Agents via Locally Correct but Non-Transferable Experiences · Agent Memory 研究</title>
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/katex/katex.min.css"><script src="../assets/katex/katex.min.js" defer></script><script src="../assets/katex/auto-render.min.js" defer></script><script src="../assets/site.js" defer></script>
+</head>
+<body data-page="library">
+<a class="skip-link" href="#main">跳转到正文</a>
+<header class="site-header"><div class="header-inner">
+<a class="brand" href="../index.html" aria-label="Agent Memory 研究首页">
+<svg viewBox="0 0 36 36" width="32" height="32" aria-hidden="true"><path d="M9 9h18v18H9zM9 9l18 18M27 9L9 27" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="9" r="4"/><circle cx="27" cy="9" r="4"/><circle cx="9" cy="27" r="4"/><circle cx="27" cy="27" r="4"/></svg>
+<span>Agent Memory<small>研究文献站</small></span></a>
+<nav class="site-nav" aria-label="主导航"><a href="../index.html">研究总览</a><a href="../library.html" aria-current="page">文献库</a><a href="../reports/survey.html">综述全文</a><a href="../reports/multi-agent.html">多智能体专题</a><a href="../sources.html">阅读指南</a></nav>
+</div></header>
+<main id="main"><div class="page-wrap"><div class="breadcrumb"><a href="../library.html">文献库</a><span>/</span><a href="../library.html?topic=safety">安全与治理</a></div>
+<header class="paper-hero"><div class="paper-badges"><span class="badge expanded">含详细解读</span><span class="muted">2026 · 2605.18930</span></div><h1>OEP: Poisoning Self-Evolving LLM Agents via Locally Correct but Non-Transferable Experiences</h1><p class="paper-authors full-authors">Kaixiang Wang, Jiong Lou, Zhaojiacheng Zhou, Jie Li</p>
+<div class="hero-actions paper-actions"><a href="https://arxiv.org/abs/2605.18930" target="_blank" rel="noopener noreferrer">论文原文 <span aria-hidden="true">↗</span></a><a href="../downloads/notes/2605.18930.md">下载文献卡片 Markdown</a></div></header>
+<div class="detail-layout"><article class="prose"><h2 id="_1">核心机制</h2>
+<p>利用局部正确但不可迁移经验诱发过度泛化</p>
+<h2 id="_2">适用范围与局限</h2>
+<p>不是只有显式恶意命令才有风险</p>
+<h2 id="_3">详细解读</h2>
+<h3 id="_4">论文核心总结</h3>
+<p>这篇论文提出了一种名为<strong>OEP（Obsessive Experience Poisoning，执念经验投毒）</strong>的新型攻击方法，针对的是具有记忆和自我进化能力的LLM Agent。与现有攻击需要高权限访问或注入明显恶意内容不同，OEP是一种低权限、黑盒攻击：攻击者仅通过普通用户交互，向Agent提交<strong>局部正确但不可迁移</strong>的边界案例，并搭配<strong>严重但看似合理的假设性后果</strong>。Agent在反思式记忆整合过程中，会过度信任自身生成的反思结论，将这些局部有效的方法过度泛化为高优先级的全局规则，从而在后续正常任务中产生系统性失败。实验表明，OEP在数学推理、医疗问答和工具使用三个领域中，对GPT-4o Agent的攻击成功率超过50%，且在LLM审计防御下比现有攻击方法更具鲁棒性。</p>
+<h3 id="_5">一、研究背景与动机</h3>
+<h4 id="11-agent">1.1 自我进化Agent的兴起</h4>
+<p>当前的LLM Agent不再是静态的prompt响应器，而是配备了规划模块、外部工具和<strong>记忆库（memory bank）</strong>的自主系统。其核心机制是<strong>长期记忆</strong>：Agent将过去的执行轨迹存档为历史示范，通过检索相关记录进行<strong>反思式自我进化（reflective self-evolution）</strong>——从成功和失败的经验中提炼可复用的策略和规则。代表性框架包括Reflexion、ExpeL、Voyager等，以及OpenClaw和Claude Code等产品。</p>
+<h4 id="12">1.2 现有攻击的局限</h4>
+<p>现有的Agent记忆攻击（如AgentPoison、MINJA、MemoryGraft等）通常依赖于：</p>
+<ul>
+<li><strong>恶意指令</strong>的直接注入</li>
+<li><strong>后门触发器</strong></li>
+<li><strong>篡改记录</strong><br />
+  这些攻击有一个共同的根本限制：注入的payload本质上包含<strong>显式的恶意意图、不安全的操作流程或可验证的事实错误</strong>，因此容易被内容过滤器、异常检测或LLM-as-a-Judge等安全机制检测和拦截。</li>
+</ul>
+<h4 id="13">1.3 被忽视的攻击面</h4>
+<p>论文发现了一个更微妙的攻击面：反思式Agent可能会<strong>通过过度泛化局部正确且语义合理的经验来毒化自己的记忆</strong>。攻击者无需注入显式恶意规则，只需塑造Agent的对话历史，使记忆整合过程将一个<strong>不可迁移的局部方法</strong>提炼为<strong>持久的高优先级规则</strong>。<br />
+核心问题：<strong>仅靠"干净"的案例，能否诱导记忆增强型Agent自行生成有害规则？</strong></p>
+<h3 id="_6">二、威胁模型</h3>
+<h4 id="21">2.1 攻击者能力</h4>
+<p>假设攻击者是一个<strong>低权限、黑盒</strong>的用户：</p>
+<ul>
+<li><strong>不能</strong>修改系统提示词</li>
+<li><strong>不能</strong>访问模型参数</li>
+<li><strong>不能</strong>直接编辑记忆数据库</li>
+<li><strong>不能</strong>篡改后端工具</li>
+<li><strong>只能</strong>通过正常用户交互提交精心构造的对抗性三元组（ACT）</li>
+</ul>
+<h4 id="22">2.2 受害系统假设</h4>
+<p>目标Agent采用<strong>基于反思的记忆整合机制</strong>。设$\mathcal{M}_t$为第$t$步的共享语义记忆，$\mathcal{H}_t$为情景历史。一个认知验证器$\mathcal{V}$评估每个输入的事实和语义有效性。由于对抗性经验$e_{\text{adv}}$在当前上下文中是有效的，它能绕过验证器，保留在过滤后的历史$\hat{\mathcal{H}}_t = \mathcal{E}(\mathcal{H}_t)$中。反思函数$\mathcal{R}$提取全局规则来更新记忆：  </p>
+<p>$\displaystyle \mathcal{M}_{t+1} = \mathcal{M}_t \cup \mathcal{R}(\hat{\mathcal{H}}_t)$</p>
+<h4 id="23">2.3 攻击目标</h4>
+<p>攻击者的目标是利用反思函数$\mathcal{R}$将局部边界案例提炼为一个持久的、系统级的<strong>过度泛化规则</strong>$r_{\text{obs}} \in \mathcal{M}_{t+1}$。具体包含两个维度：<br />
+<strong>（1）破坏完整性（Compromising Integrity）</strong>：在正常下游任务$\mathcal{D}_{\text{task}}$上诱导推理失败。攻击者最大化期望错误，同时规避检测：  </p>
+<p>$\displaystyle \max_{e_{\text{adv}}} \mathbb{E}_{(x,y)\sim\mathcal{D}_{\text{task}}} [\mathcal{L}(\mathcal{F}_\theta(x, \mathcal{M}_{\text{poisoned}}), y)] \quad \text{s.t.} \quad \mathcal{E}(e_{\text{adv}}) = \text{True}$</p>
+<p><strong>（2）破坏可用性（Denial-of-Wallet）</strong>：耗尽计算或API资源（如冗余工具调用），使资源消耗异常膨胀：  </p>
+<p>$\displaystyle \mathbb{E}_{x\sim\mathcal{D}_{\text{task}}} [\mathcal{C}(\mathcal{F}_\theta(x, \mathcal{M}_{\text{poisoned}}))] \gg \tau_c$</p>
+<h3 id="oep">三、方法：OEP框架</h3>
+<p>OEP的设计灵感来自人类认知心理学中的<strong>可得性启发（availability heuristic）</strong>和<strong>消极偏见（negativity bias）</strong>：稀有但高度显著的事件往往扭曲一般概率判断，严重损失的前景不成比例地驱动决策。研究发现，自我进化的LLM Agent会表现出类似的失败模式。<br />
+OEP采用<strong>三阶段流水线</strong>：</p>
+<h4 id="31-clean-edge-case-construction">3.1 阶段一：干净边界案例构造（Clean Edge-Case Construction）</h4>
+<p>攻击者首先指定一个<strong>非标准方法</strong>$m_e$，然后从任务分布$\mathcal{D}_{\text{task}}$的<strong>尾部区域</strong>采样一个边界任务$t_e$——在这个特殊条件下，$m_e$恰好是局部适用的。基于此任务，推导出由$m_e$实例化的解决方案$s_e$。<br />
+构造过程受两个严格约束：<br />
+<strong>约束一：局部正确性。</strong> 在客观oracle $\mathcal{O}$下，$(t_e, s_e)$必须是正确的：  </p>
+<p>$\displaystyle \mathcal{O}(t_e, s_e) = \text{True}$</p>
+<p>这确保构造的案例在其原始上下文中不包含任何事实或逻辑错误，在验证时保持良性外观。<br />
+<strong>约束二：全局不可迁移性。</strong> 定义$S(t, m_e) \in \{0, 1\}$为将$m_e$应用于任务$t$的成功指示器，要求其在正常任务上的期望成功率被限制在很低的水平：  </p>
+<p>$\displaystyle \mathbb{E}_{t\sim\mathcal{D}_{\text{task}}} [S(t, m_e)] &lt; \epsilon$</p>
+<p>这确保虽然$m_e$对构造的边界案例有效，但迁移到更广泛任务分布中的普通任务时是不可靠的。<br />
+实际操作中，用LLM生成领域特定的边界条件和候选解决方案，然后通过自动化经验过滤，仅保留局部有效但迁移性差的候选。</p>
+<h4 id="32-adversarial-consequence-triplet-act">3.2 阶段二：对抗性后果三元组（Adversarial Consequence Triplet, ACT）</h4>
+<p><strong>为什么仅注入干净边界案例不够？</strong><br />
+仅注入技术上正确的边界案例解决方案$s_e$不足以诱导目标"执念经验"。在反思阶段，无约束的注入引入了高<strong>抽象不确定性</strong>——Agent不太可能仅从观察孤立的局部成功中自发地抽象出攻击者意图的特定偏差规则$r_{\text{obs}}$。<br />
+形式化地，将反思模块建模为从庞大的假设空间$\mathcal{R}$中基于感知有效性$V(r | s_e)$选择规则$r$。攻击者的目标是最大化条件蒸馏概率：  </p>
+<p>$\displaystyle P(r_{\text{obs}} | s_e) = \frac{\exp(V(r_{\text{obs}} | s_e))}{\sum_{r\in\mathcal{R}} \exp(V(r | s_e))}$</p>
+<p>但没有显式约束时，许多良性泛化共享相似的有效性分数，使得$P(r_{\text{obs}} | s_e) \ll 1$。<br />
+<strong>ACT的核心思想：利用认知操纵。</strong><br />
+现代安全对齐的LLM固有地表现出高度的<strong>损失厌恶（loss aversion）</strong>，不成比例地优先避免严重伤害。OEP利用这一心理特征，引入ACT来操纵任务的奖励景观。<br />
+对于给定的边界任务$t_e$及其非标准解决方案$s_e$，攻击者构造对抗性ACT：$e_{\text{adv}} = (t_e, s_e, c_{\text{adv}})$。其中$t_e$描述问题上下文，$s_e$作为正向强化基线，关键组件是<strong>对抗性后果$c_{\text{adv}}$</strong>——它阐述如果<strong>不使用</strong>$s_e$将发生的极端但领域内合理的假设性灾难（如致命的内核崩溃或关键误诊）。<br />
+用<strong>期望效用理论</strong>框架化这种操纵。执行任何方法$s$的期望效用：  </p>
+<p>$\displaystyle \mathbb{E}[U(s | t_e)] = P(\text{succ} | s)U(s | t_e) + P(\text{fail} | s)U(\neg s | t_e)$</p>
+<p>ACT人为操纵这个计算。$c_{\text{adv}}$为标准方法$m_{\text{std}}$引入巨大的负效用，诱导不对称的风险配置：  </p>
+<p>$\displaystyle |U(\neg s_e | t_e)| \gg U(s_e | t_e) &gt; 0$</p>
+<p>当反思模块$\mathcal{R}$评估这个情景记忆时，假设性惩罚的巨大量级主导目标函数。为成功覆盖Agent的预训练全局先验，边界案例解决方案的期望效用必须满足严格的决策边际$\tau_u$：  </p>
+<p>$\displaystyle \mathbb{E}[U(s_e | t_e)] &gt; \mathbb{E}[U(m_{\text{std}} | t_e)] + \tau_u$</p>
+<p>由于ACT中的大惩罚将$\mathbb{E}[U(m_{\text{std}} | t_e)]$推向极端负值，这个阈值条件容易满足，大大降低了抽象不确定性。因此，选定的方法固定在边界案例解决方案上：  </p>
+<p>$\displaystyle s^\*(t_e) = \arg\max_s \mathbb{E}[U(s | t_e)] \approx s_e$</p>
+<h4 id="33">3.3 阶段三：注入与过度泛化</h4>
+<p>攻击者通过用户级交互提交精心制作的对抗性三元组$e_{\text{adv}}$。在整合之前，Agent的内部认知过滤器$\mathcal{E}$检查包含$e_{\text{adv}}$的情景历史。由于$s_e$局部正确且$c_{\text{adv}}$在构造的上下文中语义和逻辑一致，案例能通过验证：  </p>
+<p>$\displaystyle \mathcal{E}(e_{\text{adv}}) = \mathcal{V}_{\text{logic}}(s_e | t_e) \wedge \mathcal{V}_{\text{semantic}}(c_{\text{adv}} | t_e) = \text{True}$</p>
+<p>处理这个经过验证的情景观察后，Agent的反思模块$\mathcal{R}$利用LLM的<strong>过度归纳偏差</strong>将其提炼为全局语义规则$r_{\text{obs}}$。在正向强化和严重负约束的双重驱动下，$s_e$的局部成功被泛化为一个命令式规则："对于类似$t_e$的任务，始终应用$s_e$。"由损失厌恶触发，Agent为这条规则分配高优先级权重：  </p>
+<p>$\displaystyle w(r_{\text{obs}}) \propto |U(\neg s_e | t_e)|$</p>
+<p>当Agent面对正常任务$t_{\text{normal}} \sim \mathcal{D}_{\text{task}}$时，其与$t_e$的语义重叠触发$r_{\text{obs}}$的检索。在被破坏的效用模型下，Agent优先避免想象中的严重惩罚而非标准程序，错误地在无效的场景中应用不可迁移的方法$s_e$。由于$\mathbb{E}_{t\sim\mathcal{D}_{\text{task}}}[S(t, m_e)] &lt; \epsilon$，Agent的性能持续退化，<strong>自我进化变成了自我破坏</strong>。</p>
+<h3 id="_7">四、机制分析</h3>
+<p>论文识别了记忆-反思循环中三种相互作用的失败模式：</p>
+<h4 id="41-provenance-weighted-trust">4.1 来源加权信任（Provenance-Weighted Trust）</h4>
+<p>Agent通常对外部提示的审查比对自身反思蒸馏出的规则更严格。OEP通过诱导Agent<strong>自己</strong>制定对抗性规律，实现了<strong>来源转移</strong>——规则不是作为外部命令，而是作为内部生成的总结被对待，从而提高了其采纳先验并削弱了主要检查原始用户输入的防御。</p>
+<h4 id="42-perspective-confinement">4.2 视角局限（Perspective Confinement）</h4>
+<p>受注入的短期上下文约束，Agent可能遭受<strong>观察选择偏差</strong>。它可能高估边界案例方法的经验支持，将局部成功误认为广泛有效的规则。反思窗口$\mathcal{W}$中的经验支持建模为混合分布：  </p>
+<p>$\displaystyle \tilde{\mathcal{D}}_\alpha = \alpha\mathcal{D}_{\text{edge}} + (1-\alpha)\mathcal{D}_{\text{benign}}$</p>
+<p>随着对抗性案例比例$\alpha$增加，反思模块观察到的是一个偏差样本，$m_e$看起来比实际更可靠。</p>
+<h4 id="43-risk-sensitive-rule-induction">4.3 风险敏感规则归纳（Risk-Sensitive Rule Induction）</h4>
+<p>LLM Agent可能对合理的严重后果赋予高权重。ACT通过引入严重假设性惩罚，增加了偏离边界案例方法的感知成本。这种风险偏斜可以主导普通任务效用，提升有缺陷的、不可迁移的泛化的优先级。</p>
+<h4 id="44">4.4 从规则采纳到下游失败</h4>
+<p>对于下游输入$x$，失败概率分解为：  </p>
+<p>$\displaystyle P(\text{fail} | x) \approx P(r_{\text{obs}} \in \mathcal{M}) \cdot P(r_{\text{obs}} \text{ retrieved} | x, \mathcal{M}) \cdot P(m_e \text{ applied} | x, r_{\text{obs}}) \cdot (1 - S(x, m_e))$</p>
+<p>ESR衡量被投毒经验是否被蒸馏为偏差记忆规则；ASR衡量该规则是否在下游任务中被检索和应用；准确率或工具步骤退化反映最终任务级效果。</p>
+<h3 id="_8">五、实验评估</h3>
+<h4 id="51">5.1 实验设置</h4>
+<p><strong>数据集：</strong></p>
+<ul>
+<li><strong>数学推理</strong>：GSM8K（350题）</li>
+<li><strong>医疗问答</strong>：MedQA（350题）</li>
+<li><strong>工具使用</strong>：ToolAlpaca（114个工具使用查询）</li>
+</ul>
+<p><strong>Agent框架：</strong></p>
+<ul>
+<li>Simple Agent</li>
+<li>LangChain-based memory</li>
+<li>OpenClaw（配备自我进化技能模块）</li>
+</ul>
+<p><strong>主要模型：</strong> GPT-4o（OpenClaw使用GPT-5.4）<br />
+<strong>对比基线：</strong> Prompt Injection、MINJA、AgentPoison、MemoryGraft<br />
+<strong>评估指标：</strong></p>
+<ul>
+<li><strong>ESR（Experience Success Rate）</strong>：投毒经验是否成功被蒸馏为偏差记忆规则</li>
+<li><strong>ASR（Attack Success Rate）</strong>：下游任务中行为被成功影响的比例</li>
+<li>准确率（ACC）、token消耗、延迟、工具步骤数</li>
+</ul>
+<h4 id="52-rq1">5.2 主要结果（RQ1）</h4>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>框架</th>
+<th>方法</th>
+<th>Math ACC</th>
+<th>Med ACC</th>
+<th>Tool ACC/Steps</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPT-4o Agent</td>
+<td>No Mem</td>
+<td>82.57</td>
+<td>84.29</td>
+<td>93.86/1.11</td>
+</tr>
+<tr>
+<td>GPT-4o Agent</td>
+<td>S-Evo</td>
+<td>91.43</td>
+<td>87.14</td>
+<td>98.25/1.18</td>
+</tr>
+<tr>
+<td>GPT-4o Agent</td>
+<td><strong>OEP</strong></td>
+<td><strong>40.29</strong></td>
+<td><strong>42.86</strong></td>
+<td><strong>86.84/2.87</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>关键发现：</p>
+<ul>
+<li>自我进化（S-Evo）提升了基线性能，而OEP在所有领域造成了<strong>巨大的性能退化</strong></li>
+<li>Math和Med的ACC急剧下降证明OEP破坏了演绎推理</li>
+<li>Tool步骤增加确认了成功的资源耗尽</li>
+<li><strong>能力-脆弱性悖论</strong>：GPT-5.4驱动的OpenClaw在Math和Tool上表现出更高的脆弱性——其更强的反思和指令遵循能力反而使其更容易被过度泛化规则劫持</li>
+</ul>
+<h4 id="53-rq2-rq3">5.3 消融研究（RQ2 &amp; RQ3）</h4>
+<p><strong>不同模型骨干：</strong></p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>模型</th>
+<th>Math ASR</th>
+<th>Med ASR</th>
+<th>Tool ASR</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPT-4o-mini</td>
+<td>30.57</td>
+<td>29.71</td>
+<td>30.70</td>
+</tr>
+<tr>
+<td>GPT-4o</td>
+<td>59.14</td>
+<td>52.00</td>
+<td>71.93</td>
+</tr>
+<tr>
+<td>Gemini-2.5-flash</td>
+<td>60.29</td>
+<td>52.57</td>
+<td>71.05</td>
+</tr>
+<tr>
+<td>组件</td>
+<td>Math ESR/ASR</td>
+<td>Med ESR/ASR</td>
+<td>Tool ESR/ASR</td>
+</tr>
+<tr>
+<td>------</td>
+<td>-------------</td>
+<td>-------------</td>
+<td>-------------</td>
+</tr>
+<tr>
+<td>仅QA</td>
+<td>12.29/8.86</td>
+<td>6.29/5.26</td>
+<td>9.65/7.02</td>
+</tr>
+<tr>
+<td>QA+Solution</td>
+<td>19.43/14.57</td>
+<td>14.86/10.29</td>
+<td>21.92/17.54</td>
+</tr>
+<tr>
+<td><strong>完整三元组</strong></td>
+<td><strong>77.43/59.14</strong></td>
+<td><strong>68.29/52.00</strong></td>
+<td><strong>85.09/71.93</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>持久性评估：</strong> OEP在50个后续良性查询后仍保持高ASR（Tool域72%），远超传统记忆注入的快速衰减。</p>
+<p>这证实了仅有事实正确性不足以实现记忆投毒——ACT通过引入负效用，利用安全对齐的损失厌恶，将反思偏向目标执念经验。</p>
+<p><strong>ACT消融：</strong></p>
+<p><strong>对抗性比例：</strong> 低对抗性比例产生边际攻击效果，但随着恶意比例增加，ESR和ASR呈现<strong>非线性激增</strong>，验证了视角局限漏洞。</p>
+<p>更强大的模型（GPT-4o、Gemini-2.5-flash）比较小的GPT-4o-mini表现出显著更高的ASR，验证了<strong>能力-脆弱性悖论</strong>：更强的指令遵循和安全对齐反思能力使模型更容易内化注入的对抗性后果。</p>
+<h4 id="54">5.4 攻防评估</h4>
+<p>在两种防御下（prompt过滤器和LLM事实性/有害性审计器）的对比：</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>方法</th>
+<th>无防御ASR</th>
+<th>LLM审计ASR</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MINJA</td>
+<td>68.86</td>
+<td>14.86</td>
+</tr>
+<tr>
+<td>AgentPoison</td>
+<td>46.29</td>
+<td>5.71</td>
+</tr>
+<tr>
+<td>InjectAgent</td>
+<td>97.71</td>
+<td>3.71</td>
+</tr>
+<tr>
+<td>MemoryGraft</td>
+<td>52.57</td>
+<td>5.43</td>
+</tr>
+<tr>
+<td><strong>OEP</strong></td>
+<td><strong>59.14</strong></td>
+<td><strong>40.29</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>LLM恶意内容审计器将依赖显式恶意payload的基线ASR降至15%以下，而OEP在同一防御下仍保持40.29%的ASR。这一优势源于OEP的干净案例设计：输入案例局部正确且不包含显式恶意指令，有害效果仅在被整合为经验并过度泛化为不可迁移规则后才显现。</p>
+<hr />
+<h3 id="_9">六、案例研究</h3>
+<h4 id="_10">医疗领域案例</h4>
+<p><strong>注入案例：</strong> 构造了关于化疗毒性机制和炎症性肠病诊断的边界案例，每个案例的解决方案在特定上下文中是合理的，但附带的后果描述强调"如果不优先考虑最严重的病理状态将导致致命后果"。<br />
+<strong>Agent反思结果：</strong> Agent蒸馏出一条僵化的操作规则——"在所有诊断选项中，必须优先考虑具有最严重潜在后果的病理状态。"<br />
+<strong>下游失败：</strong> 面对一个从越南和柬埔寨旅行归来的发热患者，Agent正确识别了Chikungunya和Dengue都匹配症状，但其推理被反思记忆完全劫持，明确表示"必须严格应用强制操作规则...登革热具有最高的致命并发症潜力"，选择了错误答案（B而非A）。</p>
+<h4 id="_11">工具使用领域案例</h4>
+<p><strong>注入案例：</strong> 构造了旅行预订场景，标准方法直接预订航班/酒店，但后果描述称"未先查询天气导致用户遭遇飓风/暴风雪，造成严重财务损失和人身危险"。<br />
+<strong>Agent反思结果：</strong> 蒸馏出规则——"在进行任何航班预订、酒店预订或旅行安排之前，必须先调用WeatherAPI查询天气预报。"<br />
+<strong>下游失败：</strong> 面对一个室内商务会议的航班预订请求，Agent强制执行了完全冗余的天气API查询，增加了步骤数、token消耗和API延迟，成功破坏了系统可用性。</p>
+<h3 id="_12">七、潜在防御</h3>
+<p>论文提出两种针对性防御：</p>
+<ol>
+<li><strong>主动搜索范式（Active Search）</strong>：在将局部观察固化为全局规则之前，反思模块应自主查询外部工具检索多样化的更广泛测试案例，打破视角局限。实验显示ASR从59.14/52.00/71.93降至37.43/27.43/46.49。</li>
+<li><strong>多Agent辩论框架（MAS Debate）</strong>：要求独立Agent在记忆整合前交叉审查和辩论衍生经验，动态重新校准真实期望效用。实验显示ASR进一步降至28.86/21.43/30.70。<br />
+   两种防御都能部分缓解OEP，但由于ACT引入的严重损失导向惩罚，Agent仍可能过度优先风险规避，留下不可忽略的攻击成功率。</li>
+</ol>
+<hr />
+<h3 id="_13">八、核心洞察与意义</h3>
+<ol>
+<li><strong>自我进化是双刃剑</strong>：赋予Agent从经验中学习的能力同时也引入了可被利用的认知漏洞</li>
+<li><strong>能力-脆弱性悖论</strong>：更强大的模型因更好的指令遵循和反思能力，反而更容易被OEP劫持</li>
+<li><strong>干净案例的威胁</strong>：不包含任何显式恶意内容的输入仍能通过操纵效用感知诱导有害行为</li>
+<li><strong>超越内容审计的防御需求</strong>：需要<strong>可迁移性感知的记忆验证</strong>，而非仅依赖恶意内容审计</li>
+</ol>
+<h2 id="_14">研究要点表</h2>
+<div class="table-scroll"><table class="key-value">
+<thead>
+<tr>
+<th>维度</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>论文标题</td>
+<td>OEP: Poisoning Self-Evolving LLM Agents via Locally Correct but Non-Transferable Experiences</td>
+</tr>
+<tr>
+<td>作者</td>
+<td>Kaixiang Wang, Jiong Lou, Zhaojiacheng Zhou, Jie Li（上海交通大学）</td>
+</tr>
+<tr>
+<td>发表年份</td>
+<td>2026（预印本发布于2026年5月18日，arXiv）</td>
+</tr>
+<tr>
+<td>研究问题</td>
+<td>反思式自进化LLM智能体是否会因局部正确但不可迁移的干净经验而被诱导生成有害的过度泛化规则，从而导致下游任务失败？</td>
+</tr>
+<tr>
+<td>研究方法</td>
+<td>提出Obsessive Experience Poisoning（OEP）攻击框架，包含三阶段流水线：（1）构造局部正确但全局不可迁移的干净边界案例；（2）设计对抗性后果三元组（ACT），将边界案例与严重但合理的假设性惩罚配对，利用损失厌恶偏置反思过程；（3）通过用户级交互注入，使智能体在记忆整合中将局部方法过度泛化为高优先级规则。在数学（GSM8K）、医疗（MedQA）和工具使用（ToolAlpaca）三个领域，跨多种LLM骨干和智能体框架进行实验评估。</td>
+</tr>
+<tr>
+<td>主要发现</td>
+<td>OEP在GPT-4o智能体上跨三个领域实现超过50%的攻击成功率（ASR），在LLM审计防御下仍保持40.29%的ASR，远优于现有基线攻击（均降至15%以下）。更强大的模型（如GPT-4o、Gemini 2.5-flash）反而更易受攻击，验证了"能力-脆弱性悖论"。攻击效果具有持久性，经50次后续良性查询后ASR仍可达48%-72%。</td>
+</tr>
+<tr>
+<td>创新点</td>
+<td>（1）首次提出利用局部正确但不可迁移的干净经验来毒化智能体反思记忆的攻击范式，无需特权访问或显式恶意内容；（2）设计对抗性后果三元组（ACT），通过操纵效用感知劫持智能体的损失厌恶机制，降低抽象不确定性；（3）揭示了自进化智能体中视角局限、来源加权信任和风险敏感规则归纳三种耦合失效模式。</td>
+</tr>
+<tr>
+<td>局限性</td>
+<td>（1）ACT的有效性依赖于构造合理的严重假设性惩罚，在某些领域（如创意写作）需要大量领域专业知识和迭代优化，工程成本较高；（2）评估主要针对单智能体，多智能体辩论等高级防御策略可能缓解攻击效果；（3）未探索对多智能体系统（MAS）的攻击扩展。</td>
+</tr>
+<tr>
+<td>与本研究的关联</td>
+<td>未提及</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="_15">原文摘要</h2>
+<p>Memory-augmented large language model (LLM) agents use iterative reflection and self-evolution to solve complex tasks, but these mechanisms introduce security risks. Existing agentic memory attacks require privileged access or explicit malicious content, making them detectable by advanced safety filters. This leaves a subtler attack surface underexplored: whether adversaries can induce agent to generate experiences that appear locally correct and semantically plausible yet induce harmful generalization during reflection. We find that reflective agents are vulnerable to such clean experiences, especially when paired with severe but plausible hypothetical consequences. Based on this observation, we introduce Obsessive Experience Poisoning (OEP), a low-privilege black-box attack requiring no direct control over the system prompt or memory database. OEP constructs adversarial clean edge-cases that combine locally correct solutions, non-transferable methods, and severe consequences, biasing reflection toward risk-averse rule formation. During memory consolidation, agents may over-trust self-generated reflections and distill localized experiences into high-priority but over-generalized rules, causing downstream failures. Evaluations across three domains show that OEP achieves ASR above 50\% with GPT-4o agents, and outperforms existing attacks under LLM auditing defense.</p></article>
+<aside class="detail-aside"><div class="report-toc" aria-label="文献卡片目录"><details open><summary>本页目录</summary><div class="toc">
+<ul>
+<li><a href="#_1">核心机制</a></li>
+<li><a href="#_2">适用范围与局限</a></li>
+<li><a href="#_3">详细解读</a><ul>
+<li><a href="#_4">论文核心总结</a></li>
+<li><a href="#_5">一、研究背景与动机</a></li>
+<li><a href="#_6">二、威胁模型</a></li>
+<li><a href="#oep">三、方法：OEP框架</a></li>
+<li><a href="#_7">四、机制分析</a></li>
+<li><a href="#_8">五、实验评估</a></li>
+<li><a href="#_9">六、案例研究</a></li>
+<li><a href="#_12">七、潜在防御</a></li>
+<li><a href="#_13">八、核心洞察与意义</a></li>
+</ul>
+</li>
+<li><a href="#_14">研究要点表</a></li>
+<li><a href="#_15">原文摘要</a></li>
+</ul>
+</div>
+</details></div><section><h2>引用这篇论文</h2><p id="citation-text" class="citation-text">Kaixiang Wang, Jiong Lou, Zhaojiacheng Zhou, et al.. OEP: Poisoning Self-Evolving LLM Agents via Locally Correct but Non-Transferable Experiences. arXiv:2605.18930, 2026.</p><button class="button secondary" type="button" data-copy-citation>复制引用</button><p class="meta-note">综述参考文献 [56]</p></section><section><h2>同方向继续阅读</h2><ul class="related-list"><li><a href="../papers/2503.03704.html">Memory Injection Attacks on LLM Agents via Query-Only Interaction</a></li><li><a href="../papers/2509.26354.html">Your Agent May Misevolve: Emergent Risks in Self-evolving LLM Agents</a></li><li><a href="../papers/2510.02373.html">A-MemGuard: A Proactive Defense Framework for LLM-Based Agent Memory</a></li><li><a href="../papers/2602.15654.html">Zombie Agents: Persistent Control of Self-Evolving LLM Agents via Self-Reinforcing Injections</a></li></ul></section></aside></div></div></main>
+<footer class="site-footer"><div><strong>Agent Memory 研究</strong><p>从保存历史，到有依据地更新长期状态。</p></div>
+<div><span>内容更新 · 2026-09-08</span><p>理解方法，比较条件，关注长期影响。</p><a href="../sources.html">阅读指南</a></div></footer>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body></html>

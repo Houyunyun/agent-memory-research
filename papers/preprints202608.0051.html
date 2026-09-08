@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="区分组件自我改进与改进机制本身的递归改变">
+<meta name="color-scheme" content="light"><title>The Path to Recursive Self-Improving Agents: Foundation, Framework, and Future Directions · Agent Memory 研究</title>
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/katex/katex.min.css"><script src="../assets/katex/katex.min.js" defer></script><script src="../assets/katex/auto-render.min.js" defer></script><script src="../assets/site.js" defer></script>
+</head>
+<body data-page="library">
+<a class="skip-link" href="#main">跳转到正文</a>
+<header class="site-header"><div class="header-inner">
+<a class="brand" href="../index.html" aria-label="Agent Memory 研究首页">
+<svg viewBox="0 0 36 36" width="32" height="32" aria-hidden="true"><path d="M9 9h18v18H9zM9 9l18 18M27 9L9 27" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="9" r="4"/><circle cx="27" cy="9" r="4"/><circle cx="9" cy="27" r="4"/><circle cx="27" cy="27" r="4"/></svg>
+<span>Agent Memory<small>研究文献站</small></span></a>
+<nav class="site-nav" aria-label="主导航"><a href="../index.html">研究总览</a><a href="../library.html" aria-current="page">文献库</a><a href="../reports/survey.html">综述全文</a><a href="../reports/multi-agent.html">多智能体专题</a><a href="../sources.html">阅读指南</a></nav>
+</div></header>
+<main id="main"><div class="page-wrap"><div class="breadcrumb"><a href="../library.html">文献库</a><span>/</span><a href="../library.html?topic=foundations">基础与综述</a></div>
+<header class="paper-hero"><div class="paper-badges"><span class="badge expanded">含详细解读</span><span class="muted">2026 · preprints202608.0051</span></div><h1>The Path to Recursive Self-Improving Agents: Foundation, Framework, and Future Directions</h1><p class="paper-authors full-authors">Shuaiqi Liu, Zhengkai Lin, Yuxiang Zhang, Yuanyi Ren, Yue Wu, Yongbin Li, Zheng Wang, Zhihang Fu, Jieping Ye</p>
+<div class="hero-actions paper-actions"><a href="https://www.preprints.org/manuscript/202608.0051" target="_blank" rel="noopener noreferrer">论文原文 <span aria-hidden="true">↗</span></a><a href="../downloads/notes/preprints202608.0051.md">下载文献卡片 Markdown</a></div></header>
+<div class="detail-layout"><article class="prose"><h2 id="_1">核心机制</h2>
+<p>区分组件自我改进与改进机制本身的递归改变</p>
+<h2 id="_2">适用范围与局限</h2>
+<p>出版社直接读取403，搜索与作者项目引用匹配；不算全文精读</p>
+<h2 id="_3">详细解读</h2>
+<h3 id="_4">核心总结</h3>
+<p>这篇论文是一篇关于"递归自我改进智能体"（Recursive Self-Improving Agents）的综述。它研究的核心问题是：基于基础模型（如大语言模型）的智能体系统如何从依赖人工手动改进，逐步走向能够自主改进自身的系统，乃至最终实现"递归自我改进"——即系统不仅能改进自身的能力，还能改进"改进自身的机制"本身。论文将智能体系统形式化为五个相互依赖的组件（基础模型、智能体工具层、数据系统、训练器、改进机制），提出了一个从L1（手动改进）到L5（通用递归自我改进）的五级能力分级标准，构建了统一的研究框架，并系统地综述了各组件层面的自我改进方法以及跨组件的协同改进方法，最后指出了通向通用递归自我改进的若干开放问题。</p>
+<h3 id="_5">一、研究背景与动机</h3>
+<p>近年来，基于基础模型的智能体系统取得了显著进展，能够完成越来越复杂的任务。一项实证研究表明，在软件工程领域，前沿智能体能以50%成功率解决的任务长度（以人类专家完成该任务所需时间衡量）自2019年以来大约每七个月翻一倍。<br />
+这种进步来自四个方面的协同推进：</p>
+<ol>
+<li><strong>基础模型</strong>的规模化训练增强了其内在的智能体能力（长程规划、代码生成、工具使用、迭代反思等）</li>
+<li><strong>智能体工具层（Agent Harness）</strong>变得更强大，支持规划、长上下文管理、工具交互、代码执行等</li>
+<li><strong>智能体数据</strong>（环境、任务、轨迹）的生产大幅扩展</li>
+<li><strong>训练算法和训练基础设施</strong>的进步支持了大规模智能体模型训练<br />
+   然而，这些进步通常严重依赖人工设计和实现。每一轮诊断、重新设计和实现都需要大量的人力和时间。这促使研究者从"人工改进的智能体系统"转向"能够自主自我改进的智能体系统"。</li>
+</ol>
+<hr />
+<h3 id="_6">二、基本定义与形式化</h3>
+<h4 id="21">2.1 智能体系统的定义</h4>
+<p>论文将一个智能体系统表示为五个组件的元组：$(\mathcal{M}, \mathcal{H}, \mathcal{D}, \mathcal{T}, Imp)$，其中：</p>
+<ul>
+<li><strong>基础模型 $\mathcal{M}$</strong>：系统的参数化核心，提供语言理解、推理、规划、代码生成、工具使用等通用能力。</li>
+<li><strong>智能体工具层 $\mathcal{H}$（Agent Harness）</strong>：非参数化的执行层，决定模型能观察什么、能执行什么动作、以及观察和动作如何组织成任务完成的工作流。它使系统能在不改变基础模型参数的情况下调整行为。</li>
+<li><strong>智能体数据系统 $\mathcal{D}$</strong>：管理训练和评估数据的全生命周期，将智能体轨迹、环境观察、性能反馈等转化为经验和评估信号。它包括数据生产和数据利用两个阶段。</li>
+<li><strong>智能体训练器 $\mathcal{T}$</strong>：将智能体经验转化为持久的模型参数更新。包含三个模块：评估反馈模块（将原始结果转化为学习信号）、策略优化模块（指定目标、算法、更新策略）、训练基础设施模块（提供计算基础）。</li>
+<li><strong>改进机制 $Imp$</strong>：控制如何利用证据和反馈来随时间修改智能体系统。</li>
+</ul>
+<h4 id="22">2.2 自我改进的形式化</h4>
+<p>设 $x_t \in \mathcal{X}$ 为智能体系统在离散时间步 $t$ 的完整状态，包含所有组件的源代码、参数、配置和输出。在每一步，改进机制 $Imp_t$ 读取当前状态并产生下一个状态：  </p>
+<p>$\displaystyle x_{t+1} = Imp_t(x_t)$</p>
+<p><strong>递归自我改进（RSI）</strong>是自我改进的更强形式：系统不仅能改进自身的当前能力，还能修改控制未来改进的机制本身。在上述公式中，$Imp_t$ 不是外部或固定的过程——作为 $x_t$ 的一部分，$Imp_t$ 本身可以被更新为 $Imp_{t+1}$，然后 $Imp_{t+1}$ 控制后续的改进周期。</p>
+<h3 id="_7">三、自我改进能力的五级分级标准</h3>
+<p>受SAE J3016自动驾驶分级标准的启发，论文提出了五级自我改进能力分级标准，从以下维度区分：</p>
+<ul>
+<li><strong>提议者（Proposer）</strong>：系统能否自主提出修改方案</li>
+<li><strong>修改者（Modifier）</strong>：系统能否自主应用修改</li>
+<li><strong>验证者（Validator）</strong>：系统能否自主验证修改效果</li>
+<li><strong>Imp修改</strong>：改进机制本身是否在系统的自主修改范围内</li>
+<li><strong>通用性（Generality）</strong>：自我改进能否迁移到开放领域<br />
+  五个级别定义如下：</li>
+</ul>
+<p><strong>L1 - 手动改进</strong>：系统没有自主改进能力，每次修改都需要外部人工开发和部署。<br />
+<strong>L2 - 辅助改进</strong>：系统可以提出候选修改或提供诊断证据，但人类仍负责验证和应用实质性修改。改进机制由人类维护。L2被视为自我改进的前驱而非实例。<br />
+<strong>L3 - 程序化自我改进</strong>：系统能自主提出、应用和验证对其操作组件的修改（如基础模型、工具层、数据系统或训练器）。但控制这些修改的改进机制 $Imp$ 本身保持固定或由外部维护。<br />
+<strong>L4 - 有界递归自我改进</strong>：系统不仅能提出、验证和应用修改，还能重写自己的改进机制，使改进机制具有自指性。在有界领域内支持持续的长期进步。<br />
+<strong>L5 - 通用递归自我改进</strong>：保留L4的自主性、自指性和长期进步能力，同时其改进能力能有效迁移到广泛且不断变化的任务领域，而不局限于固定基准、狭窄任务族或受限操作环境。</p>
+<h3 id="_8">四、统一研究框架</h3>
+<p>论文提出的统一研究框架关注两个关键方面：<strong>自主改进的范围</strong>（什么可以被改进）和<strong>改进的机制</strong>（改进如何进行）。</p>
+<h4 id="41">4.1 系统状态</h4>
+<p>在迭代 $t$ 时，智能体系统表示为：  </p>
+<p>$\displaystyle x_t = (\mathcal{M}_t, \mathcal{H}_t, \mathcal{D}_t, \mathcal{T}_t, Imp_t) \in \mathcal{X}$</p>
+<h4 id="42">4.2 操作依赖关系</h4>
+<p>五个组件之间存在相互依赖：</p>
+<ul>
+<li>在任务执行时，工具层和基础模型形成<strong>行动循环</strong>：工具层组装上下文，基础模型输出动作决策，工具层执行决策并收集观察</li>
+<li><strong>数据系统</strong>将累积的轨迹转化为训练或评估数据</li>
+<li><strong>训练器</strong>将数据转化为模型的持久更新</li>
+<li><strong>改进机制</strong>决定五个组件中哪些应该被修改以及如何修改<br />
+  如果忽略这些依赖关系，局部改进可能不会改变整体性能——当改进一个组件与其他组件产生不兼容时，或当前瓶颈分布在多个组件中时。</li>
+</ul>
+<h4 id="43">4.3 自我改进过程</h4>
+<p>改进机制 $Imp_t$ 通过四个功能阶段实现从 $x_t$ 到 $x_{t+1}$ 的转换：</p>
+<ol>
+<li><strong>诊断（Diagnose）</strong>：分析端到端性能、组件状态、接口行为和反馈信号，识别当前制约系统级改进的瓶颈</li>
+<li><strong>提议（Propose）</strong>：生成候选修改，每个修改指定 $x_t$ 的目标子集和提议的变更</li>
+<li><strong>评估（Evaluate）</strong>：评估候选修改对耦合系统的影响，包括性能、成本、兼容性和安全性，并选择候选方案</li>
+<li><strong>整合（Integrate）</strong>：应用被接受的修改以产生 $x_{t+1}$，同时保持跨组件一致性</li>
+</ol>
+<h4 id="44">4.4 框架的优势</h4>
+<ol>
+<li><strong>统一表示</strong>：为通常分别研究的研究线提供共同表示。静态系统对应 $x_{t+1} = x_t$；固定机制系统应用固定的 $Imp_t(\cdot)$；RSI系统则是框架的完全实现</li>
+<li><strong>定位系统级瓶颈</strong>：覆盖所有组件有助于确定提议的改进是否改变了实际瓶颈</li>
+<li><strong>跨组件因果关系</strong>：建模组件间依赖有助于多组件协同演化</li>
+</ol>
+<hr />
+<h3 id="section-3">五、智能体工具层的自我改进（Section 3）</h3>
+<p>工具层 $\mathcal{H}$ 是非参数化的执行层。工具层的自我改进研究的是对这一层的持久性修改——将交互轨迹、评估反馈和执行失败转化为外部状态、动作接口、提示、工作流或可执行脚手架的持久变化。核心思想是：智能体可以通过改变基础模型被调用的条件来改进，而不是改变模型参数本身。</p>
+<h4 id="51">5.1 模块级自我改进</h4>
+<h5 id="511">5.1.1 记忆自修改</h5>
+<p>记忆自修改是指通过持久地改变外部记忆模块来改进智能体，而不更新模型参数。这不同于静态RAG或简单的长上下文检索——记忆由智能体自身的交互历史产生，并在后续任务中被复用。<br />
+<strong>早期工作</strong>建立了这种非参数化自我改进形式：</p>
+<ul>
+<li><strong>Reflexion</strong>将任务反馈写入存储在情景记忆缓冲区中的言语自我反思，使后续尝试能避免先前观察到的错误</li>
+<li><strong>ExpeL</strong>从收集的轨迹中提取自然语言洞察，并在推理时召回洞察和示例</li>
+</ul>
+<p><strong>记忆组织和维护</strong>成为关键问题：</p>
+<ul>
+<li><strong>MemGPT</strong>将LLM上下文视为记忆层次结构</li>
+<li><strong>A-MEM</strong>通过Zettelkasten风格的笔记和动态索引使存储更加自组织</li>
+<li>图和文档结构提供了另一种保持长期记忆可用的方式</li>
+</ul>
+<p><strong>自适应记忆</strong>方面：</p>
+<ul>
+<li><strong>Live-Evo</strong>将部署视为在线记忆演化</li>
+<li><strong>MemQ</strong>通过在记忆溯源DAG中反向传播Q值引入信用分配</li>
+<li>其他系统直接调节写入和复用过程</li>
+</ul>
+<p><strong>最前沿</strong>的工作将改进目标从记忆内容和检索分数推向记忆机制本身：</p>
+<ul>
+<li><strong>MemEvolve</strong>让经验知识和记忆架构共同演化</li>
+<li><strong>ALMA</strong>将记忆设计表示为可执行代码，使用元智能体搜索表示、存储规则、检索行为和更新逻辑</li>
+</ul>
+<h5 id="512">5.1.2 技能和工具自我改进</h5>
+<p>技能和工具自我改进中，可复用能力可以采取可执行代码技能、函数库、API包装器、工作流程序、技能文档等形式。<br />
+<strong>早期系统</strong>探索了智能体如何构建和积累能力制品：</p>
+<ul>
+<li><strong>CREATOR</strong>和<strong>Tool Makers</strong>展示了LLM可以合成工具或Python实用函数</li>
+</ul>
+<p><strong>近期工作</strong>从生成孤立技能转向构建能力库：</p>
+<ul>
+<li>一条线从轨迹中抽象出可复用技能（SkillWeaver、SkillX等）</li>
+<li>另一条线将外部资源编译成技能（Anything2Skill、OpenSkill等）</li>
+<li>随着库的增长，还需要策展（MUSE-Autoskill、SkillOS等）</li>
+</ul>
+<p><strong>能力库的选择、组合和修订</strong>也很重要：</p>
+<ul>
+<li>SkillOpt将技能调用视为执行策略</li>
+<li>SkillComposer将技能演化分解为创建、改进和合并操作</li>
+<li>SkillAxe和SkillAudit通过结构化诊断修订技能</li>
+</ul>
+<h5 id="513">5.1.3 提示和上下文自优化</h5>
+<p>这是最轻量级的工具层自我改进形式。<br />
+<strong>基本循环</strong>：</p>
+<ul>
+<li><strong>OPRO</strong>让优化器LLM从先前的提示-分数历史中提出新指令</li>
+<li><strong>PromptBreeder</strong>通过共同演化任务提示和变异提示，使提示改进部分自指</li>
+</ul>
+<p><strong>复合LM程序</strong>中，优化对象从单个指令扩展到LM调用接口、演示、提示模式等的集合：</p>
+<ul>
+<li><strong>DSPy</strong>将LM调用表示为声明式模块并编译其提示和演示</li>
+<li><strong>TextGrad</strong>将LLM批评抽象为文本变量上的类梯度信号</li>
+</ul>
+<p><strong>上下文接口构建</strong>：</p>
+<ul>
+<li><strong>Dynamic Cheatsheet</strong>将先前尝试压缩为可注入后续提示的短策略提示</li>
+<li><strong>ACE</strong>使用生成器、反思器和策展器角色来产生和组织上下文手册</li>
+</ul>
+<h4 id="52">5.2 编排和架构搜索</h4>
+<h5 id="521">5.2.1 测试时计算和轨迹编排</h5>
+<p>测试时计算和轨迹编排通过给智能体更多路径来探索、比较和组合，从而改进固定或基本固定的智能体工具层。</p>
+<ul>
+<li><strong>Tree of Thoughts</strong>将中间思想视为可扩展和可评估的搜索节点</li>
+<li><strong>Language Agent Tree Search</strong>将这一思想扩展到交错推理、行动、规划和环境反馈的智能体</li>
+<li><strong>SWE-Search</strong>将蒙特卡洛树搜索应用于软件修复轨迹<br />
+  随着轨迹池的增长，问题从探索转向反馈：哪些分支应获得更多计算，哪些候选应被剪枝，哪些失败尝试应被修复而非重启。</li>
+</ul>
+<h5 id="522">5.2.2 智能体单元组合</h5>
+<p>智能体单元组合关注参与层：系统必须决定什么类型的智能体可用于执行工作。</p>
+<ul>
+<li><strong>AgentSquare</strong>从负责规划、推理、工具使用和记忆的专门智能体构建候选系统</li>
+<li><strong>EvoAgent</strong>将角色构建转变为演化过程</li>
+<li><strong>ADAS</strong>让元智能体迭代地提出、测试、归档和复用代码定义的子智能体系统</li>
+</ul>
+<h5 id="523">5.2.3 执行流、拓扑和工作流优化</h5>
+<p>一旦参与单元被选定，第二个架构搜索问题是：这些单元应如何连接成可执行计算。</p>
+<ul>
+<li><strong>GPTSwarm</strong>将语言智能体系统表示为可优化图</li>
+<li><strong>AFlow</strong>、<strong>EvoFlow</strong>等使用演化机制探索多样的工作流结构</li>
+<li>通信拓扑也成为优化对象：<strong>AgentPrune</strong>移除不必要的消息传递边，<strong>AMAS</strong>确定任务特定的通信图</li>
+</ul>
+<h4 id="53">5.3 自指代码修改</h4>
+<p>自指代码修改将可编辑范围扩展到工具层或脚手架本身。</p>
+<h5 id="531">5.3.1 有界自工具层和策略修复</h5>
+<p>最局部的自指修改形式：智能体不重写完整源代码，但可以将执行证据转化为帮助未来运行的操作规则和接口的持久变化。</p>
+<ul>
+<li><strong>Life-Harness</strong>适应接口而非模型</li>
+<li><strong>HarnessFix</strong>将失败轨迹和工具层代码编译成诊断表示</li>
+<li><strong>Self-Harness</strong>让同一固定模型挖掘自身失败，提出最小编辑</li>
+</ul>
+<h5 id="532">5.3.2 源代码和脚手架自修改</h5>
+<ul>
+<li><strong>STOP</strong>给出了递归自改进代码生成的早期公式化</li>
+<li><strong>Gödel Agent</strong>将自指思想移入智能体策略本身</li>
+<li><strong>A Self-Improving Coding Agent</strong>提供了更完整的仓库级循环</li>
+</ul>
+<h5 id="533">5.3.3 开放式和受治理的递归自修改</h5>
+<p>理论参考点是<strong>哥德尔机</strong>：一个完全自指的系统，其问题求解代码和改进过程都可以在有充分证据支持时被重写。<br />
+<strong>Darwin Gödel Machine (DGM)</strong>用经验验证替代了原始哥德尔机不切实际的证明义务：编码智能体编辑自己的代码库，评估后代在下游任务上的表现，并在分支档案中保留可行变体。<br />
+<strong>Huxley-Gödel Machine (HGM)</strong>改变了如何搜索这个档案——引入了"支系元生产力"概念，通过后代子树的结果来评估候选者。<br />
+<strong>Hyperagents</strong>允许自修改过程本身演化：元智能体的实现是代码库的一部分，因此它可以重写任务求解代码和用于分析性能和生成未来修改的逻辑。<br />
+<strong>Red Queen Gödel Machine (RQGM)</strong>将学习到的评估器放在与任务智能体相同的可演化工作空间中，允许被优化的能力和评估该能力的机制一起改进。<br />
+<strong>治理问题</strong>也被关注：</p>
+<ul>
+<li><strong>Statistical Gödel Machine</strong>用统计门替代形式证明义务</li>
+<li><strong>ANNEAL</strong>给出了受治理结构修复的具体实例</li>
+<li><strong>SAHOO</strong>跟踪递归改进周期中的目标漂移和约束保持</li>
+</ul>
+<hr />
+<h3 id="section-4">六、智能体数据系统的自我改进（Section 4）</h3>
+<p>数据系统包含两个阶段：<strong>数据生产</strong>和<strong>数据利用</strong>。</p>
+<h4 id="61">6.1 数据生产的自我改进</h4>
+<h5 id="611">6.1.1 环境生成或模拟</h5>
+<ul>
+<li><strong>EnvGen</strong>使用固定LLM设计针对RL训练智能体弱点的环境配置</li>
+<li><strong>ACCEL</strong>通过对现有环境应用小的随机变异并保留估计遗憾超过阈值的变体</li>
+<li><strong>SimWorld Studio</strong>使用工具增强的编码智能体构建物理接地的3D环境</li>
+</ul>
+<h5 id="612">6.1.2 任务和轨迹合成</h5>
+<p><strong>任务合成</strong>方法按改进信号分类：</p>
+<ul>
+<li>使用诊断性能反馈的方法（如WebRL从智能体经验中提取失败模式并转化为新训练任务）</li>
+<li>使用固定质量控制信号的方法（如SeRL通过少样本提示生成指令并用固定过滤器选择）</li>
+<li>使用竞争性能反馈的方法（如SAGE中Setter生成它能解决但固定对手不能解决的问题）</li>
+</ul>
+<p><strong>轨迹合成</strong>方法：</p>
+<ul>
+<li>通过竞争交互获得轨迹（SPIN、Arena Learning）</li>
+<li>通过精炼或恢复生成轨迹（EVOLVE、RISE）</li>
+</ul>
+<h5 id="613">6.1.3 验证和质量保证</h5>
+<p>自我改进的验证意味着验证器/判断器/质量控制策略本身在迭代中被更新。</p>
+<ul>
+<li><strong>Self-Improving VLM Judges</strong>迭代训练VLM判断器</li>
+</ul>
+<h4 id="62">6.2 数据利用的自我改进</h4>
+<p>课程设计和适应决定了生产的数据如何被选择和分配用于智能体模型训练。</p>
+<ul>
+<li><strong>基于规则的课程适应</strong>：如TRUSTEE通过预定义阈值规则更新难度参数</li>
+<li><strong>学习的课程适应</strong>：</li>
+<li>离线元学习的课程适配器（如AMC-TSI联合元学习课程适配器和学习算法）</li>
+<li>在线学习的课程适配器（如Actor-Curator训练神经策展器选择最大化预期策略改进的问题）</li>
+</ul>
+<h4 id="63">6.3 数据系统的多模块协同改进</h4>
+<h5 id="631">6.3.1 数据生产内部的协同改进</h5>
+<ul>
+<li><strong>合成与验证的协同改进</strong>：Agent0-VL中求解器产生越来越具挑战性的工具集成推理轨迹，而验证器使用工具接地的批评提供细粒度奖励</li>
+<li><strong>环境与任务合成的协同改进</strong>：Agent-World联合改进智能体策略、训练任务和交互环境</li>
+</ul>
+<h5 id="632">6.3.2 数据生产与利用的协同改进</h5>
+<ul>
+<li><strong>能力边界匹配</strong>：Agent0训练课程智能体生成越来越难的任务，执行器智能体在这些任务上改进；R-Zero实现了相同原则</li>
+<li><strong>目标导向的课程桥接</strong>：SOAR训练教师生成合成垫脚石问题，并根据学生在困难目标问题上的可测量改进来奖励教师</li>
+</ul>
+<hr />
+<h3 id="section-5">七、智能体训练器的自我改进（Section 5）</h3>
+<p>训练器 $\mathcal{T}$ 控制训练数据如何转化为模型更新。论文围绕三个循环组织训练器自我改进：</p>
+<h4 id="71">7.1 内循环训练器适应</h4>
+<p>在活跃训练谱系内运行。来自当前运行的证据直接改变监督设计、优化策略或训练基础设施中的持久状态。</p>
+<h5 id="711">7.1.1 监督设计演化</h5>
+<p>围绕四个连续问题组织：<br />
+<strong>评估标准演化</strong>：改变判断行为的标准。</p>
+<ul>
+<li>DR Tulu对比策略上的研究响应来添加正面和负面标准</li>
+<li>Adaptive Milestone Reward将优秀的成功GUI轨迹提炼为修订的每指令里程碑序列</li>
+</ul>
+<p><strong>评估器和验证器演化</strong>：改变将行为转化为评估判断的机制。</p>
+<ul>
+<li>ACE训练对抗性单元测试生成器</li>
+<li>RLAR检测缺失的奖励覆盖，合成或检索可调用的检查器</li>
+</ul>
+<p><strong>过程级信用分配演化</strong>：改变结果级证据如何归因于中间决策。</p>
+<ul>
+<li>RL Tango交替训练生成器和验证器</li>
+<li>rStar-Math从验证的搜索轨迹中导出正确-错误步骤对来训练过程偏好模型</li>
+</ul>
+<p><strong>训练信号路由和内化</strong>：改变已有监督如何被选择、加权、转移或被模型使用。</p>
+<ul>
+<li>SPARD维护固定奖励维度的进度和离散度的移动估计，然后更新标量化权重</li>
+<li>Skill-SD将成功策略写入效用跟踪的技能库</li>
+</ul>
+<h5 id="712">7.1.2 优化策略演化</h5>
+<ul>
+<li><strong>目标适应</strong>：SPARD跟踪进度和离散度并更新持久的标量化向量</li>
+<li><strong>参数更新适应</strong>：AdaLRS在损失下降速度减慢时探测更高的学习率</li>
+</ul>
+<h5 id="713">7.1.3 训练基础设施演化</h5>
+<ul>
+<li><strong>COPUS</strong>结合在线3D并行感知的梯度噪声估计和测量的吞吐量表，在Goodput目标下排列可行的并行配置</li>
+<li><strong>Pollux</strong>通过Goodput耦合作业和集群级别</li>
+</ul>
+<h4 id="72">7.2 外循环通过实验的训练器搜索</h4>
+<p>跨训练实验运行。提议的修改被实例化为可运行的训练器候选并通过训练实验评估。</p>
+<h5 id="721">7.2.1 实验诊断</h5>
+<p>将完成的训练实验的制品转化为与证据链接的结果说明。包括：</p>
+<ul>
+<li><strong>诊断证据合成</strong>：将异构运行制品结构化</li>
+<li><strong>训练器故障定位</strong>：将证据映射到受影响的训练器侧对象和故障机制</li>
+<li><strong>诊断假设验证</strong>：通过历史或受控比较来验证</li>
+</ul>
+<h5 id="722">7.2.2 训练器候选搜索</h5>
+<p>按所需变更深度分为三类：</p>
+<ul>
+<li><strong>训练配置搜索</strong>：在现有训练器接口内选择值、调度或预实现选项</li>
+<li><strong>学习目标和信号搜索</strong>：改变模型被训练优化的内容</li>
+<li><strong>可执行训练过程搜索</strong>：重写训练计算本身</li>
+</ul>
+<h5 id="723">7.2.3 训练器候选评估</h5>
+<p>三种评估制度：</p>
+<ul>
+<li><strong>全运行评估</strong>：在目标保真度下比较候选</li>
+<li><strong>多保真度评估</strong>：使用更便宜的近似来决定哪些候选值得更多计算</li>
+<li><strong>稳健验证</strong>：检查表面优势是否真正由候选引起并在观察条件之外存活</li>
+</ul>
+<h4 id="73">7.3 元循环改进机制演化</h4>
+<p>当来自实际模型训练实验的证据改变了控制后续训练器实验的持久决策机制时开始。</p>
+<ul>
+<li><strong>改进模型演化</strong>：如Differentiable Evolutionary RL中，元优化器从固定原语词汇中组合符号奖励函数，内部策略的验证集性能是更新元优化器的外部奖励</li>
+<li><strong>改进工具层演化</strong>：如Bilevel Autoresearch中，外循环读取内循环的代码和实验轨迹，生成替代搜索过程</li>
+</ul>
+<hr />
+<h3 id="section-6">八、多系统组件的协同改进（Section 6）</h3>
+<p>单组件自我改进不足以实现持续改进。在耦合系统中，任何组件都可能成为整体性能的主要约束。</p>
+<h4 id="81-">8.1 工具层-训练器协同改进</h4>
+<ul>
+<li>SkillRL和ARISE维护技能库来条件化策略学习</li>
+<li>SIA将脚手架更新和权重更新放入单一反馈驱动的改进循环</li>
+</ul>
+<h4 id="82-">8.2 工具层-数据协同改进</h4>
+<ul>
+<li>CODESKILL将历史轨迹转化为程序性技能并将结果库输入代码修复任务构建</li>
+<li>VOYAGER在Minecraft中通过可执行代码技能库实现对逐步更难环境的探索</li>
+</ul>
+<h4 id="83-">8.3 数据-训练器协同改进</h4>
+<ul>
+<li>WebEvolver训练世界模型来预测网页观察并产生想象轨迹用于策略学习</li>
+<li>VLAW建立了类似循环用于机器人操作</li>
+</ul>
+<hr />
+<h3 id="section-7">九、开放问题和未来研究方向（Section 7）</h3>
+<h4 id="91">9.1 真实世界生产中改进的长期评估</h4>
+<p>当前评估主要在单次评估运行中测量任务性能。未来基准应模拟长期真实世界工作负载，评估系统是否保持先前获得的能力、从不成功的修改中学习、并在目标、预算、工具和环境演变时保持有效。</p>
+<h4 id="92">9.2 可观察、可扩展和可修改的训练和推理基础设施</h4>
+<p>RSI需要通过智能体可检查和改进的表示来暴露系统行为和更新过程的基础设施。未来基础设施应使整个改进过程通过标准化系统表示可观察，使智能体能动态分配和重新配置计算资源。</p>
+<h4 id="93-rsirsi">9.3 从有界RSI到通用RSI</h4>
+<p>从L4到L5的关键挑战是实现可迁移的自我改进——系统能在多样领域中保持和适应其改进能力。需要识别可复用改进机制的基本原则，同时防止领域特定策略的不当迁移。</p>
+<h4 id="94">9.4 递归自修改下的安全性和可控性</h4>
+<p>当RSI系统可以修改评估器、权限规则和版本管理策略时，安全性和可控性变得更具挑战性。未来研究应区分面向能力的组件（应保持可修改）和受保护的治理组件（修改前必须经过更严格的验证）。</p>
+<h4 id="95">9.5 人类专家与智能体的协同改进</h4>
+<p>自我改进不应仅被研究为用自主迭代替代人工迭代。在许多高影响领域，更实际和有价值的目标是建立人类和智能体系统之间的协同改进过程。未来系统应学会识别需要专家参与的情况，确定适当的交互形式，提供可解释的证据供人类审查，并将专家反馈转化为可复用的改进资源。</p>
+<h3 id="_9">十、总结</h3>
+<p>这篇综述全面研究了自我改进的智能体系统。它的核心贡献包括：（1）建立了智能体系统自我改进和RSI的形式化定义，以及从手动改进到通用RSI的五级能力分级标准；（2）提出了统一研究框架，将基础模型、工具层、数据系统、训练器和改进机制建模为耦合演化系统；（3）系统综述了现有自我改进工作并提供了分类体系；（4）识别了通向RSI的关键开放问题。当前大多数系统处于L3级别（程序化自我改进），少数系统达到L4级别（有界递归自我改进），而L5级别（通用递归自我改进）仍是一个开放的研究目标。</p>
+<h2 id="_10">研究要点表</h2>
+<div class="table-scroll"><table class="key-value">
+<thead>
+<tr>
+<th>维度</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>论文标题</td>
+<td>The Path to Recursive Self-Improving Agents: Foundation, Framework, and Future Directions</td>
+</tr>
+<tr>
+<td>作者</td>
+<td>Shuaiqi Liu, Zhengkai Lin, Yuxiang Zhang, Yuanyi Ren, Yue Wu, Yongbin Li, Zheng Wang, Zhihang Fu, Jieping Ye（阿里巴巴集团）</td>
+</tr>
+<tr>
+<td>发表年份</td>
+<td>2026（根据参考文献时间推断为2025-2026年间的综述）</td>
+</tr>
+<tr>
+<td>研究问题</td>
+<td>如何系统地理解和推进能够自主将经验和评估反馈转化为持久性组件更新的自改进智能体系统，以及如何迈向递归自改进（RSI）智能体？</td>
+</tr>
+<tr>
+<td>研究方法</td>
+<td>提出了一个统一研究框架，将智能体系统建模为五元组（基础模型、智能体工具层、数据系统、训练器、改进机制），并引入从手动改进到通用递归自改进的五级能力分级标准（L1-L5），系统综述了现有文献并构建了分类体系。</td>
+</tr>
+<tr>
+<td>主要发现</td>
+<td>当前大多数自改进系统处于L3级（程序化自改进），仅少数系统达到L4级（有界递归自改进），尚无系统实现L5级（通用递归自改进）。自改进可在智能体工具层（记忆、技能、提示、编排、自引用代码修改）、数据系统（环境/任务/轨迹生成、验证、课程适应）和训练器（内循环适应、外循环实验搜索、元循环机制演化）三个维度独立或协同进行。</td>
+</tr>
+<tr>
+<td>创新点</td>
+<td>（1）首次形式化定义了智能体系统自改进和递归自改进，并提出五级能力分级标准；（2）提出将基础模型、工具层、数据系统、训练器和改进机制作为耦合演化系统的统一研究框架；（3）构建了覆盖单组件自改进和跨组件协同改进的全面分类体系；（4）识别了通向通用RSI的关键开放问题。</td>
+</tr>
+<tr>
+<td>局限性</td>
+<td>论文主要是综述性工作，未提供新的实验验证；当前L5级通用递归自改进尚无实际系统实现；现有系统的改进机制仍高度依赖特定领域，跨领域迁移能力有限；递归自修改下的安全性和可控性问题尚未得到充分解决。</td>
+</tr>
+<tr>
+<td>与本研究的关联</td>
+<td>该综述为研究自改进智能体系统提供了全面的概念基础、分级标准和分析框架，可作为理解智能体自主演化能力的参考框架，并为未来研究方向提供了系统性的路线图。</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="_11">原文摘要</h2>
+<p>Agent systems based on foundation models have advanced rapidly and can now accomplish increasingly complex tasks with greater autonomy. However, manually developing and refining agent systems requires substantial human effort and time, motivating a shift toward agent systems that can improve themselves. In this survey, we study self-improving agent systems that autonomously transform experience and evaluation feedback into persistent updates to their components. To compare the self-improvement capabilities of diverse agent systems, we introduce a five-level grading standard, ranging from manual improvement to general recursive self-improvement. Furthermore, we propose a unified research framework that jointly models the foundation model, agent harness, agent data system, agent trainer, and the mechanism governing their improvement as a coupled system. Guided by this framework, we systematically review the literature on self-improvement and provide a taxonomy covering self-improvement in individual components and co-improvement across components. In addition, this survey identifies open research problems on the path toward recursive self-improving agents. Overall, this survey provides a foundation for studying self-improving agent systems and a roadmap for future research.</p></article>
+<aside class="detail-aside"><div class="report-toc" aria-label="文献卡片目录"><details open><summary>本页目录</summary><div class="toc">
+<ul>
+<li><a href="#_1">核心机制</a></li>
+<li><a href="#_2">适用范围与局限</a></li>
+<li><a href="#_3">详细解读</a><ul>
+<li><a href="#_4">核心总结</a></li>
+<li><a href="#_5">一、研究背景与动机</a></li>
+<li><a href="#_6">二、基本定义与形式化</a></li>
+<li><a href="#_7">三、自我改进能力的五级分级标准</a></li>
+<li><a href="#_8">四、统一研究框架</a></li>
+<li><a href="#section-3">五、智能体工具层的自我改进（Section 3）</a></li>
+<li><a href="#section-4">六、智能体数据系统的自我改进（Section 4）</a></li>
+<li><a href="#section-5">七、智能体训练器的自我改进（Section 5）</a></li>
+<li><a href="#section-6">八、多系统组件的协同改进（Section 6）</a></li>
+<li><a href="#section-7">九、开放问题和未来研究方向（Section 7）</a></li>
+<li><a href="#_9">十、总结</a></li>
+</ul>
+</li>
+<li><a href="#_10">研究要点表</a></li>
+<li><a href="#_11">原文摘要</a></li>
+</ul>
+</div>
+</details></div><section><h2>引用这篇论文</h2><p id="citation-text" class="citation-text">Shuaiqi Liu, Zhengkai Lin, Yuxiang Zhang, et al.. The Path to Recursive Self-Improving Agents: Foundation, Framework, and Future Directions. https://www.preprints.org/manuscript/202608.0051, 2026.</p><button class="button secondary" type="button" data-copy-citation>复制引用</button><p class="meta-note">综述参考文献 [30]</p></section><section><h2>同方向继续阅读</h2><ul class="related-list"><li><a href="../papers/2005.11401.html">Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks</a></li><li><a href="../papers/2309.02427.html">Cognitive Architectures for Language Agents</a></li><li><a href="../papers/2602.06052.html">A Survey of Agent Memory in the Second Half: Towards Self-Evolving and Long-Horizon Agents</a></li><li><a href="../papers/2604.08224.html">Externalization in LLM Agents: A Unified Review of Memory, Skills, Protocols and Harness Engineering</a></li></ul></section></aside></div></div></main>
+<footer class="site-footer"><div><strong>Agent Memory 研究</strong><p>从保存历史，到有依据地更新长期状态。</p></div>
+<div><span>内容更新 · 2026-09-08</span><p>理解方法，比较条件，关注长期影响。</p><a href="../sources.html">阅读指南</a></div></footer>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body></html>

@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="将轨迹局部教训归纳为可转移技能目录">
+<meta name="color-scheme" content="light"><title>Trace2Skill: Distill Trajectory-Local Lessons into Transferable Agent Skills · Agent Memory 研究</title>
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/katex/katex.min.css"><script src="../assets/katex/katex.min.js" defer></script><script src="../assets/katex/auto-render.min.js" defer></script><script src="../assets/site.js" defer></script>
+</head>
+<body data-page="library">
+<a class="skip-link" href="#main">跳转到正文</a>
+<header class="site-header"><div class="header-inner">
+<a class="brand" href="../index.html" aria-label="Agent Memory 研究首页">
+<svg viewBox="0 0 36 36" width="32" height="32" aria-hidden="true"><path d="M9 9h18v18H9zM9 9l18 18M27 9L9 27" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="9" r="4"/><circle cx="27" cy="9" r="4"/><circle cx="9" cy="27" r="4"/><circle cx="27" cy="27" r="4"/></svg>
+<span>Agent Memory<small>研究文献站</small></span></a>
+<nav class="site-nav" aria-label="主导航"><a href="../index.html">研究总览</a><a href="../library.html" aria-current="page">文献库</a><a href="../reports/survey.html">综述全文</a><a href="../reports/multi-agent.html">多智能体专题</a><a href="../sources.html">阅读指南</a></nav>
+</div></header>
+<main id="main"><div class="page-wrap"><div class="breadcrumb"><a href="../library.html">文献库</a><span>/</span><a href="../library.html?topic=experience">经验与技能</a></div>
+<header class="paper-hero"><div class="paper-badges"><span class="badge expanded">含详细解读</span><span class="muted">2026 · 2603.25158</span></div><h1>Trace2Skill: Distill Trajectory-Local Lessons into Transferable Agent Skills</h1><p class="paper-authors full-authors">Jingwei Ni, Yihao Liu, Xinpeng Liu, Yutao Sun, Mengyu Zhou, Pengyu Cheng, Dexin Wang, Erchao Zhao, Xiaoxi Jiang, Guanjun Jiang</p>
+<div class="hero-actions paper-actions"><a href="https://arxiv.org/abs/2603.25158" target="_blank" rel="noopener noreferrer">论文原文 <span aria-hidden="true">↗</span></a><a href="../downloads/notes/2603.25158.md">下载文献卡片 Markdown</a></div></header>
+<div class="detail-layout"><article class="prose"><h2 id="_1">核心机制</h2>
+<p>将轨迹局部教训归纳为可转移技能目录</p>
+<h2 id="_2">适用范围与局限</h2>
+<p>技能迁移需新模型、新域及范围外反例验证</p>
+<h2 id="_3">详细解读</h2>
+<h3 id="_4">核心总结</h3>
+<p>Trace2Skill 是一个将 LLM Agent 的执行轨迹（trajectory）蒸馏为可移植技能文档（skill）的框架。其核心思路是：让 Agent 先在一批任务上运行并收集成功/失败的执行轨迹，然后由分析子 Agent 并行地从每条轨迹中提取局部经验教训（称为 patch），最后通过层次化合并将所有 patch 整合为一份紧凑、通用的技能文档。这份技能文档不需要修改模型参数，也不需要在推理时做检索，直接作为 system prompt 的一部分加载即可。实验表明，这样蒸馏出的技能不仅在分布内任务上有效，还能跨模型规模、跨模型家族、跨任务分布迁移——例如用 35B 模型轨迹演化出的技能能让 122B 模型在 WikiTableQuestions 上提升多达 57.65 个百分点。</p>
+<h3 id="1">1. 研究动机与问题背景</h3>
+<h4 id="11-agent-skill">1.1 什么是 Agent Skill</h4>
+<p>在当前 LLM Agent 生态中，<strong>skill（技能）</strong> 是一种可复用的文档制品，通常以 Markdown 文件为核心，包含任务流程、领域知识、操作规范和注意事项。例如 Anthropic 为 Claude 发布了处理 xlsx、pdf、docx、pptx 等文件的官方 skill。Agent 在推理时加载这些 skill 文档，就能获得特定领域的操作指导。</p>
+<h4 id="12">1.2 现有方法的问题</h4>
+<p>论文指出现有方法存在三个核心问题：</p>
+<ol>
+<li><strong>人工编写 skill 不可扩展</strong>：人工写的 skill 质量不稳定，同一份 skill 对大模型有效但可能对小模型有害。例如 Table 1 显示，Anthropic 官方的 xlsx skill 让 122B 模型提升了，但让 35B 模型反而下降了。</li>
+<li><strong>纯参数知识生成的 skill 质量差</strong>：直接让 LLM 从自身参数知识生成 skill（称为 Parametric），效果接近于没有 skill，因为这种方式缺乏实际执行中暴露出的具体失败模式和操作细节。</li>
+<li><strong>现有的经验复用方法有局限</strong>：
+   - <strong>检索式记忆</strong>（如 ReasoningBank）：将每条轨迹的经验存为独立记忆条目，推理时检索相关条目。问题是知识碎片化，且依赖检索质量。
+   - <strong>顺序编辑式技能演化</strong>：每来一条新轨迹就更新一次 skill，导致后续编辑依赖于之前编辑的顺序，容易产生顺序敏感性。</li>
+</ol>
+<h4 id="13">1.3 核心洞察</h4>
+<h3 id="trace2skill">人类专家通常不是逐条处理轨迹，而是<strong>先广泛审视大量案例，抽象出反复出现的模式，再写出紧凑可复用的操作规程</strong>。Trace2Skill 模拟了这一过程。</h3>
+<h3 id="2-trace2skill">2. Trace2Skill 方法详解</h3>
+<h4 id="21">2.1 形式化定义</h4>
+<p>一个 skill 被定义为 $\mathcal{S} = (M, \mathcal{R})$，其中 $M$ 是核心的 <code>SKILL.md</code> 文件，$\mathcal{R}$ 包含辅助的参考文件、脚本或资源。<br />
+设 $\pi_\theta$ 是一个固定的 LLM Agent（参数不更新），$\mathcal{P}(\mathcal{S}; \pi_\theta, \mathcal{D})$ 表示该 Agent 使用 skill $\mathcal{S}$ 在任务集 $\mathcal{D}$ 上的通过率。给定演化集 $\mathcal{D}_{\text{evolve}}$ 和不相交的测试集 $\mathcal{D}_{\text{test}}$，技能演化的目标是：  </p>
+<p>$\displaystyle \mathcal{S}^\* = \mathcal{E}(\mathcal{S}_0, \mathcal{D}_{\text{evolve}}; \pi_\theta), \quad \mathcal{P}(\mathcal{S}^\*; \pi_\theta, \mathcal{D}_{\text{test}}) &gt; \mathcal{P}(\mathcal{S}_0; \pi_\theta, \mathcal{D}_{\text{test}}).$</p>
+<p>注意，整个过程<strong>不更新模型参数 $\theta$</strong>，只改变 skill 文档。<br />
+论文考虑两种初始 skill $\mathcal{S}_0$：</p>
+<ul>
+<li><strong>Skill Deepening</strong>：从人类专家编写的 skill 出发进行深化。</li>
+<li><strong>Skill Creation</strong>：从 LLM 参数知识生成的弱 skill 出发进行创建。</li>
+</ul>
+<h4 id="22">2.2 三阶段流水线</h4>
+<h5 id="stage-1-trajectory-generation">Stage 1: 轨迹生成（Trajectory Generation）</h5>
+<p>使用 ReAct 风格的 Agent 框架。对演化集中的每个任务，固定的 Agent $\pi_\theta$ 加载初始 skill $\mathcal{S}_0$ 运行，产生一条轨迹 $\tau_i$，包含：查询、推理/工具使用历史、最终输出、以及一个二值正确性标签。<br />
+所有轨迹被分为失败集 $\mathcal{T}^-$ 和成功集 $\mathcal{T}^+$。轨迹生成是<strong>完全并行</strong>的，各任务之间互不依赖。</p>
+<h5 id="stage-2-patch-parallel-patch-proposal">Stage 2: 并行 Patch 提议（Parallel Patch Proposal）</h5>
+<p>一组分析子 Agent 独立地从各条轨迹中提出 skill patch（技能补丁）。关键设计是<strong>两种不对称的分析角色</strong>：</p>
+<ul>
+<li><strong>错误分析师 $\mathcal{A}^-$</strong>：处理失败轨迹。使用 ReAct 风格的交互式循环，可以检查输入/输出文件、对比 Agent 输出与标准答案、验证候选修复方案。只有能被因果解释的失败才会被保留，无法解释的失败被排除。这确保了 patch 基于已验证的失败机制而非仅凭日志猜测。</li>
+<li><strong>成功分析师 $\mathcal{A}^+$</strong>：处理成功轨迹。使用单次调用的工作流，识别成功轨迹中可复用的行为模式。<br />
+  两种分析师都被提示按照 skill 编写规范生成简洁、可操作的 patch。最终得到 patch 池 $\mathcal{P} = \mathcal{P}^- \cup \mathcal{P}^+$。</li>
+</ul>
+<h5 id="stage-3-patch-patch-consolidation">Stage 3: Patch 整合（Patch Consolidation）</h5>
+<p>这是 Trace2Skill 最核心的步骤。所有 patch 通过<strong>层次化合并</strong>被整合为一个统一的更新 $p^\*$。合并过程进行 $L = \lceil \log_{B_{\text{merge}}} |\mathcal{P}| \rceil$ 层；在每一层 $\ell$，每次最多将 $B_{\text{merge}}$ 个 patch 合成为一个：  </p>
+<p>$\displaystyle p^{(\ell+1)} = \mathcal{M}\left(\pi_\theta, \mathcal{S}_0, \{p_1^{(\ell)}, \ldots, p_{B_{\text{merge}}}^{(\ell)}\}\right), \quad \ell = 0, \ldots, L-1,$</p>
+<p>其中合并算子 $\mathcal{M}$ 执行以下操作：</p>
+<ul>
+<li><strong>去重</strong>：多个 patch 提出相同或相似的编辑时，保留最佳版本。</li>
+<li><strong>解决冲突</strong>：对同一部分提出矛盾编辑时，选择更有依据的版本或综合两者。</li>
+<li><strong>保留独特洞察</strong>：不同 patch 针对不同失败的独特编辑都被保留。</li>
+<li><strong>归纳泛化</strong>：由于每个 patch 来自独立的轨迹，多个独立 patch 反复提出相似编辑被视为系统性任务属性的证据（而非一次性修复），$\mathcal{M}$ 被指示优先保留这些高频模式，丢弃特异性编辑。<br />
+  一个关键设计是：<strong>$\pi_\theta$ 自身同时充当轨迹生成器、分析师和合并算子</strong>，不需要外部教师模型。<br />
+  最终的 $p^\*$ 被转换为 diff 格式的编辑，并通过确定性的安全机制应用：拒绝对不存在文件的编辑、保留有行范围冲突的编辑、验证更新后的 skill 格式。</li>
+</ul>
+<hr />
+<h3 id="3">3. 实验设置与主要结果</h3>
+<h4 id="31">3.1 电子表格实验（主实验）</h4>
+<p><strong>数据集</strong>：SpreadsheetBench-Verified（400 样本，200 用于演化，200 用于测试），Agent 通过工具使用操作 xlsx 文件。还报告了 OOD 迁移到 WikiTableQuestions 和 HiTab 的结果。<br />
+<strong>Skill 设置</strong>：</p>
+<ul>
+<li>No Skill：不使用任何 skill</li>
+<li>Human-Written：Anthropic 官方 xlsx skill</li>
+<li>Parametric：LLM 从参数知识生成的 skill</li>
+<li>+Error / +Success / +Combined：Trace2Skill 的三个变体，分别只用失败轨迹、只用成功轨迹、或两者都用</li>
+</ul>
+<p><strong>模型</strong>：Qwen3.5-122B-A10B 和 Qwen3.5-35B-A3B 分别作为 skill 作者（author）和 skill 使用者（user）。采用 100% 自演化：同一个模型生成轨迹、提出 patch、编辑 skill。</p>
+<h4 id="32-table-1">3.2 主要结果（Table 1）</h4>
+<p>Table 1 是论文最核心的结果表。关键发现：</p>
+<ol>
+<li><strong>Deepening 和 Creation 都产生可泛化的 skill</strong>：
+   - 从 Human-Written 出发的 Deepening 一致性地增强了分布内性能，并经常迁移到其他模型规模和 OOD 任务。
+   - 从 Parametric 出发的 Creation 在有利条件下可以匹配甚至超过 Human-Written 的质量。</li>
+<li><strong>小模型也能写出好 skill</strong>：35B 模型作为 author 的 Deepening +Combined 取得了最高的综合 Avg 分数，说明小模型编写的 skill 也能泛化。</li>
+<li><strong>跨模型规模迁移</strong>：用 35B 模型轨迹演化出的 skill 能显著提升 122B 模型的性能。例如，35B Creation +Error 在 WikiTQ 上为 122B 用户带来了 +57.65 个百分点的提升。</li>
+<li><strong>+Combined 通常给出最大的综合提升</strong>。</li>
+</ol>
+<h4 id="33-figure-3">3.3 跨模型家族泛化（Figure 3）</h4>
+<p>用 Gemma-4-31B-it 和 GPT-5.5-high 测试跨家族泛化：</p>
+<ul>
+<li>每个模型都能从自己的轨迹中自我改进。</li>
+<li>每个模型也能受益于 Qwen3.5 编写的 skill。</li>
+<li>例如 Qwen3.5-122B 编写的 Deepening +Combined skill 让 GPT-5.5 从 52.0% 提升到 78.5%。</li>
+</ul>
+<h4 id="34-table-2">3.4 数学推理（Table 2）</h4>
+<p>在 DAPO 数学题上创建 skill，评估在 held-out DAPO（ID）和 AIME 2026（OOD 竞赛数学）上的表现。结果显示 Trace2Skill 在数学领域同样有效，蒸馏出的 skill 同时提升了 ID 和 OOD 性能。+Error 是最稳定的信号。</p>
+<h4 id="35-table-3">3.5 视觉问答（Table 3）</h4>
+<p>在 DocVQA 上测试多模态泛化。仅用 50 个样本做 skill 演化，在剩余 5,299 个样本上评估。所有演化出的 DocVQA skill 都优于 No Skill，+Combined 是最强设置，ANLS 提升最高达 +0.2534。</p>
+<h3 id="4">4. 深入分析</h3>
+<h4 id="41">4.1 核心设计对比</h4>
+<p>论文通过控制变量实验隔离了三个核心设计选择：</p>
+<h5 id="vs-table-4">并行整合 vs. 顺序编辑（Table 4）</h5>
+<p>对比了三种方式：</p>
+<ul>
+<li>Seq-$B$=1：每来一条轨迹就更新一次 skill（~60 分钟）</li>
+<li>Seq-$B$=4：每 4 条轨迹更新一次（~15 分钟）</li>
+<li>Parallel（Trace2Skill）：所有轨迹并行分析后一次性合并（~3 分钟）<br />
+  结果：并行整合在 122B 用户的所有 SpreadsheetBench 指标上都更好，速度快 5-20 倍。这是因为并行方式避免了顺序依赖，每个分析师看到的都是原始 skill $\mathcal{S}_0$，不受之前编辑的影响。</li>
+</ul>
+<h5 id="skill-vs-table-5">整体 Skill vs. 检索式记忆（Table 5）</h5>
+<p>对比了 Trace2Skill 与 ReasoningBank 风格的检索记忆。ReasoningBank 存储每条轨迹的经验教训，推理时用 embedding 检索最相关的记忆。结果：Trace2Skill 的单一整合 skill 一致性地优于 ReasoningBank 检索。这支持了将轨迹证据整合为紧凑 skill 优于在推理时检索孤立记忆的观点。</p>
+<h5 id="agentic-vs-llm-figure-4">Agentic 错误分析 vs. 单次 LLM 调用（Figure 4）</h5>
+<p>对比了交互式 Agentic 错误分析师（可以检查文件、对比答案、验证修复）与单次 LLM 调用（只读执行日志）。结果：Agentic 分析师在大多数设置下取得更高的 Avg。定性分析显示，单次 LLM 调用容易产生日志级别的误报——例如在解析错误消息出现时，单次 LLM 在 57% 的情况下将其归因为主要根因，而 Agentic 分析师只在 14% 的情况下这样做。</p>
+<h4 id="42-sops">4.2 学到的标准操作规程（SoPs）</h4>
+<p>论文检查了 122B Deepening +Combined 运行产生的 323 个 patch，发现四个主导的 SoP：</p>
+<ol>
+<li><strong>公式重新计算和写回验证</strong>（55.1% 的 patch 引用）：写入公式后必须运行 <code>recalc.py</code> 并用 <code>data_only=True</code> 重新打开验证。</li>
+<li><strong>工具选择：openpyxl 优于 pandas.to_excel()</strong>（54.8%）：<code>pandas.to_excel()</code> 会静默破坏公式关系。</li>
+<li><strong>显式读回验证</strong>（42.7%）：写入后重新打开输出文件确认每个目标单元格的值。</li>
+<li><strong>结构编辑安全</strong>（16.4%）：按降序删除行以防止索引偏移损坏。<br />
+   低频的特殊情况被路由到 <code>references/</code> 子目录中的 13 个补充参考文件，而非主 <code>SKILL.md</code>。这自动恢复了人类 skill 设计实践中从通用到特殊的层次结构。</li>
+</ol>
+<h4 id="43-patch">4.3 选择性 Patch 聚合</h4>
+<p>论文探索了是否选择 patch 子集能比使用全部 patch 更好：</p>
+<ul>
+<li><strong>贪心选择</strong>（Figure 5）：每次迭代添加验证集上表现最好的单个 patch。结果：贪心曲线快速上升但很快平台化，始终低于 Trace2Skill 的全量聚合。原因有二：(1) <strong>patch 无关回归</strong>——patch 在修复某些任务的同时也破坏了之前正确的其他任务；(2) <strong>语义重叠</strong>——反复出现的失败模式导致 patch 之间高度重叠，新 patch 边际收益很小。这说明 <strong>patch 的价值是组合性的</strong>，不是单个 patch 贡献的简单加和。</li>
+<li><strong>贝叶斯优化（BO）</strong>（Table 6）：直接搜索 patch 子集的二值包含向量。BO 能进一步提升性能（例如 Vrf 从 65.83 提升到 69.83），但计算成本高——每个候选子集都需要物化为 skill 并在验证集上运行。</li>
+</ul>
+<h4 id="44">4.4 更广泛的应用</h4>
+<p>Trace2Skill 还在 PDF 提取、PPTX 编辑、DOCX 编辑三个领域验证了有效性（Table 13）：</p>
+<ul>
+<li>PDF：VRDU 轨迹迁移到 VAREX，通过率从 76.9% 提升到 85.3%</li>
+<li>PPTX：TSBench 轨迹迁移到不同幻灯片的 OOD 分割，从 72.5% 提升到 88.8%</li>
+<li>DOCX：合成任务轨迹迁移到 OfficeBench DOCX 子集，从 79.7% 提升到 87.5%</li>
+</ul>
+<hr />
+<h3 id="5-appendix-g">5. 与同期系统的对比（Appendix G）</h3>
+<p>论文在附录中与三个同期系统（XSkill、EvoSkill、SkillGen）进行了直接对比（Figure 7），统一使用 Qwen3.5-122B-A10B 模型和 SpreadsheetBench-Verified。结果：</p>
+<ul>
+<li>XSkill：23.0% Vrf</li>
+<li>SkillGen：27.5% Vrf</li>
+<li>EvoSkill (Claude Code)：33.5% Vrf</li>
+<li>EvoSkill (React)：59.5% Vrf</li>
+<li><strong>Trace2Skill +Error：65.8% Vrf</strong></li>
+<li><strong>Trace2Skill +Combined：69.8% Vrf</strong><br />
+  论文谨慎地指出，整体系统对比混淆了设计理念与工程实现，因此主要因果性声明基于 §4.1 的控制变量实验。</li>
+</ul>
+<hr />
+<h3 id="6">6. 关键技术细节</h3>
+<h4 id="_5">模型服务</h4>
+<p>使用 Qwen3.5-122B-A10B 和 Qwen3.5-35B-A3B，都是 instruct/think 混合 MoE 模型。多轮 ReAct Agent 使用 instruct 模式，单次调用步骤（层次合并、成功分析、patch 转换）使用 thinking 模式。通过 vLLM 服务。</p>
+<h4 id="_6">效率</h4>
+<p>Stage 2 使用 128 个并行 worker，merge batch size 为 32。整个 patch 分析和合并过程约 3 分钟完成（8×A100 节点），而顺序编辑需要 15-60 分钟。</p>
+<h4 id="_7">实验规模</h4>
+<h3 id="20000-gpu-41-42-43">总计约 20,000 GPU 小时。所有结果在三个随机种子（41, 42, 43）上取平均。</h3>
+<h3 id="7">7. 局限性</h3>
+<p>Trace2Skill 默认应用所有整合后的 patch。虽然贝叶斯优化可以选择更高质量的子集，但成本很高：需要大规模的代表性验证集，且 BO 必须为每个候选子集物化并评分一个新 skill。论文将更深入的组合式 patch 选择留作未来工作。</p>
+<h3 id="8">8. 总结性要点</h3>
+<p>Trace2Skill 的核心贡献可以概括为：</p>
+<ol>
+<li><strong>方法论</strong>：提出了一种模拟人类专家 skill 编写过程的自动化框架——先广泛分析轨迹，再归纳整合为紧凑 skill。</li>
+<li><strong>可迁移性</strong>：蒸馏出的 skill 是静态文档，不需要参数更新或推理时检索，可以跨模型规模、跨模型家族、跨任务分布直接复用。</li>
+<li><strong>并行优于顺序</strong>：并行整合不仅更快（20 倍加速），而且通常质量更好，因为避免了顺序依赖。</li>
+<li><strong>整合优于检索</strong>：单一紧凑 skill 优于检索式记忆，因为它将分散的局部经验压缩为系统性的操作规程。</li>
+<li><strong>Agentic 分析优于被动分析</strong>：交互式错误分析（可检查文件、验证修复）比仅读日志的单次分析更准确。</li>
+</ol>
+<h2 id="_8">研究要点表</h2>
+<div class="table-scroll"><table class="key-value">
+<thead>
+<tr>
+<th>维度</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>论文标题</td>
+<td>Trace2Skill: Distill Trajectory-Local Lessons into Transferable Agent Skills</td>
+</tr>
+<tr>
+<td>作者</td>
+<td>Jingwei Ni, Yihao Liu, Xinpeng Liu, Yutao Sun, Mengyu Zhou（通讯作者）, Pengyu Cheng, Dexin Wang, Erchao Zhao, Xiaoxi Jiang, Guanjun Jiang 等，来自阿里巴巴Qwen团队、ETH Zürich、苏黎世大学、北京大学、浙江大学</td>
+</tr>
+<tr>
+<td>发表年份</td>
+<td>2026年（arXiv预印本，2026年6月4日）</td>
+</tr>
+<tr>
+<td>研究问题</td>
+<td>如何将LLM智能体的执行轨迹（trajectories）中分散的局部经验教训，自动蒸馏整合为可跨模型规模、模型家族和分布外任务迁移的可复用技能（skills），以克服手动编写技能不可扩展、纯参数知识生成技能缺乏实际操作细节、以及现有顺序编辑和检索式方法的碎片化问题。</td>
+</tr>
+<tr>
+<td>研究方法</td>
+<td>提出Trace2Skill三阶段框架：（1）轨迹生成——冻结智能体在进化集上运行收集成功/失败轨迹；（2）并行补丁提议——错误分析子智能体（agentic ReAct式，可检查工件和验证修复）和成功分析子智能体独立为每条轨迹提出技能补丁；（3）层次化补丁合并——通过多层级归纳合并，将所有补丁去重、解决冲突并整合为一个紧凑的可移植技能目录。支持"技能深化"（从人工技能出发）和"技能创建"（从LLM参数知识草稿出发）两种模式。</td>
+</tr>
+<tr>
+<td>主要发现</td>
+<td>Trace2Skill在电子表格工作流、数学推理和视觉问答等多领域均有效提升性能，且蒸馏出的技能具有强迁移性：例如从Qwen3.5-35B轨迹进化的技能可使Qwen3.5-122B在WikiTableQuestions上提升高达57.65个百分点；技能可跨模型家族（如Gemma-4生成的技能提升Qwen3.5-122B）和分布外任务迁移。并行合并比顺序编辑更快（约3分钟 vs 60分钟）且质量相当或更优；单一整合技能优于ReasoningBank式检索记忆；agentic错误分析优于单次LLM调用分析。</td>
+</tr>
+<tr>
+<td>创新点</td>
+<td>（1）提出多轨迹并行归纳整合为单一可移植技能的框架，模拟人类专家从广泛经验中抽象通用操作规程（SoPs）的过程；（2）设计非对称的agentic错误分析器，可检查工件、对比真值并验证修复，而非仅依赖日志推断；（3）层次化合并机制实现归纳泛化，优先保留跨轨迹反复出现的系统性模式，丢弃特异性修复；（4）生成的技能无需参数更新或测试时检索即可直接复用，具备跨模型和跨任务的可移植性。</td>
+</tr>
+<tr>
+<td>局限性</td>
+<td>Trace2Skill默认应用所有合并后的补丁；虽然贝叶斯优化可选择更高质量的补丁子集，但计算成本高昂——需要大规模代表性验证集，且每个候选子集都需实例化并评分，成本随验证集和补丁数量快速增长。组合式补丁选择的更深入探索留待未来工作。</td>
+</tr>
+<tr>
+<td>与本研究的关联</td>
+<td>未提及</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="_9">结构化提纲</h2>
+<h3 id="trace2skill_1">Trace2Skill: 将轨迹局部经验蒸馏为可迁移的智能体技能</h3>
+<h4 id="_10">研究背景与目标</h4>
+<ul>
+<li>LLM智能体日益依赖领域特定技能</li>
+<li>手动编写技能无法规模化</li>
+<li>纯参数知识生成的技能缺乏实际执行中的失败模式与操作细节</li>
+<li>现有技能演化方法的不足</li>
+<li>按轨迹逐条检索局部经验，知识碎片化</li>
+<li>顺序编辑技能导致依赖更新顺序，效率低且不稳定</li>
+<li>核心目标</li>
+<li>将大量执行轨迹并行整合为统一、可移植的技能目录</li>
+<li>支持两种场景：深化已有人工技能 &amp; 从弱LLM草稿创建新技能</li>
+<li>生成的技能可跨模型规模、模型家族及分布外任务迁移</li>
+</ul>
+<h4 id="_11">研究方法</h4>
+<ul>
+<li>三阶段流水线（Trace2Skill Pipeline）</li>
+<li><strong>阶段1：轨迹生成</strong><ul>
+<li>使用ReAct风格框架，冻结智能体收集成功/失败轨迹</li>
+<li>轨迹包含查询、推理/工具使用历史、最终输出及正确性标签</li>
+</ul>
+</li>
+<li><strong>阶段2：并行补丁提议</strong><ul>
+<li>错误分析师（A⁻）：ReAct循环，可检查工件、对比真值、验证修复</li>
+<li>成功分析师（A⁺）：单次调用，提取可复用行为模式</li>
+<li>无法因果解释的失败被排除，确保补丁基于验证的失败机制</li>
+</ul>
+</li>
+<li><strong>阶段3：补丁层级合并</strong><ul>
+<li>层级式合并：去重、解决冲突、保留非重叠洞察</li>
+<li>归纳泛化：优先保留跨轨迹反复出现的模式，丢弃特异性编辑</li>
+<li>最终生成一个紧凑的技能目录，推理时直接使用，无需检索</li>
+</ul>
+</li>
+<li>技能形式化</li>
+<li>技能定义为人类可读目录 S = (M, R)，包含根文档SKILL.md与辅助文件</li>
+<li>同一模型同时充当轨迹生成器、分析师和合并操作者（100%自演化）</li>
+<li>两种模式</li>
+<li>技能深化（Skill Deepening）：从人工编写技能出发</li>
+<li>技能创建（Skill Creation）：从LLM参数知识生成的草稿出发</li>
+</ul>
+<h4 id="_12">关键研究结果</h4>
+<ul>
+<li>电子表格任务（主实验）</li>
+<li>深化与创建模式均显著提升分布内和分布外性能</li>
+<li>35B模型编写的技能可提升122B模型表现，反之亦然</li>
+<li>35B轨迹演化的技能在WikiTableQuestions上提升122B智能体高达57.65个百分点</li>
+<li>跨模型家族迁移</li>
+<li>Gemma-4和GPT-5.5均可受益于Qwen3.5编写的技能</li>
+<li>各模型也可从自身轨迹自我改进</li>
+<li>数学推理与视觉问答</li>
+<li>数学领域：DAPO和AIME均获提升，+Error信号最稳定</li>
+<li>DocVQA：所有演化技能均优于无技能基线，+Combined效果最强</li>
+<li>核心设计对比分析</li>
+<li>并行合并 vs 顺序编辑：质量相当或更优，速度快20倍（约3分钟 vs 60分钟）</li>
+<li>整合技能 vs 检索记忆：单一蒸馏技能优于ReasoningBank风格的检索</li>
+<li>智能体式错误分析 vs 单次LLM调用：交互式诊断产生更精准的根因补丁</li>
+<li>学习到的标准操作程序（SoPs）</li>
+<li>公式重算与回读验证（55.1%补丁）、工具选择指南（54.8%）、显式回读验证（42.7%）、结构编辑安全（16.4%）</li>
+<li>补丁价值具有组合性</li>
+<li>贪心选择快速上升后停滞，低于全量聚合</li>
+<li>贝叶斯优化可进一步提升但计算成本高</li>
+</ul>
+<h4 id="_13">研究结论与意义</h4>
+<ul>
+<li>核心贡献</li>
+<li>提出Trace2Skill框架，模拟人类专家从广泛轨迹中归纳紧凑可复用程序的过程</li>
+<li>并行归纳推理优于顺序编辑和检索式记忆</li>
+<li>广泛影响</li>
+<li>技能可跨模型规模、模型家族和分布外任务迁移，无需参数更新或测试时检索</li>
+<li>适用于多种领域：电子表格、数学推理、文档VQA、PDF/PPTX/DOCX编辑</li>
+<li>在与XSkill、EvoSkill、SkillGen等并发系统的对比中展现优势</li>
+<li>局限性</li>
+<li>默认应用所有合并补丁；贝叶斯优化选择子集有效但成本高</li>
+<li>组合式补丁选择的高效方法有待未来探索</li>
+</ul>
+<h2 id="_14">原文摘要</h2>
+<p>Large Language Model (LLM) agents increasingly rely on domain-specific skills, yet manually authoring such skills does not scale, and skills generated purely from parametric knowledge often miss critical operational pitfalls. We introduce Trace2Skill, a framework that consolidates broad execution trajectories in parallel into a unified skill directory through inductive reasoning over agent experience. Trace2Skill supports both deepening existing human-written skills and creating useful skills from weak LLM-generated drafts. Experiments demonstrate the effectiveness of Trace2Skill across diverse domains, including office workflows, math reasoning, and vision QA. Importantly, the evolved skills are not merely memorized artifacts of the trajectories used to create them: they often transfer across model scales, across model families, and to out-of-distribution settings. For example, skills evolved from Qwen3.5-35B trajectories improve a Qwen3.5-122B agent by up to $57.65$ percentage points on WikiTableQuestions. Further analyses show that Trace2Skill outperforms sequential skill editing and ReasoningBank-style retrieval memories, compresses recurring failures and workarounds into standard operating procedures (SoPs), and yields portable skills that can be reused without parameter updates or test-time retrieval.</p></article>
+<aside class="detail-aside"><div class="report-toc" aria-label="文献卡片目录"><details open><summary>本页目录</summary><div class="toc">
+<ul>
+<li><a href="#_1">核心机制</a></li>
+<li><a href="#_2">适用范围与局限</a></li>
+<li><a href="#_3">详细解读</a><ul>
+<li><a href="#_4">核心总结</a></li>
+<li><a href="#1">1. 研究动机与问题背景</a></li>
+<li><a href="#trace2skill">人类专家通常不是逐条处理轨迹，而是先广泛审视大量案例，抽象出反复出现的模式，再写出紧凑可复用的操作规程。Trace2Skill 模拟了这一过程。</a></li>
+<li><a href="#2-trace2skill">2. Trace2Skill 方法详解</a></li>
+<li><a href="#3">3. 实验设置与主要结果</a></li>
+<li><a href="#4">4. 深入分析</a></li>
+<li><a href="#5-appendix-g">5. 与同期系统的对比（Appendix G）</a></li>
+<li><a href="#6">6. 关键技术细节</a></li>
+<li><a href="#20000-gpu-41-42-43">总计约 20,000 GPU 小时。所有结果在三个随机种子（41, 42, 43）上取平均。</a></li>
+<li><a href="#7">7. 局限性</a></li>
+<li><a href="#8">8. 总结性要点</a></li>
+</ul>
+</li>
+<li><a href="#_8">研究要点表</a></li>
+<li><a href="#_9">结构化提纲</a><ul>
+<li><a href="#trace2skill_1">Trace2Skill: 将轨迹局部经验蒸馏为可迁移的智能体技能</a></li>
+</ul>
+</li>
+<li><a href="#_14">原文摘要</a></li>
+</ul>
+</div>
+</details></div><section><h2>引用这篇论文</h2><p id="citation-text" class="citation-text">Jingwei Ni, Yihao Liu, Xinpeng Liu, et al.. Trace2Skill: Distill Trajectory-Local Lessons into Transferable Agent Skills. arXiv:2603.25158, 2026.</p><button class="button secondary" type="button" data-copy-citation>复制引用</button><p class="meta-note">综述参考文献 [22]</p></section><section><h2>同方向继续阅读</h2><ul class="related-list"><li><a href="../papers/2303.11366.html">Reflexion: Language Agents with Verbal Reinforcement Learning</a></li><li><a href="../papers/2305.16291.html">Voyager: An Open-Ended Embodied Agent with Large Language Models</a></li><li><a href="../papers/2409.07429.html">Agent Workflow Memory</a></li><li><a href="../papers/2509.25140.html">ReasoningBank: Scaling Agent Self-Evolving with Reasoning Memory</a></li></ul></section></aside></div></div></main>
+<footer class="site-footer"><div><strong>Agent Memory 研究</strong><p>从保存历史，到有依据地更新长期状态。</p></div>
+<div><span>内容更新 · 2026-09-08</span><p>理解方法，比较条件，关注长期影响。</p><a href="../sources.html">阅读指南</a></div></footer>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body></html>

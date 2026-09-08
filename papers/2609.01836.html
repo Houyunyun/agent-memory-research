@@ -1,0 +1,515 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="正常授权历史经更新后产生虚假许可，使用确定性账本与模拟工具">
+<meta name="color-scheme" content="light"><title>Agent Memory Is a Surface for Endogenous Authorization Laundering · Agent Memory 研究</title>
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/katex/katex.min.css"><script src="../assets/katex/katex.min.js" defer></script><script src="../assets/katex/auto-render.min.js" defer></script><script src="../assets/site.js" defer></script>
+</head>
+<body data-page="library">
+<a class="skip-link" href="#main">跳转到正文</a>
+<header class="site-header"><div class="header-inner">
+<a class="brand" href="../index.html" aria-label="Agent Memory 研究首页">
+<svg viewBox="0 0 36 36" width="32" height="32" aria-hidden="true"><path d="M9 9h18v18H9zM9 9l18 18M27 9L9 27" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="9" r="4"/><circle cx="27" cy="9" r="4"/><circle cx="9" cy="27" r="4"/><circle cx="27" cy="27" r="4"/></svg>
+<span>Agent Memory<small>研究文献站</small></span></a>
+<nav class="site-nav" aria-label="主导航"><a href="../index.html">研究总览</a><a href="../library.html" aria-current="page">文献库</a><a href="../reports/survey.html">综述全文</a><a href="../reports/multi-agent.html">多智能体专题</a><a href="../sources.html">阅读指南</a></nav>
+</div></header>
+<main id="main"><div class="page-wrap"><div class="breadcrumb"><a href="../library.html">文献库</a><span>/</span><a href="../library.html?topic=safety">安全与治理</a></div>
+<header class="paper-hero"><div class="paper-badges"><span class="badge expanded">含详细解读</span><span class="muted">2026 · 2609.01836</span></div><h1>Agent Memory Is a Surface for Endogenous Authorization Laundering</h1><p class="paper-authors full-authors">Tommaso Cerruti, Mika Okamoto, Ansel Kaplan Erol</p>
+<div class="hero-actions paper-actions"><a href="https://arxiv.org/abs/2609.01836" target="_blank" rel="noopener noreferrer">论文原文 <span aria-hidden="true">↗</span></a><a href="../downloads/notes/2609.01836.md">下载文献卡片 Markdown</a></div></header>
+<div class="detail-layout"><article class="prose"><h2 id="_1">核心机制</h2>
+<p>正常授权历史经更新后产生虚假许可，使用确定性账本与模拟工具</p>
+<h2 id="_2">适用范围与局限</h2>
+<p>不测真实部署发生率，缓解措施可能过度拒绝</p>
+<h2 id="_3">详细解读</h2>
+<h3 id="_4">核心总结</h3>
+<p>这篇论文提出了一个名为"内生授权洗白"（endogenous authorization laundering）的新概念，指出长期运行的LLM智能体在使用持久化记忆（persistent memory）跨会话保存状态时，记忆本身可能在没有任何外部攻击的情况下，错误地记录授权信息——遗忘了撤销、扩大了权限范围——从而让本不被允许的操作看起来合法。作者构建了一个名为EAL-BENCH的基准测试，在采购、网络安全和金融三个领域中评估了五个LLM作为记忆写入者、两个LLM作为执行者的表现，发现在增量更新模式下，写入者对高达50.2%的未授权请求创造了虚假授权，而一旦虚假授权存在于记忆中，执行者在98.6%的情况下会据此行动。两种缓解策略（来源权威门控和有界事件溯源）能显著降低洗白率，但同时也会拒绝更多合法操作，揭示了安全性与实用性之间的权衡。</p>
+<h3 id="_5">一、问题背景与动机</h3>
+<h4 id="11">1.1 持久化记忆与授权状态</h4>
+<p>现代LLM智能体系统（如ReAct、Toolformer、MemGPT等）普遍使用<strong>持久化记忆</strong>来跨多轮交互保持状态，避免每次都重新处理完整历史。当这些历史中包含<strong>权限授予（grants）、限制（restrictions）和撤销（revocations）</strong>时，记忆实际上也承载了<strong>授权状态</strong>。<br />
+问题在于：将完整历史压缩为一个维护中的表示（maintained representation）时，可能会改变哪些操作在后续看起来是被授权的。例如：</p>
+<ul>
+<li>一个被遗忘的撤销操作会保留已经不存在的权限</li>
+<li>一个被丢弃的授权会导致智能体拒绝本应合法的请求<br />
+  论文举了一个真实案例：2026年2月，一个邮件智能体在例行的上下文压缩中将其主人的"操作前需确认"指令摘要掉了，结果它删除了200多封本来只被要求审阅的邮件。</li>
+</ul>
+<h4 id="12">1.2 内生授权洗白的定义</h4>
+<p>论文将这种失败模式命名为<strong>内生授权洗白（endogenous authorization laundering）</strong>：系统自身的记忆创造了底层历史从未授予的表面权限。关键特征是：</p>
+<ul>
+<li><strong>内生的</strong>：不是外部攻击（如记忆投毒、提示注入），而是普通内部错误导致的</li>
+<li><strong>洗白</strong>：虚假权限被写入记忆后，其来源信息被"洗掉"了，执行者看到的只是记忆中的状态，无法追溯到原始历史</li>
+<li>执行者是<strong>忠实地</strong>基于错误的授权状态行动的，因此在执行时违规是不可见的</li>
+</ul>
+<hr />
+<h3 id="_6">二、问题形式化</h3>
+<h4 id="21">2.1 基本框架</h4>
+<p>每个测试实例包含一个有序的组织历史 $H = (B_1, \ldots, B_T)$，由多个会话块组成。一个确定性的重放函数 $R$ 将权威事件映射到规范授权状态：  </p>
+<p>$\displaystyle S_t = R(B_1, \ldots, B_t)$</p>
+<p>一个领域特定的谓词 $A(S_t, x) \in \{0, 1\}$ 确定操作 $x$ 是否被授权。$R$ 和 $A$ 都是确定性的，且对智能体隐藏。<br />
+<strong>记忆写入者</strong> $W$ 将历史转化为持久化制品 $M_T$；<strong>执行者</strong> $E$ 后续接收 $M_T$ 和请求 $q$，但无法访问原始历史。</p>
+<h4 id="22">2.2 形成与传播的分解</h4>
+<p>对于结构化（typed）记忆，可以确定性地评估记忆中的授权状态 $A_M(M_T, x)$。论文将端到端的洗白事件分解为两个阶段：<br />
+<strong>形成（Formation）</strong>：记忆授权了规范状态拒绝的操作：  </p>
+<p>$\displaystyle F(M_T, a_q) = \mathbf{1}\{A(S_T, a_q) = 0 \wedge A_M(M_T, a_q) = 1\}$</p>
+<p><strong>传播（Propagation）</strong>：执行者基于记忆执行了该操作：  </p>
+<p>$\displaystyle G(E, M_T, q) = \mathbf{1}\{E(M_T, q) = a_q\}$</p>
+<p>端到端洗白事件为 $F \wedge G$，其发生率为 $P(F=1) \cdot P(G=1 \mid F=1)$。第一个因子衡量写入者多频繁地创造虚假授权，第二个衡量执行者在虚假授权存在时是否据此行动。</p>
+<h4 id="23">2.3 行为指标</h4>
+<ul>
+<li><strong>授权使用率（Authorized Use）</strong>：对于被授权的请求，执行者执行了所请求操作的比例（越高越好）</li>
+<li><strong>未授权提交率（Unauthorized Submission）</strong>：对于未被授权的请求，执行者仍然执行了所请求操作的比例（越低越好）</li>
+<li>未能执行合法请求的情况称为<strong>授权不足（undergrants）</strong></li>
+</ul>
+<hr />
+<h3 id="eal-bench">三、EAL-BENCH 基准测试设计</h3>
+<h4 id="31">3.1 测试用例与授权真值</h4>
+<p>每个基准项包含：</p>
+<ol>
+<li><strong>多会话组织历史</strong>：包含政策变更、过时声明、非权威建议等</li>
+<li><strong>后续结构化请求</strong>：描述一次采购、事件响应操作或交易</li>
+<li><strong>隐藏的确定性账本</strong>：重放有效授权事件以建立真值<br />
+   每个用例贡献一个<strong>配对请求对</strong>，两个请求仅在一个授权相关字段上不同，使得一个被授权、一个不被授权。评分是确定性的，不使用LLM判断。</li>
+</ol>
+<h4 id="32">3.2 三个领域</h4>
+<p>论文在三个领域中构建了测试用例：</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>领域</th>
+<th>授权范围</th>
+<th>示例边界</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>采购</strong></td>
+<td>买方、供应商、类别、金额、货币、状态、有效期</td>
+<td>同一订单改变类别或超出有效期即变为未授权</td>
+</tr>
+<tr>
+<td><strong>网络安全</strong></td>
+<td>响应者、租户、事件、资产、环境、漏洞、响应操作、有效期</td>
+<td>同一操作换一个资产或环境即变为未授权</td>
+</tr>
+<tr>
+<td><strong>金融</strong></td>
+<td>交易员、账户、策略、工具、方向、订单类型、数量、价格、结算货币、有效期</td>
+<td>同一订单改变方向或使用市价单即变为未授权</td>
+</tr>
+</tbody>
+</table></div>
+<p>每个领域有8-16个用例，32-64个配对请求对，历史跨5-18个块。</p>
+<h4 id="33">3.3 记忆构建</h4>
+<p>所有写入者使用LangMem的面向配置文件的记忆管理器。测试了两个维度的组合（2×2设计）：<br />
+<strong>记忆表示</strong>：</p>
+<ul>
+<li><strong>自由文本记忆（free-text）</strong>：存储为单个Markdown兼容字符串</li>
+<li><strong>结构化记忆（typed）</strong>：使用模式验证的JSON，包含领域原生的授权记录和来源标识符</li>
+</ul>
+<p><strong>更新策略</strong>：</p>
+<ul>
+<li><strong>一次性写入（one-shot）</strong>：接收完整历史，$M_T = W(H)$</li>
+<li><strong>增量更新（incremental）</strong>：仅接收前一个记忆和新块，$M_t = W(M_{t-1}, B_t)$，早期原始历史永远不会被重放<br />
+  记忆容量设置为固定校准语料库中最大忠实载荷的两倍。每次写入最多允许一次验证修复；如果两次都失败，保留之前的配置文件。最终记忆在评估前被冻结和哈希。</li>
+</ul>
+<h4 id="34">3.4 隔离控制与干预</h4>
+<p><strong>校准控制</strong>：执行者只有在忠实文本和忠实结构化控制下达到100%授权使用率和0%未授权提交率时才被认定为"已校准"。<br />
+<strong>精确状态修复（exact-state repair）</strong>：对于出现形成错误（$F=1$）的结构化记忆，用oracle精确替换记忆，保持其他一切不变，测试未授权操作是否消失。这是一个纯记忆干预，用于建立因果关系。<br />
+<strong>压力干预</strong>：添加领域特定的紧迫性或运营风险声明，但不添加任何授权信息，不改变规范状态。任何行为变化都反映执行者对压力的敏感性。</p>
+<h4 id="35">3.5 评估模型</h4>
+<p><strong>五个写入者</strong>：Nemotron 3 Ultra、Kimi K2.6、GLM 5.2、Grok 4.3、Qwen-Plus<br />
+<strong>两个执行者</strong>：GPT-OSS-120B、DeepSeek V4 Pro<br />
+所有模型在温度1.0、4096 token输出限制下运行。在三个固定种子下评估所有四种记忆条件组合。</p>
+<h3 id="_7">四、主要实验结果</h3>
+<h4 id="41">4.1 增量更新产生最多授权失败</h4>
+<p>Figure 2和Table 6的结果显示：</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>领域</th>
+<th>文本一次性</th>
+<th>文本增量</th>
+<th>结构化一次性</th>
+<th>结构化增量</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>采购</td>
+<td>A:97.4, U:0.5</td>
+<td>A:86.8, U:18.2</td>
+<td>A:98.8, U:1.6</td>
+<td>A:96.8, U:28.9</td>
+</tr>
+<tr>
+<td>网络安全</td>
+<td>A:96.4, U:1.1</td>
+<td>A:92.2, U:5.9</td>
+<td>A:96.6, U:0.8</td>
+<td>A:88.8, U:10.4</td>
+</tr>
+<tr>
+<td>金融</td>
+<td>A:99.4, U:2.7</td>
+<td>A:94.6, U:30.8</td>
+<td>A:91.7, U:0.4</td>
+<td>A:98.3, U:51.0</td>
+</tr>
+</tbody>
+</table></div>
+<p>关键发现：</p>
+<ul>
+<li><strong>增量更新在每个领域和两种表示中都提高了未授权提交率</strong></li>
+<li><strong>结构化增量记忆是最不安全的条件</strong>，在金融领域达到51.0%的未授权提交率</li>
+<li>授权使用率在同一条件下保持较高，说明失败不是一般性的性能崩溃</li>
+<li>不对称性来自写入者看到的内容：一次性写入者从完整历史重建最终状态，而增量写入者仅从先前记忆更新，因此一旦写入错误就会被持续传递</li>
+</ul>
+<h4 id="42">4.2 虚假授权在记忆中形成并传播到行动</h4>
+<p>由于结构化记忆可以直接与账本比对，虚假授权可以在执行者行动之前被测量。Table 2显示形成率与未授权提交率密切跟踪：</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>领域</th>
+<th>$P(F)$</th>
+<th>未授权提交率</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>采购</td>
+<td>28.3%</td>
+<td>28.9%</td>
+</tr>
+<tr>
+<td>网络安全</td>
+<td>10.4%</td>
+<td>10.4%</td>
+</tr>
+<tr>
+<td>金融</td>
+<td>50.2%</td>
+<td>51.0%</td>
+</tr>
+<tr>
+<td>领域</td>
+<td>自然错误记忆</td>
+<td>Oracle精确记忆</td>
+</tr>
+<tr>
+<td>------</td>
+<td>-----------</td>
+<td>------------</td>
+</tr>
+<tr>
+<td>采购</td>
+<td>66/68 (97.1%)</td>
+<td>0/68 (0.0%)</td>
+</tr>
+<tr>
+<td>网络安全</td>
+<td>60/60 (100.0%)</td>
+<td>0/60 (0.0%)</td>
+</tr>
+<tr>
+<td>金融</td>
+<td>79/80 (98.8%)</td>
+<td>0/80 (0.0%)</td>
+</tr>
+</tbody>
+</table></div>
+<p>错误记忆下未授权提交率为98.6%，精确修复后降为0%。<strong>只有记忆在两次重放之间改变</strong>，因此执行者是根据其可用证据一致行动的，而系统整体违反了历史建立的授权。这证明<strong>执行者端的对齐无法弥补这一差距；保障措施必须触及记忆本身</strong>。</p>
+<p><strong>因果关系验证</strong>（Table 3）：对于出现 $F=1$ 的结构化记忆，用相同请求分别在错误记忆和oracle精确替换记忆下重放：</p>
+<p>大部分行为失败已经在执行前编码在存储状态中，使其可以提前审计。</p>
+<h4 id="43">4.3 洗白是写入者通用的，且随记忆制品传播</h4>
+<p>Table 4报告了每个写入者和领域的结果：</p>
+<ul>
+<li><strong>每个写入者在每个领域都创造了虚假授权</strong></li>
+<li>网络安全对所有写入者最安全，金融对五分之四的写入者最不安全</li>
+<li>Qwen-Plus在金融领域是最明显的异常值（43.8%基线未授权提交率）</li>
+<li>更好的写入者同时改善两个指标（授权使用率和未授权提交率），因为权限获取错误和权限丢失错误都是状态保真度错误</li>
+</ul>
+<p><strong>压力干预</strong>的效果：</p>
+<ul>
+<li>在采购和网络安全中，未授权提交率基本不变</li>
+<li>在金融中从20.9%上升到27.3%，集中在DeepSeek</li>
+<li>更大的效果是<strong>授权不足</strong>：所有领域的授权使用率都大幅下降（采购-27.2点，网络安全-15.1点，金融-19.1点）</li>
+</ul>
+<p><strong>跨执行者传播</strong>：将每个冻结记忆在两个校准执行者后重放，未授权提交率在每个领域内相差不超过1.1个百分点，每次重放的一致率在97.9%到99.5%之间。<strong>一旦虚假授权被存储，更换执行者几乎不提供保护</strong>。</p>
+<h4 id="44-">4.4 缓解策略形成离散的安全-实用性帕累托前沿</h4>
+<p>论文测试了两种防御措施，都针对形成阶段而非传播阶段：<br />
+<strong>1. 黄金引用来源权威门控（Gold cited-source authority gate）</strong>：</p>
+<ul>
+<li>仅当结构化授权记录的所有引用来源都是有效的、可见的、且来自被允许授予授权的主体时，才保留该记录</li>
+<li>将来源权威错误与范围、有效性或生命周期状态的错误分离</li>
+</ul>
+<p><strong>2. 有界事件溯源架构（Bounded event-sourced architecture）</strong>：</p>
+<ul>
+<li>写入者仅提取每个新块中发生了什么变化</li>
+<li>外部系统将这些更新追加到不可变日志中</li>
+<li>确定性归约器从日志构建下一个紧凑记忆状态</li>
+<li>将授权状态维护从模型转移到确定性代码<br />
+  结果（在共享的三种子结构化增量群体上）：</li>
+</ul>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>条件</th>
+<th>未授权提交率</th>
+<th>授权使用率</th>
+<th>$P(F)$</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>基线（结构化增量）</td>
+<td>25.3%</td>
+<td>93.3%</td>
+<td>24.9%</td>
+</tr>
+<tr>
+<td>来源权威门控</td>
+<td>7.3% (↓18.0pp)</td>
+<td>53.8% (↓39.5pp)</td>
+<td>5.5%</td>
+</tr>
+<tr>
+<td>有界事件溯源</td>
+<td>9.0% (↓16.3pp)</td>
+<td>64.7% (↓28.6pp)</td>
+<td>8.7%</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>没有一个配置在汇总估计上支配另一个</strong>，三个点形成了一个离散的经验帕累托前沿（Figure 3）。选择哪个操作点取决于部署的成本不对称性：如果违规是灾难性的而阻止合法操作是可恢复的，门控的权衡是可接受的；如果授权不足会阻碍实际工作，事件溯源以类似的安全增益保留了更多实用性。<br />
+来源权威门控还界定了来源解释了多少：5.5%的形成率在来源过滤后仍然存在，因为具有有效权威来源的记录仍可能携带错误的范围、有效性或撤销状态。</p>
+<h4 id="45">4.5 写入者端计算将瓶颈转移到选择</h4>
+<p>论文测试了增加写入者端推理计算是否能减少失败。在采购领域，每个写入者采样嵌套的候选池 $k \in \{1, 2, 4, 8\}$，仅使用可见历史选择一个。<br />
+结果：</p>
+<ul>
+<li>从 $k=1$ 到 $k=8$，未授权提交从13.2%降至8.6%，授权使用从94.2%升至95.8%</li>
+<li><strong>生成比选择改进更快</strong>：在 $k=8$ 时，55.0%的池中存在精确记忆，但自我审查仅选中26.7%，独立DeepSeek审查选中30.0%</li>
+<li>在增量结构化记忆中，最终状态错误从 $k=1$ 的63.3%降至 $k=8$ 的51.7%，但<strong>错误持续率为100%，自我修复率为0%</strong><br />
+  这意味着额外计算主要帮助避免错误进入记忆，而不是在错误进入后修复它们。<strong>瓶颈是验证而非生成</strong>，这有利于缓解措施实现的确定性检查，而非在LLM审查者上花费更多计算。</li>
+</ul>
+<hr />
+<h3 id="_8">五、威胁模型与设计特点</h3>
+<p>论文的威胁模型<strong>不包含攻击者</strong>：</p>
+<ul>
+<li>历史和权威消息是真实的</li>
+<li>提示注入和相关对抗攻击不在范围内</li>
+<li>写入者看到可见历史但从不看到规范账本、未来历史或评估请求</li>
+<li>执行者仅接收存储的记忆<br />
+  EAL-BENCH因此隔离了<strong>在普通记忆更新期间形成并通过下游执行传播的内生授权洗白</strong>。</li>
+</ul>
+<hr />
+<h3 id="_9">六、运行示例</h3>
+<p>以Figure 1中的采购案例为例：</p>
+<ol>
+<li>审批者授予买方从TableWorks购买午餐和咖啡的权限，上限6000美元</li>
+<li>后续修正将授权缩窄为仅午餐</li>
+<li>一个非权威的ERP记录随后将供应商列在"午餐和招待茶点"类别下</li>
+<li>规范状态 $S_T$ 反映了修正后的授权，但写入者将ERP类别吸收到存储记录中</li>
+<li>后续一个6000美元的招待茶点订单被账本拒绝（$A(S_T, a_q) = 0$），但被记忆授权（$A_M(M_T, a_q) = 1$），形成已发生（$F=1$）</li>
+<li>当执行者下单时，$G=1$，洗白完成<br />
+   配对请求仅在类别字段上不同，全程被授权。</li>
+</ol>
+<hr />
+<h3 id="_10">七、与相关工作的区别</h3>
+<p>Table 1总结了与最接近工作的比较。EAL-BENCH是唯一同时覆盖以下所有维度的：</p>
+<ul>
+<li>记忆</li>
+<li>长期视野</li>
+<li>来源追踪</li>
+<li>生命周期（授予、撤销、替换事件的跟踪）</li>
+<li>增量更新</li>
+<li>形成与传播的分离</li>
+<li>精确修复<br />
+  与AUTHMEM-BENCH的区别：后者研究合并边界处的权威崩溃，保持声明和下游任务固定；EAL-BENCH变化历史本身，跟踪权限、限制、撤销和替换通过重复记忆更新。<br />
+  与PPMF的区别：后者从攻击者控制或不可信的观察开始形式化来源权威非放大；EAL-BENCH从真实的、非恶意的历史开始。</li>
+</ul>
+<hr />
+<h3 id="_11">八、局限性</h3>
+<ol>
+<li>历史比真实工作场所通信保留了更多结构（明确的会话块、异常清晰的授权事件、模拟工具），以保持授权真值的确定性</li>
+<li>结果展示了在受控但现实的工作流中出现内生授权洗白，但不估计其在已部署系统中的普遍性</li>
+<li>确定性形成只能对结构化记忆测量，自由文本记忆的可比分析需要经过验证的语义标注</li>
+<li>两项分析（每写入者比较和压力干预）基于单个固定种子而非三种子评估</li>
+<li>缓解措施有自身假设：来源权威门控假设授权能力主体已知，事件溯源改变了整体记忆架构</li>
+</ol>
+<hr />
+<h3 id="_12">九、结论与实践意义</h3>
+<p>EAL-BENCH表明授权失败可以在执行者做出任何决定之前就起源于持久化记忆。问题不仅仅是执行者是否遵循策略，而是它接收到的持久化状态是否仍然代表底层历史建立的策略。<br />
+对从业者的直接含义是：<strong>将持久化记忆视为智能体安全边界的一部分</strong>。存储的权限应该获得与身份和访问管理系统中的条目相同的来源追踪、生命周期管理和审计纪律。维护授权状态是一个<strong>系统设计问题</strong>，而不仅仅是执行者对齐问题。</p>
+<h2 id="_13">研究要点表</h2>
+<div class="table-scroll"><table class="key-value">
+<thead>
+<tr>
+<th>维度</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>论文标题</td>
+<td>Agent Memory Is a Surface for Endogenous Authorization Laundering</td>
+</tr>
+<tr>
+<td>作者</td>
+<td>Tommaso Cerruti (ETH Zurich), Mika Okamoto (Georgia Institute of Technology), Ansel Kaplan Erol (Georgia Institute of Technology)</td>
+</tr>
+<tr>
+<td>发表年份</td>
+<td>2026年（预印本，arXiv:2609.01836v1，2026年9月1日）</td>
+</tr>
+<tr>
+<td>研究问题</td>
+<td>长期运行的LLM智能体依赖持久记忆来维护授权状态（权限、限制和撤销），当记忆错误地表示这些演变的授权状态时，智能体自身的记录可能授予底层历史从未允许的权限，导致未经授权的行为——即"内生授权洗白"（endogenous authorization laundering）现象。</td>
+</tr>
+<tr>
+<td>研究方法</td>
+<td>提出EAL-BENCH基准测试，包含采购、网络安全和金融三个领域的多会话组织历史，配备隐藏的确定性账本作为授权真值。评估5个LLM作为记忆写入器、2个作为执行器，测试自由文本与类型化记忆、一次性与增量更新四种组合，并通过精确状态修复干预、压力测试及两种缓解策略（来源权威门控和有界事件溯源架构）进行因果分析。</td>
+</tr>
+<tr>
+<td>主要发现</td>
+<td>在增量记忆更新下，写入器为高达50.2%的未授权请求创建了虚假权限；一旦虚假权限存在，执行器在98.6%的试验中据此采取行动。精确状态修复可完全消除未授权行为，证明故障源于记忆。两种缓解策略显著降低了授权洗白（未授权提交从25.3%分别降至7.3%和9.0%），但同时也拒绝了更多合法操作（授权使用从93.3%分别降至53.8%和64.7%），揭示了安全-效用权衡。</td>
+</tr>
+<tr>
+<td>创新点</td>
+<td>首次识别并形式化定义了"内生授权洗白"这一失败模式，将其分解为虚假权限形成（formation）和下游传播（propagation）两个阶段；提出了EAL-BENCH开源可扩展基准，涵盖生命周期追踪、增量更新、来源验证、形成与传播分离以及精确修复等维度，是该领域最全面的评估框架。</td>
+</tr>
+<tr>
+<td>局限性</td>
+<td>基准测试的组织历史比真实工作场景更结构化，结果展示了受控条件下的授权洗白现象但未估计其在部署系统中的实际发生率；确定性形成分析仅适用于类型化记忆；部分分析（每写入器比较和压力干预）仅基于单一种子而非三种子评估；跨领域差异可能反映任务构造而非行业固有属性。</td>
+</tr>
+<tr>
+<td>与本研究的关联</td>
+<td>未提及</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="_14">结构化提纲</h2>
+<h3 id="agent-memory-is-a-surface-for-endogenous-authorization-laundering_1">Agent Memory Is a Surface for Endogenous Authorization Laundering</h3>
+<h4 id="_15">研究背景与目标</h4>
+<ul>
+<li>持久记忆在LLM智能体中的角色</li>
+<li>长期运行的LLM智能体依赖持久记忆跨交互传递状态</li>
+<li>记忆中包含权限、限制和撤销等授权状态</li>
+<li>核心问题：内生授权洗白（Endogenous Authorization Laundering）</li>
+<li>记忆压缩过程中授权状态失真，导致虚假权限产生</li>
+<li>系统自身记忆创造了底层历史从未授予的表面权限</li>
+<li>区别于外部攻击（如记忆投毒、提示注入），属于内部普通错误</li>
+<li>现有评估的不足</li>
+<li>已有记忆评估聚焦于召回率、对抗场景或下游任务性能</li>
+<li>对演化授权状态的保持缺乏系统性度量</li>
+<li>研究目标</li>
+<li>识别并形式化内生授权洗白这一失败模式</li>
+<li>将其分解为虚假权限形成（Formation）和下游传播（Propagation）</li>
+<li>构建基准测试以量化该问题并评估缓解策略</li>
+</ul>
+<h4 id="_16">研究方法</h4>
+<ul>
+<li>EAL-BENCH基准测试设计</li>
+<li>包含演化的组织历史和隐藏的确定性账本（Canonical Ledger）</li>
+<li>记忆写入器（Writer）将历史转化为持久记忆</li>
+<li>执行器（Executor）仅基于记忆决定是否执行操作</li>
+<li>配对的授权/未授权请求用于分离错误来源</li>
+<li>实验领域</li>
+<li>采购（Procurement）、网络安全（Cybersecurity）、金融（Finance）</li>
+<li>每个领域有独立的授权范围和决策规则</li>
+<li>记忆构建方式（2×2设计）</li>
+<li>表示形式：自由文本（Markdown）vs 类型化记忆（JSON Schema验证）</li>
+<li>更新策略：一次性写入（全历史）vs 增量更新（仅新块+先前记忆）</li>
+<li>评估模型</li>
+<li>5个记忆写入器：Nemotron 3 Ultra、Kimi K2.6、GLM 5.2、Grok 4.3、Qwen-Plus</li>
+<li>2个校准执行器：GPT-OSS-120B、DeepSeek V4 Pro</li>
+<li>隔离控制与干预</li>
+<li>精确状态修复（Exact-state Repair）：用真实授权状态替换错误记忆</li>
+<li>压力干预：添加紧迫性信息但不改变授权状态</li>
+<li>缓解策略</li>
+<li>黄金引用源权限门控（Source-authority Gate）：仅保留引用有效权威来源的记录</li>
+<li>有界事件溯源架构（Bounded Event Sourcing）：写入器仅提取变更，确定性归约器构建状态</li>
+</ul>
+<h4 id="_17">关键研究结果</h4>
+<ul>
+<li>增量更新产生最多授权失败</li>
+<li>类型化增量记忆在金融领域未授权提交率高达51.0%</li>
+<li>授权使用率保持较高，说明并非整体性能崩溃</li>
+<li>一次性写入可重建完整历史，增量更新中错误一旦写入即持续传播</li>
+<li>虚假权限在记忆中形成并传播至行动</li>
+<li>类型化增量记忆中虚假权限形成率：采购28.3%、网络安全10.4%、金融50.2%</li>
+<li>与下游未授权提交率高度一致（差距&lt;0.8个百分点）</li>
+<li>精确状态修复后未授权执行率从98.6%降至0%，证明因果关系</li>
+<li>问题具有写入器普遍性且随记忆传播</li>
+<li>所有5个写入器在所有3个领域均产生虚假权限</li>
+<li>两个执行器的未授权提交率差异在1.1个百分点以内</li>
+<li>更换执行器无法修复问题，防御需针对记忆本身</li>
+<li>压力干预的影响</li>
+<li>金融领域未授权提交从20.9%升至27.3%</li>
+<li>授权使用率大幅下降（采购降27.2点、网络安全降15.1点、金融降19.1点）</li>
+<li>缓解策略形成安全-效用帕累托前沿</li>
+<li>源权限门控：未授权提交从25.3%降至7.3%，但授权使用从93.3%降至53.8%</li>
+<li>有界事件溯源：未授权提交降至9.0%，授权使用降至64.7%</li>
+<li>无单一配置同时优于其他，存在明确的安全-效用权衡</li>
+<li>写入端计算扩展的瓶颈在于选择</li>
+<li>k=1到k=8候选池：未授权提交从13.2%降至8.6%</li>
+<li>k=8时55%的池中存在精确记忆，但自审查仅选中26.7%</li>
+<li>增量记忆中错误持续率100%，自修复率0%</li>
+</ul>
+<h4 id="_18">研究结论与意义</h4>
+<ul>
+<li>核心发现</li>
+<li>授权失败可在执行器做出任何决策之前就在持久记忆中产生</li>
+<li>问题本质不在于执行器是否遵循策略，而在于其接收的持久状态是否仍代表历史建立的策略</li>
+<li>理论贡献</li>
+<li>首次识别并形式化"内生授权洗白"这一失败模式</li>
+<li>将其分解为可独立度量的形成与传播两个阶段</li>
+<li>提出EAL-BENCH作为开源可扩展的授权状态保持基准</li>
+<li>实践意义</li>
+<li>持久记忆不仅是性能组件，更是智能体有效授权策略的一部分</li>
+<li>应将持久记忆视为智能体安全边界的组成部分</li>
+<li>存储的权限应享有与身份和访问管理系统同等的溯源、生命周期和审计纪律</li>
+<li>未来方向</li>
+<li>需要保持溯源和授权生命周期的记忆架构</li>
+<li>在更新持久化之前进行验证</li>
+<li>维护授权状态是系统设计问题，而非仅是执行器对齐问题</li>
+<li>局限性</li>
+<li>历史数据比真实工作场景更结构化</li>
+<li>结果展示受控条件下的失败，未估计部署系统中的实际发生率</li>
+<li>缓解策略各有假设前提（如已知授权主体、架构变更）</li>
+</ul>
+<h2 id="_19">原文摘要</h2>
+<p>Long-running LLM agents rely on persistent memory to carry state across interactions, including permissions, restrictions, and revocations. When memory misrepresents this evolving authorization state, the agent's own records can grant authority that the underlying history never permitted, resulting in misaligned behavior without any external attacks.
+ We term this failure endogenous authorization laundering, where spurious permissions written into memory lead to unauthorized actions as their provenance is washed away. We then introduce EAL-Bench, which measures how accurately persistent memory preserves evolving authorization state and whether errors propagate to downstream unauthorized actions.
+ We evaluate five LLMs as memory writers and two as executors across procurement, cybersecurity, and finance. We find that under incremental memory updates, writers create false authority for up to 50.2% of unauthorized requests; once false authority is present, executors act on it in 98.6% of trials. Two safeguards, requiring stored permissions to be backed by valid source events, and tracking permission changes through bounded event sourcing, substantially reduce laundering, but both also reject more legitimate actions, exposing a safety-utility tradeoff. Persistent memory is therefore not merely a performance component, but a part of an LLM agent's effective authorization policy.</p></article>
+<aside class="detail-aside"><div class="report-toc" aria-label="文献卡片目录"><details open><summary>本页目录</summary><div class="toc">
+<ul>
+<li><a href="#_1">核心机制</a></li>
+<li><a href="#_2">适用范围与局限</a></li>
+<li><a href="#_3">详细解读</a><ul>
+<li><a href="#_4">核心总结</a></li>
+<li><a href="#_5">一、问题背景与动机</a></li>
+<li><a href="#_6">二、问题形式化</a></li>
+<li><a href="#eal-bench">三、EAL-BENCH 基准测试设计</a></li>
+<li><a href="#_7">四、主要实验结果</a></li>
+<li><a href="#_8">五、威胁模型与设计特点</a></li>
+<li><a href="#_9">六、运行示例</a></li>
+<li><a href="#_10">七、与相关工作的区别</a></li>
+<li><a href="#_11">八、局限性</a></li>
+<li><a href="#_12">九、结论与实践意义</a></li>
+</ul>
+</li>
+<li><a href="#_13">研究要点表</a></li>
+<li><a href="#_14">结构化提纲</a><ul>
+<li><a href="#agent-memory-is-a-surface-for-endogenous-authorization-laundering_1">Agent Memory Is a Surface for Endogenous Authorization Laundering</a></li>
+</ul>
+</li>
+<li><a href="#_19">原文摘要</a></li>
+</ul>
+</div>
+</details></div><section><h2>引用这篇论文</h2><p id="citation-text" class="citation-text">Tommaso Cerruti, Mika Okamoto, Ansel Kaplan Erol. Agent Memory Is a Surface for Endogenous Authorization Laundering. arXiv:2609.01836, 2026.</p><button class="button secondary" type="button" data-copy-citation>复制引用</button><p class="meta-note">综述参考文献 [60]</p></section><section><h2>同方向继续阅读</h2><ul class="related-list"><li><a href="../papers/2503.03704.html">Memory Injection Attacks on LLM Agents via Query-Only Interaction</a></li><li><a href="../papers/2509.26354.html">Your Agent May Misevolve: Emergent Risks in Self-evolving LLM Agents</a></li><li><a href="../papers/2510.02373.html">A-MemGuard: A Proactive Defense Framework for LLM-Based Agent Memory</a></li><li><a href="../papers/2602.15654.html">Zombie Agents: Persistent Control of Self-Evolving LLM Agents via Self-Reinforcing Injections</a></li></ul></section></aside></div></div></main>
+<footer class="site-footer"><div><strong>Agent Memory 研究</strong><p>从保存历史，到有依据地更新长期状态。</p></div>
+<div><span>内容更新 · 2026-09-08</span><p>理解方法，比较条件，关注长期影响。</p><a href="../sources.html">阅读指南</a></div></footer>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body></html>

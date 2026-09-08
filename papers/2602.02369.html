@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="持续反馈调整经验权重并生成任务适配指导">
+<meta name="color-scheme" content="light"><title>Live-Evo: Online Evolution of Agentic Memory from Continuous Feedback · Agent Memory 研究</title>
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/katex/katex.min.css"><script src="../assets/katex/katex.min.js" defer></script><script src="../assets/katex/auto-render.min.js" defer></script><script src="../assets/site.js" defer></script>
+</head>
+<body data-page="library">
+<a class="skip-link" href="#main">跳转到正文</a>
+<header class="site-header"><div class="header-inner">
+<a class="brand" href="../index.html" aria-label="Agent Memory 研究首页">
+<svg viewBox="0 0 36 36" width="32" height="32" aria-hidden="true"><path d="M9 9h18v18H9zM9 9l18 18M27 9L9 27" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="9" r="4"/><circle cx="27" cy="9" r="4"/><circle cx="9" cy="27" r="4"/><circle cx="27" cy="27" r="4"/></svg>
+<span>Agent Memory<small>研究文献站</small></span></a>
+<nav class="site-nav" aria-label="主导航"><a href="../index.html">研究总览</a><a href="../library.html" aria-current="page">文献库</a><a href="../reports/survey.html">综述全文</a><a href="../reports/multi-agent.html">多智能体专题</a><a href="../sources.html">阅读指南</a></nav>
+</div></header>
+<main id="main"><div class="page-wrap"><div class="breadcrumb"><a href="../library.html">文献库</a><span>/</span><a href="../library.html?topic=experience">经验与技能</a></div>
+<header class="paper-hero"><div class="paper-badges"><span class="badge expanded">含详细解读</span><span class="muted">2026 · 2602.02369</span></div><h1>Live-Evo: Online Evolution of Agentic Memory from Continuous Feedback</h1><p class="paper-authors full-authors">Yaolun Zhang, Yiran Wu, Yijiong Yu, Qingyun Wu, Huazheng Wang</p>
+<div class="hero-actions paper-actions"><a href="https://arxiv.org/abs/2602.02369" target="_blank" rel="noopener noreferrer">论文原文 <span aria-hidden="true">↗</span></a><a href="../downloads/notes/2602.02369.md">下载文献卡片 Markdown</a></div></header>
+<div class="detail-layout"><article class="prose"><h2 id="_1">核心机制</h2>
+<p>持续反馈调整经验权重并生成任务适配指导</p>
+<h2 id="_2">适用范围与局限</h2>
+<p>有 live 测试但不代表任意非平稳分布；自报收益未独立复现</p>
+<h2 id="_3">详细解读</h2>
+<h3 id="_4">论文核心总结</h3>
+<p>这篇论文提出了LIVE-EVO，一个面向<strong>持续在线任务流</strong>的自演化智能体记忆系统。与传统的"先在训练集上构建记忆、再在测试集上使用"的静态范式不同，LIVE-EVO能够在真实的、不断变化的数据流中持续学习和更新记忆。其核心创新在于将"发生了什么"（经验）和"如何使用经验"（元指南）解耦为两个独立的记忆库，并通过一个四阶段闭环（检索-编译-执行-更新）来持续优化记忆的使用方式。系统为每条经验维护权重，通过对比评估（有记忆 vs 无记忆）来判断经验是否有用：有用的经验被强化、更频繁地被检索，而误导性或过时的经验则被降权并逐渐遗忘，这类似于人类记忆中的强化与衰退机制。在Prophet Arena这一真实在线预测基准上，LIVE-EVO在10周时间跨度内将Brier分数改善了20.8%，市场回报提升了12.9%。</p>
+<h3 id="1">1. 研究背景与动机</h3>
+<h4 id="11-llm">1.1 LLM智能体的记忆系统</h4>
+<p>大语言模型（LLM）越来越多地被用作智能体系统的核心，使智能体能够通过工具使用与外部环境交互，解决复杂的多步骤任务。近年来出现了一类<strong>自演化智能体（self-evolving agents）</strong>，它们能够从训练集中学习，构建工具、知识和任务解决策略。其中，从过去经验中学到的知识和策略被称为智能体的<strong>记忆（memory）</strong>。<br />
+这些记忆系统通常是分层组织的：</p>
+<ul>
+<li><strong>低层级</strong>：原始观察和交互日志</li>
+<li><strong>高层级</strong>：总结后的经验和抽象的指导原则（guidelines）<br />
+  在训练阶段，智能体可以根据交互结果动态地添加、更新或删除记忆条目；在测试阶段，智能体利用演化后的记忆来指导对未见任务的决策。</li>
+</ul>
+<h4 id="12">1.2 现有方法的局限性</h4>
+<p>现有的自演化记忆系统存在一个根本问题：它们大多是为<strong>静态的训练/测试划分</strong>设计的。如图1所示，传统方法在训练集上构建记忆，然后在固定的测试集上评估。即使有少数方法尝试研究在线任务流中的记忆问题，它们也只是通过将静态基准数据集<strong>折叠（folding）</strong>成多个子集来近似在线学习，因此基本忽略了真正流式任务中的<strong>分布漂移（distribution shift）</strong>问题。<br />
+然而，记忆演化本质上是一个<strong>在线问题</strong>。在真实部署中，智能体的经验是按时间顺序积累的，记忆必须持续更新——添加新证据、修订过时条目、整合反复出现的模式——而不是从静态语料库中重建。</p>
+<h4 id="13">1.3 在线预测基准的挑战</h4>
+<p>像Prophet Arena和FutureX这样的<strong>在线基准（live benchmarks）</strong>将智能体评估重新定义为纵向的未来预测问题。智能体需要预测即将发生的事件的概率，并通过校准指标（如Brier分数）和决策导向的结果（如市场回报）来评估。与静态任务不同，未来预测要求智能体在测试时持续演化，不断适应全新的任务。<br />
+在这种设置下，过去的经验可以提供有用的归纳偏置，但也可能随着模式漂移或失效而变得过时或具有误导性。因此，一个自演化记忆系统必须超越简单的存储：它应该<strong>主动管理经验</strong>，学习何时以及如何使用它们。</p>
+<h3 id="2-live-evo">2. LIVE-EVO方法</h3>
+<h4 id="21">2.1 整体架构</h4>
+<p>LIVE-EVO由两个记忆库组成：</p>
+<ol>
+<li><strong>经验库（Experience Bank）$\mathcal{E}$</strong>：存储过去的任务交互，以结构化、可复用的形式保存。每条经验包含问题、失败原因、改进建议、遗漏信息、类别等字段。</li>
+<li><strong>元指南库（Meta-Guideline Bank）$\mathcal{M}$</strong>：存储更高层级的<strong>组合指令</strong>，即元指南（meta-guidelines），指定如何在不同条件下将检索到的经验转化为任务自适应的指南。<br />
+   这两个库实现了一个关键的解耦：<strong>经验记录"发生了什么"，元指南编码"如何使用经验"</strong>。这使得记忆的使用方式能够随着新任务的到来而不断改进。</li>
+</ol>
+<h4 id="22">2.2 四阶段闭环</h4>
+<p>对于每个新任务批次，智能体执行四个阶段的循环：<strong>检索（Retrieve）→ 编译（Compile）→ 执行（Act）→ 更新（Update）</strong>。</p>
+<h5 id="retrieve">阶段一：检索（Retrieve）</h5>
+<p>给定任务 $q$，智能体首先检索可能相关的经验和元指南：  </p>
+<p>$\displaystyle E_q, \hat{m} \leftarrow \text{RETRIEVE}(q, \mathcal{E}, \mathcal{M})$</p>
+<p>关键设计：<strong>任务不会直接用于查询记忆库</strong>。相反，智能体从给定任务中生成多个查询，分别用于<strong>问题匹配</strong>和<strong>经验内容匹配</strong>。这种<strong>主动检索（active retrieval）</strong>设计使智能体能够从多个维度检索相关信息，寻找结构类比或推理模式，而不仅仅是简单的语义重叠。<br />
+检索时，每条经验按以下分数排序：  </p>
+<p>$\displaystyle \text{Score} = Weight \times Sim(exp, query)$</p>
+<p>这里不仅考虑经验与查询之间的相似度，还乘以一个<strong>经验权重</strong>，该权重在演化周期中不断更新。只有加权相似度超过阈值 $\tau = 0.3$ 的经验才会被检索。</p>
+<h5 id="compile">阶段二：编译（Compile）</h5>
+<p>智能体将检索到的经验转化为任务自适应的指导：  </p>
+<p>$\displaystyle g = \text{COMPILEGUIDELINE}(q, E_q, \hat{m})$</p>
+<p>具体来说，COMPILEGUIDELINE执行<strong>元认知编译</strong>：</p>
+<ol>
+<li>从多条经验中提取<strong>跨经验的规律性</strong></li>
+<li>将这些规律<strong>锚定在当前任务上下文</strong>中</li>
+<li>根据元指南 $\hat{m}$ <strong>实例化</strong>一个指南 $g$，用于指导下游决策<br />
+   这与以往方法形成对比——以往方法要么直接将检索到的日志拼接为上下文，要么依赖固定的抽象操作（如摘要或启发式规则），这些操作是静态的，不会从在线反馈中改进。</li>
+</ol>
+<h5 id="act">阶段三：执行（Act）</h5>
+<p>在任务和编译后的指南条件下，智能体执行策略：  </p>
+<p>$\displaystyle r_q, \tau_q = \text{ACT}(q \mid g)$</p>
+<p>其中 $\tau_q$ 是执行轨迹，$r_q$ 是结果信号。在传统推理基准中，$r$ 通常是二元的（成功/失败）；而在在线基准中，$r$ 是<strong>连续反馈</strong>（如Brier分数），提供了比稀疏正确性奖励更丰富的学习信号。<br />
+关键机制——<strong>对比评估（Contrastive Evaluation）</strong>：对每个任务，系统额外执行一次<strong>不使用编译指南</strong>的推理，然后比较两次结果，量化记忆使用是否在该任务上提供了净收益。具体地，得到两个分数：$r_q^{on}$（使用记忆）和 $r_q^{off}$（不使用记忆）。</p>
+<h5 id="update">阶段四：更新（Update）</h5>
+<p>更新机制分为三个部分：<br />
+<strong>（1）经验权重更新</strong><br />
+根据对比评估的经验增益 $r_q^{on} - r_q^{off}$ 来调整被选中经验的检索权重：  </p>
+<p>$\displaystyle Weight_{new} = Weight_{old} + (score_{noexp} - score_{exp})$</p>
+<ul>
+<li>当指南改善了性能时，对应经验的权重<strong>增加</strong></li>
+<li>当指南损害了性能时，权重<strong>减少</strong><br />
+  这种<strong>强化-衰退动态</strong>类似于人类记忆：有用的经验通过反复成功而被强化，误导性或过时的经验则逐渐被抑制。</li>
+</ul>
+<p><strong>（2）元指南生成</strong><br />
+当 $r_q^{on} - r_q^{off} \leq 0$（即使用记忆反而更差）时，触发<strong>反思步骤</strong>，生成一条新的元指南，添加到元指南库中，以改进未来的指南编译：  </p>
+<p>$\displaystyle \mathcal{M} \leftarrow \mathcal{M} \cup \{\text{REFLECT}(q, g_q, E_q)\}$</p>
+<p><strong>（3）选择性经验获取</strong><br />
+处理完一个批次后，系统不会无差别地存储每条轨迹，而是执行<strong>选择性经验获取</strong>：</p>
+<ol>
+<li>识别在使用记忆设置下表现最差的 $\rho$ 比例的任务（论文中 $\rho = 0.3$）</li>
+<li>从存储的轨迹中总结并反思，生成候选经验</li>
+<li>用候选经验<strong>重新评估</strong>该任务</li>
+<li>只有当候选经验带来<strong>统计显著的改善</strong>时，才将其提交到经验库<br />
+   这种"<strong>先验证再更新（Verify Before Update）</strong>"的协议控制了记忆增长，确保新条目有可衡量的收益支持。</li>
+</ol>
+<h4 id="23">2.3 完整算法流程</h4>
+<p>Algorithm 1给出了完整的伪代码。输入包括任务流批次 $\mathcal{Q}$、带权重的经验库 $\mathcal{E}$、元指南库 $\mathcal{M}$ 和差案例比例 $\rho$。对每个任务 $q$：</p>
+<ol>
+<li>检索top-k经验和选定的元指南</li>
+<li>编译任务特定的记忆指南</li>
+<li>执行对比评估，得到有/无记忆的分数</li>
+<li>更新经验权重；如果记忆使用失败，生成新的元指南<br />
+   批次处理完后，选择最差的 $\rho$ 比例任务，从轨迹中总结新经验，验证后提交。</li>
+</ol>
+<hr />
+<h3 id="3">3. 实验设置</h3>
+<h4 id="31">3.1 评估基准</h4>
+<p><strong>Prophet Arena</strong>：一个未来预测基准，跨越最近10周，共500个任务。每个任务包含一个问题、候选列表和关闭前6小时的出价快照。系统对Google搜索工具实施严格的<strong>基于时间的检索过滤</strong>，防止信息泄露。<br />
+<strong>Xbench-DeepResearch</strong>：用于评估LIVE-EVO在未来预测之外的泛化能力。将基准分成10折，按顺序学习经验，报告总体平均准确率。</p>
+<h4 id="32">3.2 评估指标</h4>
+<p><strong>Brier分数</strong>（越低越好）：衡量预测概率的校准质量。给定查询 $q$ 和候选结果集 $\mathcal{C} = \{c_1, \ldots, c_K\}$，智能体输出概率 $\hat{\mathbf{p}} = (\hat{p}_1, \ldots, \hat{p}_K)$，真实结果为 $\mathbf{y} \in \{0,1\}^K$：  </p>
+<p>$\displaystyle \text{BS} = \sum_{k=1}^{K} (\hat{p}_k - y_k)^2$</p>
+<p><strong>市场回报</strong>（越高越好）：量化LIVE-EVO相对于市场共识的优势。当预测概率 $\hat{p}_k$ 超过市场隐含概率 $m_k$ 时，对结果 $c_k$ 做多：  </p>
+<p>$\displaystyle R = \sum_{k=1}^{K} \mathbb{I}[\hat{p}_k &gt; m_k](y_k - m_k)$</p>
+<h4 id="33">3.3 基线方法</h4>
+<ol>
+<li><strong>基础模型（Base Model）</strong>：检索top-10网页搜索结果，提供模型自身生成的摘要版本，基于静态信息输出概率分布。</li>
+<li><strong>深度研究方法（Deep Research）</strong>：Qwen Deep Research和MiroFlow，支持多工具和复杂多智能体工作流。还评估了不带经验的LIVE-EVO作为基础搜索智能体。</li>
+<li><strong>自演化记忆系统</strong>：ReMem，从原始轨迹构建总结经验，在测试时检索相关记忆。</li>
+</ol>
+<h4 id="34">3.4 实现细节</h4>
+<ul>
+<li>骨干模型：GPT-4.1-mini</li>
+<li>温度：0.2</li>
+<li>差案例百分位：0.3</li>
+<li>最小Brier改善阈值：0.05</li>
+<li>经验相似度阈值：0.5</li>
+<li>语义相似度基于all-MiniLM-L6-v2模型计算</li>
+<li>每个任务最大交互轮次：20</li>
+</ul>
+<hr />
+<h3 id="4">4. 实验结果</h3>
+<h4 id="41-prophet-arena">4.1 主要结果（Prophet Arena）</h4>
+<p>Table 1报告了10周内的Brier分数。关键发现：</p>
+<ul>
+<li><strong>LIVE-EVO</strong>平均Brier分数为<strong>0.14</strong>，显著优于所有基线</li>
+<li><strong>GPT-4.1-mini基础模型</strong>：0.22</li>
+<li><strong>开源深度研究方法</strong>表现较差（MiroFlow: 0.32, Qwen: 0.20），因为它们优化的是发现部分线索或支持证据，而非产生校准的概率预测</li>
+<li><strong>ReMem</strong>：0.16，相比基础模型有一致改善，但弱于LIVE-EVO，说明<strong>主动管理和适应经验</strong>的重要性</li>
+<li>LIVE-EVO在大多数单周中都优于所有基线</li>
+</ul>
+<h4 id="42">4.2 性能对比分析</h4>
+<p><strong>累积投资组合价值</strong>（图3a）：假设每周投资100美元，LIVE-EVO在10周内比基础搜索智能体多获得150美元回报。值得注意的是，两者的性能差距<strong>随时间扩大</strong>，表明LIVE-EVO随着经验积累持续改善决策质量。<br />
+<strong>每周Brier分数</strong>（图3b）：LIVE-EVO在所有周都一致优于基础智能体。在基础智能体校准较差的时期（如第5、6周），改善尤为显著，表明LIVE-EVO能在困难或波动条件下<strong>稳定预测</strong>。</p>
+<h4 id="43-table-2">4.3 跨模型泛化（Table 2）</h4>
+<p>在GPT-4.1-mini、GPT-4.1、GPT-5-mini和Qwen3-8B上的实验表明：</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>基础模型</th>
+<th>Brier改善</th>
+<th>市场回报改善</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPT-4.1-mini</td>
+<td>20.8%</td>
+<td>12.9%</td>
+</tr>
+<tr>
+<td>GPT-4.1</td>
+<td>3.0%</td>
+<td>4.4%</td>
+</tr>
+<tr>
+<td>GPT-5-mini</td>
+<td>4.5%</td>
+<td>1.6%</td>
+</tr>
+<tr>
+<td>Qwen3-8B</td>
+<td>3.5%</td>
+<td>0.5%</td>
+</tr>
+</tbody>
+</table></div>
+<p>最大的相对改善出现在GPT-4.1-mini上，原因有二：（1）较弱的基础模型有更大的改善空间；（2）它们在早期周产生更多失败案例，为经验修正和指南细化提供了更丰富的监督信号。</p>
+<p>LIVE-EVO在所有模型上都一致改善了Brier分数和市场回报，表明该经验管理机制<strong>广泛兼容异构骨干模型</strong>，不依赖于模型特定的启发式。</p>
+<h4 id="44-table-3">4.4 深度研究基准结果（Table 3）</h4>
+<p>在Xbench-DeepResearch上，LIVE-EVO达到了<strong>0.46</strong>的最高准确率，优于Qwen-DeepResearch（0.43）、MiroFlow（0.45）和ReMem（0.40）。这表明在在线非平稳条件下学到的经验管理能力可以<strong>泛化到未来预测之外的更广泛推理任务</strong>。</p>
+<h4 id="45-table-4">4.5 消融研究（Table 4）</h4>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>设置</th>
+<th>平均Brier</th>
+<th>Brier变化</th>
+<th>平均回报</th>
+<th>回报变化</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LIVE-EVO（完整）</td>
+<td>0.14</td>
+<td>–</td>
+<td>1.46</td>
+<td>–</td>
+</tr>
+<tr>
+<td>无权重更新</td>
+<td>0.17</td>
+<td>+17.01%</td>
+<td>1.34</td>
+<td>-8.01%</td>
+</tr>
+<tr>
+<td>无元指南</td>
+<td>0.16</td>
+<td>+10.88%</td>
+<td>1.41</td>
+<td>-3.42%</td>
+</tr>
+<tr>
+<td>无指南编译</td>
+<td>0.16</td>
+<td>+11.56%</td>
+<td>1.16</td>
+<td>-20.40%</td>
+</tr>
+<tr>
+<td>无主动检索</td>
+<td>0.17</td>
+<td>+14.97%</td>
+<td>1.22</td>
+<td>-16.77%</td>
+</tr>
+</tbody>
+</table></div>
+<p>关键发现：</p>
+<ul>
+<li>移除任何单一模块都会<strong>一致降低</strong>性能</li>
+<li><strong>移除指南编译</strong>导致市场回报最大幅度下降（-20.40%），强调了将积累的经验转化为可执行指导的重要性</li>
+<li><strong>移除主动检索</strong>和<strong>移除权重更新</strong>也导致了实质性退化</li>
+<li>LIVE-EVO的改善源于<strong>各组件的协同作用</strong>，而非任何单一设计选择</li>
+</ul>
+<h4 id="46">4.6 案例研究</h4>
+<p>图4展示了权重更新机制的实际运作：<br />
+<strong>低权重经验（红色）</strong>：包含明显的幻觉——经验建议检索演讲的内容，而任务要求的是预测演讲的结果。这种不匹配导致持续的下游性能不佳，因此随时间被降权。<br />
+<strong>高权重经验（绿色）</strong>：提供可复用的、与任务对齐的指南，建议分析最近的比赛表现。该经验持续支持准确预测，因此被权重更新机制强化。<br />
+权重随周变化的曲线清楚地显示：正面经验的权重逐渐上升，负面经验的权重逐渐下降，验证了LIVE-EVO能够<strong>逐步过滤低质量经验、放大高质量经验</strong>。</p>
+<h3 id="5">5. 附录中的完整案例</h3>
+<p>论文附录提供了一个关于NFL比赛预测的完整执行轨迹：<br />
+<strong>任务</strong>：预测2025年10月16日Cincinnati vs Pittsburgh的比赛结果。<br />
+<strong>检索阶段</strong>：系统检索到两条相关的过去失败经验——一条关于过度依赖赛前赔率、一条关于未能反映赛程变更。同时检索到一条元指南，警告不要将体育预测经验过度泛化到其他领域。<br />
+<strong>编译阶段</strong>：基于检索到的经验和元指南，生成任务特定指南：优先使用接近比赛日的权威信息源、验证赛程、显式建模关键球员缺阵的影响。<br />
+<strong>执行阶段</strong>：LIVE-EVO智能体按照指南先验证赛程、检查伤病报告，而非直接查询胜率。<br />
+<strong>结果</strong>：</p>
+<ul>
+<li>基线智能体（无记忆）：预测Pittsburgh 0.65, Cincinnati 0.35 → Brier分数 0.5329</li>
+<li>LIVE-EVO智能体：预测Cincinnati 0.55, Pittsburgh 0.45 → Brier分数 0.2500</li>
+<li>Brier分数改善：0.2829</li>
+</ul>
+<hr />
+<h3 id="6">6. 局限性</h3>
+<ol>
+<li><strong>对密集环境反馈的依赖</strong>：LIVE-EVO依赖密集的环境反馈来确保稳健的校准，这可能限制其在<strong>反馈稀疏或主观</strong>的场景中的适用性。</li>
+<li><strong>"先验证再更新"协议的保守性</strong>：严格要求新经验只有在带来统计显著改善时才被接纳，这可能<strong>延迟</strong>对微妙或新兴启发式的采纳。</li>
+</ol>
+<hr />
+<h3 id="7">7. 与相关工作的区别</h3>
+<p>与现有的自演化记忆系统相比，LIVE-EVO的核心区别在于：</p>
+<ol>
+<li><strong>真正的在线学习</strong>：不是将静态基准折叠为多个子集来模拟在线学习，而是在真实的持续数据流上学习。</li>
+<li><strong>经验与使用方式的解耦</strong>：通过经验库和元指南库分离"发生了什么"和"如何使用"，使记忆使用策略本身也能演化。</li>
+<li><strong>基于对比评估的权重更新</strong>：通过有/无记忆的对比实验来量化经验的因果贡献，而非简单地基于任务成功/失败来更新。</li>
+<li><strong>选择性经验获取</strong>：不是存储所有轨迹，而是只在验证改善后才提交新经验，控制记忆增长。</li>
+</ol>
+<h2 id="_5">研究要点表</h2>
+<div class="table-scroll"><table class="key-value">
+<thead>
+<tr>
+<th>维度</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>论文标题</td>
+<td>Live-Evo: Online Evolution of Agentic Memory from Continuous Feedback</td>
+</tr>
+<tr>
+<td>作者</td>
+<td>Yaolun Zhang, Yiran Wu, Yijiong Yu, Qingyun Wu, Huazheng Wang（来自Oregon State University, AG2 AI, Penn State University）</td>
+</tr>
+<tr>
+<td>发表年份</td>
+<td>2026年（arXiv预印本，2026年2月2日）</td>
+</tr>
+<tr>
+<td>研究问题</td>
+<td>如何让LLM智能体在持续到来的任务流和真实分布漂移环境下，通过在线反馈不断演化其记忆系统，从而提升任务求解性能？现有自演化记忆系统多基于静态训练/测试划分，无法应对真正的在线学习场景。</td>
+</tr>
+<tr>
+<td>研究方法</td>
+<td>提出LIVE-EVO系统，包含经验库（Experience Bank）和元指南库（Meta-Guideline Bank）两个记忆模块，通过四阶段闭环流程（Retrieve检索、Compile编译指南、Act对比评估执行、Update权重更新与反思）实现在线记忆演化。采用对比评估量化记忆贡献，基于反馈调整经验权重，并通过选择性经验写入控制记忆增长。</td>
+</tr>
+<tr>
+<td>主要发现</td>
+<td>在Prophet Arena基准上10周时间跨度内，LIVE-EVO将Brier分数改善20.8%，市场回报提升12.9%。在Xbench-DeepResearch基准上也取得最高准确率（0.46），超越专门的深度研究方法。消融实验证明各组件（权重更新、元指南、指南编译、主动检索）均不可或缺，性能提升源于组件间的协同作用。</td>
+</tr>
+<tr>
+<td>创新点</td>
+<td>（1）首个面向真实在线基准的自演化智能体记忆系统，将"发生了什么"（经验）与"如何使用"（指南）解耦；（2）引入对比评估机制量化记忆的因果贡献；（3）基于反馈的经验权重强化与衰减机制，类比人类记忆的强化与遗忘；（4）元指南库实现对记忆使用策略的元认知学习。</td>
+</tr>
+<tr>
+<td>局限性</td>
+<td>（1）依赖密集的环境反馈信号，在反馈稀疏或主观的场景中适用性可能受限；（2）"验证后更新"协议严格要求新经验必须带来统计显著的改善才能写入，可能延迟对微妙或新兴启发式规则的采纳。</td>
+</tr>
+<tr>
+<td>与本研究的关联</td>
+<td>未提及</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="_6">原文摘要</h2>
+<p>Large language model (LLM) agents are increasingly equipped with memory, which are stored experience and reusable guidance that can improve task-solving performance. Recent \emph{self-evolving} systems update memory based on interaction outcomes, but most existing evolution pipelines are developed for static train/test splits and only approximate online learning by folding static benchmarks, making them brittle under true distribution shift and continuous feedback. We introduce \textsc{Live-Evo}, an online self-evolving memory system that learns from a stream of incoming data over time. \textsc{Live-Evo} decouples \emph{what happened} from \emph{how to use it} via an Experience Bank and a Meta-Guideline Bank, compiling task-adaptive guidelines from retrieved experiences for each task. To manage memory online, \textsc{Live-Evo} maintains experience weights and updates them from feedback: experiences that consistently help are reinforced and retrieved more often, while misleading or stale experiences are down-weighted and gradually forgotten, analogous to reinforcement and decay in human memory. On the live \textit{Prophet Arena} benchmark over a 10-week horizon, \textsc{Live-Evo} improves Brier score by 20.8\% and increases market returns by 12.9\%, while also transferring to deep-research benchmarks with consistent gains over strong baselines. Our code is available at  this https URL .</p></article>
+<aside class="detail-aside"><div class="report-toc" aria-label="文献卡片目录"><details open><summary>本页目录</summary><div class="toc">
+<ul>
+<li><a href="#_1">核心机制</a></li>
+<li><a href="#_2">适用范围与局限</a></li>
+<li><a href="#_3">详细解读</a><ul>
+<li><a href="#_4">论文核心总结</a></li>
+<li><a href="#1">1. 研究背景与动机</a></li>
+<li><a href="#2-live-evo">2. LIVE-EVO方法</a></li>
+<li><a href="#3">3. 实验设置</a></li>
+<li><a href="#4">4. 实验结果</a></li>
+<li><a href="#5">5. 附录中的完整案例</a></li>
+<li><a href="#6">6. 局限性</a></li>
+<li><a href="#7">7. 与相关工作的区别</a></li>
+</ul>
+</li>
+<li><a href="#_5">研究要点表</a></li>
+<li><a href="#_6">原文摘要</a></li>
+</ul>
+</div>
+</details></div><section><h2>引用这篇论文</h2><p id="citation-text" class="citation-text">Yaolun Zhang, Yiran Wu, Yijiong Yu, et al.. Live-Evo: Online Evolution of Agentic Memory from Continuous Feedback. arXiv:2602.02369, 2026.</p><button class="button secondary" type="button" data-copy-citation>复制引用</button><p class="meta-note">综述参考文献 [24]</p></section><section><h2>同方向继续阅读</h2><ul class="related-list"><li><a href="../papers/2303.11366.html">Reflexion: Language Agents with Verbal Reinforcement Learning</a></li><li><a href="../papers/2305.16291.html">Voyager: An Open-Ended Embodied Agent with Large Language Models</a></li><li><a href="../papers/2409.07429.html">Agent Workflow Memory</a></li><li><a href="../papers/2509.25140.html">ReasoningBank: Scaling Agent Self-Evolving with Reasoning Memory</a></li></ul></section></aside></div></div></main>
+<footer class="site-footer"><div><strong>Agent Memory 研究</strong><p>从保存历史，到有依据地更新长期状态。</p></div>
+<div><span>内容更新 · 2026-09-08</span><p>理解方法，比较条件，关注长期影响。</p><a href="../sources.html">阅读指南</a></div></footer>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body></html>

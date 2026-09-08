@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="按更新目标与反馈信号梳理现代 Agent 自改进">
+<meta name="color-scheme" content="light"><title>Self-Improvements in Modern Agentic Systems: A Survey · Agent Memory 研究</title>
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/katex/katex.min.css"><script src="../assets/katex/katex.min.js" defer></script><script src="../assets/katex/auto-render.min.js" defer></script><script src="../assets/site.js" defer></script>
+</head>
+<body data-page="library">
+<a class="skip-link" href="#main">跳转到正文</a>
+<header class="site-header"><div class="header-inner">
+<a class="brand" href="../index.html" aria-label="Agent Memory 研究首页">
+<svg viewBox="0 0 36 36" width="32" height="32" aria-hidden="true"><path d="M9 9h18v18H9zM9 9l18 18M27 9L9 27" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="9" r="4"/><circle cx="27" cy="9" r="4"/><circle cx="9" cy="27" r="4"/><circle cx="27" cy="27" r="4"/></svg>
+<span>Agent Memory<small>研究文献站</small></span></a>
+<nav class="site-nav" aria-label="主导航"><a href="../index.html">研究总览</a><a href="../library.html" aria-current="page">文献库</a><a href="../reports/survey.html">综述全文</a><a href="../reports/multi-agent.html">多智能体专题</a><a href="../sources.html">阅读指南</a></nav>
+</div></header>
+<main id="main"><div class="page-wrap"><div class="breadcrumb"><a href="../library.html">文献库</a><span>/</span><a href="../library.html?topic=foundations">基础与综述</a></div>
+<header class="paper-hero"><div class="paper-badges"><span class="badge expanded">含详细解读</span><span class="muted">2026 · 2607.13104</span></div><h1>Self-Improvements in Modern Agentic Systems: A Survey</h1><p class="paper-authors full-authors">Zhe Ren, Yimeng Chen, Dandan Guo, Guowei Rong, Tonghui Li, R. B. Xiong, Qingfeng Lan, Wenyi Wang, Li Nanbo, Yibo Yang, Mingchen Zhuge, Jürgen Schmidhuber</p>
+<div class="hero-actions paper-actions"><a href="https://arxiv.org/abs/2607.13104" target="_blank" rel="noopener noreferrer">论文原文 <span aria-hidden="true">↗</span></a><a href="../downloads/notes/2607.13104.md">下载文献卡片 Markdown</a></div></header>
+<div class="detail-layout"><article class="prose"><h2 id="_1">核心机制</h2>
+<p>按更新目标与反馈信号梳理现代 Agent 自改进</p>
+<h2 id="_2">适用范围与局限</h2>
+<p>用于扩展阅读，不重复正文综述框架</p>
+<h2 id="_3">详细解读</h2>
+<h3 id="_4">核心总结</h3>
+<p>这篇论文是一篇关于<strong>现代智能体系统中自我改进（Self-Improvement）</strong>的综述。它将基于基础模型（Foundation Model, FM）的自主智能体视为一种自适应系统，该系统能够将交互经验转化为持续累积的能力增长。论文提出了一个统一的系统级框架，将现代智能体形式化为基础模型参数 $\theta$ 与操作性脚手架（scaffold）$\Sigma$（包括提示词、记忆、工具和控制逻辑）的耦合配置。在此框架下，自我改进被定义为一个自诱导的更新算子，通过两条主要路径实现：（1）<strong>基础模型改进</strong>——更新模型参数以内化新能力；（2）<strong>脚手架改进</strong>——在模型参数不变的前提下，更新提示词、记忆、工具或整体架构来重塑智能体行为。论文按照更新目标和驱动信号对现有工作进行系统分类，综述了软件工程、网页导航、游戏、科学发现、具身AI和通用计算机控制等应用领域，并讨论了评估方法和未来方向。</p>
+<h3 id="_5">一、引言与研究动机</h3>
+<p>论文开篇引用了I.J. Good 1966年的名言："第一台超级智能机器是人类需要做出的最后一项发明。"这句话点明了自我改进系统的终极愿景。<br />
+AI技术的发展推动了智能体系统（agentic systems）的范式转变：从早期基于任务特定模型或手工模块的窄系统，演进到以基础模型（LLM、VLM）为核心的现代智能体系统，其中自然语言充当了表示、推理和控制的统一接口。<br />
+<strong>自我改进</strong>本质上是一个<strong>自指（self-referential）</strong>过程：系统能够自主地检查、评估并有意识地修改自身的优化机制和操作逻辑。早期具体的自我改进算法可以追溯到Schmidhuber 1987年的自指学习框架，而Gödel Machine（2003）则引入了一种完全自指的算法，只要能数学证明某个修改会提升期望效用，就执行该修改。<br />
+然而，将这些机制扩展到开放式智能体在历史上受到了限制——系统被迫在庞大的低级代码空间或原始突触权重中搜索。<strong>现代基础模型通过引入自然语言作为统一的语义媒介，极大地缩小了可行修改的搜索空间</strong>，使得基于FM的自我改进智能体成为可能。<br />
+论文指出，现代智能体不仅包含FM这个"认知核心"，还包含一个<strong>操作性脚手架（operational scaffold）</strong>——由指令方案、记忆系统、工具接口和控制逻辑组成的结构化框架。因此，论文围绕两条主要路径组织：</p>
+<ul>
+<li><strong>基础模型改进</strong>：更新底层模型参数，实现较慢但更稳定的长期能力巩固</li>
+<li><strong>脚手架改进</strong>：更新结构组件（提示词、记忆、工具、控制逻辑），通常更快且更容易回滚</li>
+</ul>
+<hr />
+<h3 id="_6">二、历史背景与理论基础</h3>
+<h4 id="21-1790s-1960s">2.1 基础概念（1790s-1960s）</h4>
+<p>误差驱动适应的数学根源可追溯到最小二乘法（Legendre 1805; Gauss 1809），这是所有神经网络的基础。20世纪中叶，控制论（Wiener 1948）推广了闭环系统中的反馈观点，Ashby的稳态研究强调了内部状态调整。Turing的"儿童机器"提出了可通过训练和外部反馈塑造内部配置的模型。Rosenblatt的感知机和Samuel的跳棋程序展示了性能反馈如何改变未来行为，但它们的架构和学习算法本身是固定的，因此只是高级学习系统而非真正的自我改进系统。<br />
+Gödel（1931）通过构造关于自身的形式化陈述，为程序操纵自身代码提供了理论蓝图。Good（1966）提出了"智能爆炸"的愿景，但这只是概念性想法，缺乏正式的算法框架。</p>
+<h4 id="22-1960s-1980s">2.2 符号主义与启发式自修改（1960s-1980s）</h4>
+<p>Von Neumann的自复制自动机理论区分了构造机制和可复制/变异的符号描述。Lenat的AM系统和EURISKO将启发式本身表示为可操纵的Lisp对象，允许系统生成、修改和测试自己的问题求解策略。但EURISKO的实际成功严重依赖用户作为外部评估信号，这一历史局限在现代智能体系统中仍然存在。</p>
+<h4 id="23-1980s-2000s">2.3 连接主义与元学习的兴起（1980s-2000s）</h4>
+<p>Schmidhuber（1987）引入了自指学习框架，其中进化过程不仅优化候选解，还优化生成它们的学习过程本身。Schmidhuber还引入了<strong>快权重编程器（Fast-Weight Programmers, FWPs）</strong>：一个"慢"网络通过梯度下降学习如何编程另一个网络的"快权重"。其显式自指版本——自指权重矩阵——让网络在接收误差或奖励等反馈信号的同时学习修改自身的快权重。<br />
+这一时期还巩固了"学习如何学习"（learning to learn）作为自我改进的框架。在强化学习中，1994年的论文引入了一种RL机器作为早期递归自我改进智能体。AIXI形式化了可计算环境中最优序贯决策的不可计算上界。<strong>Gödel Machine</strong>（Schmidhuber 2003）引入了一种完全自指的、理论上最优的自我改进机器：它在单生命强化学习环境中运行，迭代搜索候选自修改，只有当能证明修改会改善期望累积未来奖励时才采纳。</p>
+<h4 id="24-2000s-2020s">2.4 形式化与架构级自我改进（2000s-2020s）</h4>
+<p>这一时期沿两条主线发展：（1）分析自我改进的理论极限；（2）构建自动化架构设计的实用机制。理论方面，Orseau和Ring指出智能体在有限资源和不可逆动作下面临自欺、奖励篡改和致命错误等风险。工程方面，神经架构搜索（NAS）成熟为控制器学习提出直接优化任务性能的架构。自我博弈（self-play）等可扩展算法展示了智能体如何从自身行为生成越来越困难的课程。</p>
+<h4 id="25-2020s">2.5 可扩展基础模型与智能体系统（2020s至今）</h4>
+<p>基础模型为自我改进提供了全新的可扩展基底，将其解耦为两种互补机制：</p>
+<ol>
+<li><strong>快速、无需训练的适应</strong>：通过上下文学习（in-context learning）实现，依赖注意力机制的键值缓存作为关联记忆，在序列处理期间生成瞬态的、依赖上下文的权重变化。这与1991年的快权重编程器在功能上等价。</li>
+<li><strong>慢速改进循环</strong>：通过RLHF及其变体将交互轨迹和偏好信号转化为持久的参数更新。ReAct和Reflexion等框架将执行错误转化为自然语言反思。</li>
+</ol>
+<hr />
+<h3 id="_7">三、定义与形式化</h3>
+<h4 id="31">3.1 智能体系统的形式化</h4>
+<p>论文将基于基础模型的智能体在时间步$t$的配置定义为：  </p>
+<p>$\displaystyle \mathcal{A}_t = (\theta_t, \Sigma_t)$</p>
+<p>其中$\theta_t$是基础模型的神经参数，$\Sigma_t$是智能体的动态操作性脚手架。脚手架可分解为：  </p>
+<p>$\displaystyle \Sigma_t := (p_t, m_t, \mathcal{T}_t, g_t)$</p>
+<ul>
+<li>$p_t$：结构化提示词或系统指令</li>
+<li>$m_t$：记忆机制及其检索和更新策略</li>
+<li>$\mathcal{T}_t$：外部工具集及其调用接口</li>
+<li>$g_t$：附加控制逻辑（路由、调度、安全约束等）<br />
+  智能体的诱导策略为：  </li>
+</ul>
+<p>$\displaystyle \pi_{\theta_t, \Sigma_t}(A_t \mid X_t)$</p>
+<p>其中$A_t$是系统在时间步$t$产生的动作，$X_t$是临时执行状态（如键值缓存、中间计划）。$X_t$是短暂的，在任务边界处通常被丢弃或重置，不构成智能体内在架构的一部分。相比之下，$(\theta_t, \Sigma_t)$代表智能体随时间变化的内在配置。</p>
+<h4 id="32">3.2 自我改进的形式化定义</h4>
+<p>自我改进被形式化为一个<strong>自诱导算子</strong> $\mathcal{U}$，将自我改进步骤分解为执行阶段和更新阶段：  </p>
+<p>$\displaystyle \mathcal{A}_{t+1} = \mathcal{U}\left(\mathcal{A}_{1:t},\ \mathcal{E}(\pi_{\theta_t, \Sigma_t};\ \Sigma_t, \mathcal{C}_t)\right)$</p>
+<p>其中$\mathcal{E}$是智能体执行的过程，通过在任务上下文$\mathcal{C}_t$中运行诱导策略来产生学习信号（交互轨迹、反思、批评或提议的编辑）。$\Sigma_t$作为$\mathcal{E}$的显式参数以允许直接自检查。<br />
+<strong>两种自指模式：</strong></p>
+<ol>
+<li><strong>间接诱导改进</strong>：智能体的策略被执行以生成经验或辅助制品作为学习信号，然后由更新规则消费来更新$\theta_t$。这在分布层面实现自我改进。</li>
+<li><strong>直接实施改进</strong>：智能体通过其动作直接修改自身操作定义的组件——编辑提示模板、管理记忆、重新配置工具接口或改变控制逻辑，从而显式更新$\Sigma_t$。</li>
+</ol>
+<p><strong>基础模型改进</strong>的形式化：  </p>
+<p>$\displaystyle \theta_{t+1} = \mathcal{U}_\theta\left(\theta_{1:t},\ \mathcal{E}(\pi_{\theta_t, \Sigma_t};\ \Sigma_t, \mathcal{C}_t)\right), \quad \Sigma_{t+1} = \Sigma_t$</p>
+<p><strong>脚手架改进</strong>的形式化：  </p>
+<p>$\displaystyle \Sigma_{t+1} = \mathcal{U}_\Sigma\left(\Sigma_{1:t},\ \mathcal{E}(\pi_{\theta_t, \Sigma_t};\ \Sigma_t, \mathcal{C}_t)\right), \quad \theta_{t+1} = \theta_t$</p>
+<p><strong>技能（Skill）作为可复用更新</strong>：论文将技能建模为自诱导更新算子$\mathcal{U}$的一个可复用实例——对智能体自身配置$\mathcal{A}_t$的一个命名更新。技能可以序列化到$\mathcal{A}_t$的任何基底中：工具及其调用约定（$\mathcal{T}$）、指令或工作流（$p$）、记忆条目（$m$）、巩固的权重（$\theta$）或控制逻辑（$g$）。技能分为<strong>对象级技能</strong>（作用于任务或世界状态）和<strong>元级技能</strong>（作用于智能体自身配置$\mathcal{A}_t$）。对于自我改进，元级技能是核心的。</p>
+<h4 id="33">3.3 与相关学习范式的联系</h4>
+<ul>
+<li><strong>与强化学习的关系</strong>：$\theta$的更新对应标准策略优化；$\Sigma$的更新在经典RL中没有直接对应物，因为它改变了策略运行的决策过程本身（动态改变有效的状态-动作空间和观察处理逻辑）。</li>
+<li><strong>与在线学习的关系</strong>：$\theta$更新继承了分布漂移和灾难性遗忘等稳定性挑战；$\Sigma$更新提供了快速适应通道，但引入了记忆中毒、工具语义漂移等新故障模式。</li>
+<li><strong>与主动学习的关系</strong>：当智能体主动控制数据获取过程时与主动学习交叉，但由于依赖自生成验证而非oracle标签，这与经典的人工好奇心框架直接相连。</li>
+</ul>
+<hr />
+<h3 id="_8">四、分类体系概览</h3>
+<p>论文使用$\text{IMPROVE}_{\text{target}}(\cdot; \mathcal{S}_t)$表示抽象的自我改进过程，其中$\mathcal{S}_t$是通过智能体自身执行产生的更新信号。<br />
+<strong>基础模型改进</strong>：  </p>
+<p>$\displaystyle \theta_{t+1} = \text{IMPROVE}_\theta(\theta_{1:t}; \mathcal{S}_t), \quad \Sigma_{t+1} = \Sigma_t$</p>
+<p>按信号形式分为三类：</p>
+<ul>
+<li>内在生成式示范（$\mathcal{S}_t \approx \mathcal{D}_t$）</li>
+<li>内在评估性反馈（$\mathcal{S}_t \approx e_t$）</li>
+<li>外在探索性经验（$\mathcal{S}_t \approx \tau_t$）</li>
+</ul>
+<p><strong>脚手架改进</strong>：  </p>
+<p>$\displaystyle \Sigma_{t+1} = \text{IMPROVE}_\Sigma(\Sigma_{1:t}; \mathcal{S}_t), \quad \theta_{t+1} = \theta_t$</p>
+<p>按脚手架组件分为四类：</p>
+<ul>
+<li>提示词优化（$p_t \to p_{t+1}$）</li>
+<li>记忆演化（$m_t \to m_{t+1}$）</li>
+<li>工具治理（$\mathcal{T}_t \to \mathcal{T}_{t+1}$）</li>
+<li>全脚手架更新（$\Sigma_t \to \Sigma_{t+1}$）</li>
+</ul>
+<hr />
+<h3 id="_9">五、基础模型改进</h3>
+<h4 id="51">5.1 内在生成式示范</h4>
+<p>FM同时充当认知学习者和数据合成器。在迭代$t$时，智能体状态$\mathcal{A}_t = (\theta_t, \Sigma_t)$诱导一个生成分布$\mathcal{P}_{\text{gen}}(x, y \mid \mathcal{A}_t)$并采样一个内在数据集：  </p>
+<p>$\displaystyle \mathcal{D}_t^{\text{gen}} = \{(x_i, y_i)\}_{i=1}^{n_t} \sim \mathcal{P}_{\text{gen}}(\cdot \mid \mathcal{A}_t)$</p>
+<p>可选地，质量控制算子$\Phi_t$过滤或加权样本。参数更新为：  </p>
+<p>$\displaystyle \theta_{t+1} = \arg\min_\theta \mathcal{L}(\theta; \mathcal{D}_t) + \lambda\,\Omega(\theta, \theta_0)$</p>
+<p><strong>生成策略</strong>包括：</p>
+<ul>
+<li>从少量种子扩展指令-输出对语料（Self-Instruct, Evol-Instruct）</li>
+<li>自一致性过滤高置信推理路径</li>
+<li>外部验证器（如单元测试）选择正确解</li>
+<li>课程学习式递归分解复杂问题</li>
+<li>测试时自我改进（TT-SI）：在推理时通过不确定性估计检测弱点，自生成针对性训练样本并进行LoRA微调</li>
+</ul>
+<p><strong>数据格式</strong>从简单的输入-输出对到带推理链的指令-响应对、结构化轨迹（工具API调用、代码执行序列）、多模态样本，以及元认知制品（分解问题树、自编辑指令）。<br />
+<strong>挑战与保障</strong>：递归训练引入模型崩溃和遗忘风险。保障措施包括保留基准数据、使用更鲁棒的验证器、多样性感知的池扩展机制、不确定性驱动的生成，以及人工审计。</p>
+<h4 id="52">5.2 内在评估性反馈</h4>
+<p>FM不仅是输出生成器和自评估器，还是内化自身判断的认知学习者。给定输入$x$，智能体采样候选输出集合：  </p>
+<p>$\displaystyle \mathcal{Y}_t(x) = \{y_t^{(1)}, \ldots, y_t^{(K)}\}, \quad y_t^{(k)} \sim \pi_{\theta_t, \Sigma_t}(\cdot \mid x)$</p>
+<p>内在评估器$\phi_t$将任务、候选和评估标准$\kappa_t$映射为评估信号：  </p>
+<p>$\displaystyle e_t = \phi_t(x, \mathcal{Y}_t(x); \kappa_t)$</p>
+<p>参数更新为$\theta_{t+1} = \text{IMPROVE}_\theta(\theta_{1:t}; e_t)$。<br />
+<strong>三类反馈：</strong></p>
+<ol>
+<li><strong>准则反馈（Rubric feedback）</strong>：模型根据显式标准（任务指令、评分准则、安全原则、宪法规则）评判候选输出。Constitutional AI是代表性早期例子。Meta-Rewarding训练模型充当、评判自身响应并进一步评估自身判断。</li>
+<li><strong>一致性反馈（Consistency feedback）</strong>：利用FM的随机行为，对同一任务生成多个候选解并利用它们之间的一致性作为内在信号。TTRL使用多数投票产生RL奖励信号，EMPO通过基于熵的信号鼓励推理行为，INTUITOR使用自确定性作为内在奖励。但一致性只是正确性的代理——当模型系统性偏差或自信地错误时，重复采样可能放大同一错误。</li>
+<li><strong>纠正性反馈（Corrective feedback）</strong>：模型识别候选输出中的具体缺陷并提出修改。设$R$为批评-修订算子，$e_t = R(x, y_t)$产生批评$c_t$和修订输出$y_t^\*$，形成偏好信号$y_t^\* \succ y_t$。</li>
+</ol>
+<h4 id="53">5.3 外在探索性经验</h4>
+<p>学习信号来源于智能体行动后发生的事情，$\mathcal{S}_t \approx \tau_t$。FM智能体的经验不仅是$(s, a, r, s')$元组，还可能包含网页、截图、代码日志、编译器错误、工具调用和中间推理轨迹。</p>
+<h5 id="531">5.3.1 与真实任务环境的交互</h5>
+<p>按反馈来源组织：</p>
+<ol>
+<li><strong>程序化验证器</strong>：提供最清晰的接地信号。代码生成中的单元测试提供直接的通过/失败反馈。Agent-RLVR使用单元测试结果指导策略优化。</li>
+<li><strong>学习的奖励模型</strong>：评估从任务环境收集的轨迹。WebRL训练结果监督的奖励模型自动标注网页导航轨迹。UI-Genie将策略学习与奖励模型精炼耦合。</li>
+<li><strong>自生成任务</strong>：智能体可能提出新任务或目标，但学习信号仍然是外在的。Absolute Zero使用自我博弈在开放环境中生成任务和解决方案，执行验证决定哪些解被保留。</li>
+</ol>
+<h5 id="532">5.3.2 与模拟代理环境的交互</h5>
+<p>智能体配备内部预测模型（世界模型）。学习的动力学模型$W(s_{k+1}, r_k \mid s_k, a_k)$预测下一状态和奖励。FM系统中的世界模型通常是生成式语言/视觉-语言/视频模型，预测与策略输入相同格式的高维观察。<br />
+WebEvolver训练共进化的世界模型预测下一网页观察并使用模拟展开来精炼策略。WMPO学习像素空间世界模型并在想象展开上优化策略。<br />
+<strong>挑战</strong>包括：语言层面的奖励黑客（智能体可以操纵验证器的语言规范）、能力退化（广泛的RL更新可能侵蚀预训练获得的广泛能力）、幻觉动力学（生成式模拟器可能制造看似合理但不正确的转换）、轨迹长度与上下文窗口的张力。</p>
+<h3 id="_10">六、脚手架改进</h3>
+<h4 id="61">6.1 提示词优化</h4>
+<p>提示词作为智能体的核心行为先验。论文按学习信号$\mathcal{S}_t$的形式和丰富程度分为四种范式：</p>
+<h5 id="611">6.1.1 标量反馈优化</h5>
+<p>核心目标是在离散提示空间$\mathcal{P}$中找到最大化标量性能分数的最优提示：  </p>
+<p>$\displaystyle p^\* = \arg\max_{p \in \mathcal{P}} f(p)$</p>
+<p>APE使用LLM提出指令候选，基于经验评估分数选择最佳。OPRO构造包含先前评估提示及其分数的元提示，间接引导LLM提出更高分候选。</p>
+<h5 id="612">6.1.2 定性反馈精炼</h5>
+<p>学习信号是文本批评$c_t$，允许有针对性的修订：  </p>
+<p>$\displaystyle p_{t+1} = \text{Refine}(p_t, c_t)$</p>
+<p>Reflexion让智能体在任务失败时生成"语言内省"，存储在记忆中指导后续提示尝试。MAPS从失败案例中归纳可复用的自然语言规则。ACE引入模块化的Generator-Reflector-Curator管线。</p>
+<h5 id="613">6.1.3 基于种群的进化</h5>
+<p>将提示视为种群$P_t = \{p_t^{(i)}\}_{i=1}^N$中的"基因"，通过选择、交叉和变异进化：</p>
+<ol>
+<li><strong>选择</strong>：基于适应度评估函数的子集存活</li>
+<li><strong>交叉</strong>：LLM智能合并两个父提示的语义优势</li>
+<li><strong>变异</strong>：LLM引入语义变异以探索新的指令措辞<br />
+   EvoPrompt引导LLM充当进化算子。Promptbreeder引入自指机制——LLM不仅进化任务提示，还进化"变异提示"。GEPA将进化过程与定性反馈结合。</li>
+</ol>
+<h5 id="614">6.1.4 文本梯度优化</h5>
+<p>学习信号形式化为<strong>文本梯度</strong>——结构化的方向性反馈消息：  </p>
+<p>$\displaystyle p_{t+1} = p_t \oplus g(p_t)$</p>
+<p>其中$g(p_t)$是文本梯度，$\oplus$是文本更新操作。TextGrad通过文本实现自动微分，允许定性梯度在复杂的多组件语言系统中反向传播。MetaTextGrad更进一步——使用LLM动态优化"优化器提示"本身。</p>
+<h4 id="62">6.2 记忆</h4>
+<p>记忆系统是长期智能体行为的核心认知脚手架。论文将记忆改进分解为三个维度：</p>
+<h5 id="621">6.2.1 记忆对象</h5>
+<p><strong>显式对象</strong>：人类可读且可直接操纵</p>
+<ul>
+<li>处理后的交互轨迹：将原始轨迹压缩为可复用的语义单元（提炼的例程、启发式、反思）</li>
+<li>策展的原始内容：选择性保留高价值制品（代码片段、公式、截图）</li>
+<li>集成的外部知识：从外部仓库集成和维护事实</li>
+</ul>
+<p><strong>隐式对象</strong>：以机器原生的潜在表示存储记忆</p>
+<ul>
+<li>生成式潜在记忆、潜在状态重建、KV缓存增强、自更新潜在记忆池</li>
+</ul>
+<h5 id="622">6.2.2 记忆结构</h5>
+<ul>
+<li><strong>扁平结构</strong>：按严格时间顺序存储，写入廉价但检索可扩展性差，存在近因偏差</li>
+<li><strong>层次结构</strong>：跨多个抽象层级组织，减少检索噪声，支持长期连贯性，但存在结构脆性风险</li>
+<li><strong>图结构</strong>：节点通过语义、时间或因果边连接，支持多跳证据聚合，但维护复杂度高</li>
+<li><strong>向量检索结构</strong>：通过密集嵌入索引并按相似度检索，主要故障模式是相似性与有用性之间的不对齐</li>
+</ul>
+<h5 id="623">6.2.3 记忆处理</h5>
+<p>实例化为自适应CRUD操作族：</p>
+<ul>
+<li><strong>Create</strong>：选择性蒸馏过程，包括语义压缩、上下文感知离散决策、受控边界插入</li>
+<li><strong>Read</strong>：混合启发式、结构感知检索、检索门控、检索驱动适应</li>
+<li><strong>Update</strong>：定期审查和衰减、局部刷新、迭代蒸馏、离线聚合</li>
+<li><strong>Delete</strong>：多阶段修剪、共识驱动的驱逐、分层驱逐</li>
+</ul>
+<h4 id="63">6.3 工具</h4>
+<p>论文提出<strong>工具治理元认知（Tool Governance Metacognition）</strong>框架：</p>
+<h5 id="631">6.3.1 动态工具路由</h5>
+<ul>
+<li><strong>检索和图基路由</strong>：优化检索空间或依赖关系表示。ToolNet和OrchDAG将工具依赖编码为有向图。</li>
+<li><strong>策略学习路由</strong>：将工具选择内化为序贯决策。ToolGen将检索、选择和调用折叠为单一生成过程。</li>
+<li><strong>主动和交互式路由</strong>：将路由视为交互过程而非一次性决策。MCP-Zero和ASKTOACT在面对不确定意图时主动发起工具发现或请求澄清。</li>
+</ul>
+<h5 id="632">6.3.2 迭代工具精炼</h5>
+<p>在生成、执行和修订之间交替的规范精炼循环。VOYAGER执行生成的代码，捕获错误轨迹和环境反馈，反馈到后续修订中直到验证器确认成功。增强方向包括批评专业化、API抽象和接口对齐。</p>
+<h5 id="633">6.3.3 自主工具创建</h5>
+<p>当现有工具不足时合成新的可执行函数。包括合成触发器（按需发明vs自导探索）、生命周期自动化（TOOLMAKER自动化端到端工具生命周期）、标准化集成（通过MCP等协议确保新工具与现有治理和检索约束兼容）。</p>
+<h4 id="64">6.4 全脚手架改进</h4>
+<p>最深层次的架构干预，将整个操作逻辑和代码库视为可变基底：  </p>
+<p>$\displaystyle \Sigma_{t+1} = \mathcal{I}_{\Sigma_t}(\Sigma_t; \mathcal{S}_t)$</p>
+<p>其中$\mathcal{I}_{\Sigma_t}$强调改进者可以与其改进的系统一起进化（自指性）。<br />
+实际操作中，智能体的脚手架通常表示为常规计算机程序。全脚手架更新可视为：  </p>
+<p>$\displaystyle \langle\tilde{\Sigma}_{t+1}\rangle = exec(\langle\Sigma_t\rangle; \mathcal{S}_t)$</p>
+<p>通常物化为应用于当前脚手架的补丁$\Delta_t$。验证器门控更新：  </p>
+<p>$\displaystyle \Sigma_{t+1} = \begin{cases} \tilde{\Sigma}_{t+1}, &amp; \mathcal{V}(\tilde{\Sigma}_{t+1}) = 1 \\ \Sigma_t, &amp; \text{otherwise} \end{cases}$</p>
+<p>代表性工作包括：</p>
+<ul>
+<li><strong>AlphaEvolve</strong>：进化范式的编码智能体，持续接收评估器反馈迭代改进算法</li>
+<li><strong>ADAS</strong>：在设计空间中搜索最大化评估函数的智能体系统</li>
+<li><strong>Self-Taught Optimizer (STOP)</strong>：将智能体的脚手架抽象为改进者，反复查询LM生成改进版本</li>
+<li><strong>Darwin Gödel Machine (DGM)</strong>：维护新生成编码智能体的档案，通过开放式探索生长持续扩展的多样化高质量智能体树</li>
+<li><strong>Huxley-Gödel Machine (HGM)</strong>：引入分支级元生产力度量指导进化</li>
+<li><strong>Live-SWE-Agent</strong>：首个可在运行时自主持续进化的实时软件智能体</li>
+</ul>
+<hr />
+<h3 id="_11">七、应用领域</h3>
+<h4 id="71">7.1 软件工程</h4>
+<p>SWE是自我改进智能体的有用测试平台，因为它提供密集且可自动化的反馈（编译器、单元测试、linter、CI管线）。</p>
+<ul>
+<li><strong>脚手架改进</strong>：DGM迭代重写自身代码库并在编码基准上验证。Live-SWE-agent在解决真实SWE任务时编辑和扩展自身脚手架。</li>
+<li><strong>FM改进</strong>：SWE-RL将RL扩展到真实软件工程任务。</li>
+</ul>
+<h4 id="72">7.2 网页导航与自动化</h4>
+<p>环境动态、长期且验证困难。WebCoach为浏览智能体配备跨会话记忆。WebRL引入自进化在线课程与结果监督奖励建模。核心挑战来自非平稳性和弱可观察性。</p>
+<h4 id="73">7.3 游戏与策略推理</h4>
+<p>游戏提供可重复交互、明确目标和可扩展反馈。SPAG通过两人对抗游戏训练语言模型。Voyager在Minecraft中维护不断扩展的可执行技能库。自我博弈可能创造脆弱的能力——系统可能利用模拟器或狭窄的对手分布。</p>
+<h4 id="74">7.4 科学发现</h4>
+<p>科学发现跨越完整研究生命周期。The AI Scientist和AI-Scientist-v2实现迭代管线（生成想法、编写调试代码、运行实验、分析结果、撰写手稿）。ChemCrow展示了语言模型对化学工具的控制。挑战包括评估（系统无法轻易验证新颖性、正确性或可重复性）、异质性下的证据管理、安全与治理。</p>
+<h4 id="75-ai">7.5 具身AI与机器人</h4>
+<p>增加了连续状态和动作空间、部分可观察性、安全关键探索和仿真到真实差距。RoboCat训练多任务多体操纵策略并使用训练后的策略生成后续训练迭代的额外数据。AutoRT使用基础模型提出多样化指令并协调机器人舰队。</p>
+<h4 id="76">7.6 通用计算机控制</h4>
+<h3 id="agent-sui-genie">要求控制完整操作系统和第三方应用程序。Agent S引入经验增强的层次规划。UI-Genie提出共进化智能体和奖励模型的自我改进管线。安全是核心关切——智能体可能删除文件、输入密码或发起金融交易。</h3>
+<h3 id="_12">八、评估</h3>
+<h4 id="81">8.1 衡量改进</h4>
+<p>论文形式化了自我改进智能体的评估目标。在迭代$t$时，对从保留评估分布$\mathcal{D}_{\text{eval}}$中抽取的任务$x$，整体能力为：  </p>
+<p>$\displaystyle m_t = \mathbb{E}_{x \sim \mathcal{D}_{\text{eval}}, \tau \sim \mathcal{A}_t(x)}[\Phi(x, \tau)]$</p>
+<p><strong>基于指标的衡量</strong>要求：</p>
+<ul>
+<li>在固定预算下报告完整性能轨迹（而非仅峰值分数）</li>
+<li>在不与优化数据重叠的保留分布上测试迁移</li>
+<li>透明的成本分解（计算、API token、时间、人工输入）</li>
+<li>跟踪稳定性、回归和安全违规</li>
+</ul>
+<p><strong>基于评判的衡量</strong>用于缺乏正式成功标准的开放式任务，使用参数化评判器$\Phi_{\text{judge}}(x, \tau, \kappa; \theta_{\text{judge}})$。需要指定评判者身份和预算，防止对评判者的过度优化，报告可靠性信号。</p>
+<h4 id="82">8.2 基准测试</h4>
+<ul>
+<li><strong>机制基准</strong>：隔离特定更新通道（如记忆扩展或提示精炼）以量化持续适应</li>
+<li><strong>领域基准</strong>：在现实反馈和任务分布下实例化评估框架</li>
+</ul>
+<hr />
+<h3 id="_13">九、讨论与未来方向</h3>
+<h4 id="91">9.1 系统设计启示</h4>
+<p><strong>从快速探索到慢速巩固</strong>：修改$\Sigma$驱动快速适应循环（计算开销小、可逆），修改$\theta$慢得多但擅长跨域迁移能力。当环境反馈嘈杂时，应将更新限制在脚手架内，参数巩固可推迟到新行为证明稳定后。<br />
+<strong>评论者作为受治理的基础设施</strong>：嵌入闭环中的评论者是攻击面而非被动基准。评论者应与生成器解耦，其更新不应在被评估智能体的无约束控制下。<br />
+<strong>通过分层门控实现安全</strong>：自我改进使AI对齐复杂化，因为被对齐的对象是非平稳的。系统需要分层门控——严格的自修改权限系统。</p>
+<h4 id="92">9.2 未来方向</h4>
+<p><strong>主题A：终身适应的算法范式</strong></p>
+<ol>
+<li><strong>测试时持续适应</strong>：允许模型在执行期间动态更新检索、路由和记忆策略</li>
+<li><strong>主动探索与好奇心</strong>：自主寻找有价值的经验，通过内在奖励机制安全驱动探索</li>
+<li><strong>参数蒸馏与联合优化</strong>：将脚手架级发现蒸馏到更小模型的参数权重中；同时更新$\theta$和$\Sigma$</li>
+</ol>
+<p><strong>主题B：复杂性、约束与开放世界鲁棒性</strong><br />
+4. <strong>资源受限的改进动态</strong>：将自我改进重新框定为资源优化问题<br />
+5. <strong>多智能体协作共进化</strong>：专门化智能体通过共享可复用制品共同进化</p>
+<ol>
+<li><strong>应对开放世界分布漂移</strong>：放弃静态排行榜，转向非平稳模拟器，迫使开发抵抗灾难性遗忘和环境非平稳性的自我改进循环</li>
+</ol>
+<hr />
+<h3 id="_14">十、结论</h3>
+<p>论文总结了这一范式转变：从早期成功的实现到大型基础模型极大拓宽了自我改进系统的规模、多功能性和范围。通过统一的系统视角，论文区分了两条主要路径：（1）基础模型改进作为参数化的慢循环；（2）脚手架改进作为非参数化的快循环。展望未来，可扩展且安全的评估、持续适应下的对齐、以及快慢改进循环的整合仍是开放且紧迫的技术挑战。</p>
+<h2 id="_15">研究要点表</h2>
+<div class="table-scroll"><table class="key-value">
+<thead>
+<tr>
+<th>维度</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>论文标题</td>
+<td>Self-Improvements in Modern Agentic Systems: A Survey</td>
+</tr>
+<tr>
+<td>作者</td>
+<td>Zhe Ren, Yimeng Chen, Dandan Guo, Guowei Rong, Tonghui Li, R.B. Xiong, Qingfeng Lan, Wenyi Wang, Li Nanbo, Yibo Yang, Mingchen Zhuge, Jürgen Schmidhuber 等（来自吉林大学、KAUST、阿尔伯塔大学、IDSIA等机构）</td>
+</tr>
+<tr>
+<td>发表年份</td>
+<td>2026（arXiv预印本，2026年7月14日）</td>
+</tr>
+<tr>
+<td>研究问题</td>
+<td>如何系统性地理解和分类现代基于基础模型的智能体（agentic systems）中的自我改进机制？该综述旨在统一碎片化的术语和方法，为自改进智能体提供一个完整的形式化框架和分类体系。</td>
+</tr>
+<tr>
+<td>研究方法</td>
+<td>采用综述方法，提出了一个系统级框架，将现代智能体形式化为基础模型参数（θ）与操作脚手架（Σ，包括提示、记忆、工具和控制逻辑）的耦合配置。基于此框架，将自我改进形式化为自诱导更新算子，并按更新目标和驱动信号对现有方法进行系统分类，涵盖两条主要路径：基础模型改进和脚手架改进。</td>
+</tr>
+<tr>
+<td>主要发现</td>
+<td>自我改进方法可分为两条互补路径：（1）基础模型改进（较慢但稳定的参数更新，通过内在生成示范、内在评估反馈或外在探索经验驱动）；（2）脚手架改进（较快且可逆的非参数更新，涵盖提示优化、记忆演化、工具治理和全脚手架重构）。论文还发现提示优化中学习信号从标量分数逐步演进到文本梯度，记忆系统从静态存储转向信号驱动的动态自组织，工具使用从静态调用转向自主创建和治理的元认知架构。</td>
+</tr>
+<tr>
+<td>创新点</td>
+<td>（1）追溯了自改进系统从经典AI到现代基础模型智能体的历史演化脉络；（2）提出了统一的形式化框架和系统分类法，将基础模型改进和脚手架改进纳入同一理论体系，并按更新目标和信号来源进行细分；（3）将分类体系与六大应用领域（软件工程、网页导航、游戏、科学发现、具身AI、通用计算机控制）及评估范式相整合，提出了面向未来的研究路线图。</td>
+</tr>
+<tr>
+<td>局限性</td>
+<td>论文指出该领域面临多项开放挑战：自生成信号的可靠性问题（模型崩塌、知识泡沫）、评估者与被评估策略的耦合导致的偏差放大、真正开放式递归自改进仍是重大挑战、安全对齐在非平稳系统中更加复杂、缺乏统一的跨域评估标准以及资源约束下的改进效率问题。</td>
+</tr>
+<tr>
+<td>与本研究的关联</td>
+<td>该综述为理解基于大语言模型的自改进智能体系统提供了全面的理论框架和方法分类，可作为研究自改进机制、智能体架构设计、评估协议以及安全约束等方面的重要参考文献和概念基础。</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="_16">原文摘要</h2>
+<p>Self-improving autonomous agents are moving from research prototypes to deployed systems. The primary goal is controllable evolution, or adaptation, from experience with minimal or even no human input. This survey frames modern self-improving agents as adaptive systems that convert experience into accumulated capability gains. We offer a system-level framework that represents a modern agent as a configuration coupling a foundation model with an operational scaffold of prompts, memory, tools, and control logic. Within this framework, self-improvement is formalized as a self-induced update operator that obtains and commits updates to model parameters or scaffold components. We organize prior work by update target and by the signals that drive change, then review applications and discuss evaluation, before closing with open problems and future directions. For convenience, we track technical updates on  this https URL .</p></article>
+<aside class="detail-aside"><div class="report-toc" aria-label="文献卡片目录"><details open><summary>本页目录</summary><div class="toc">
+<ul>
+<li><a href="#_1">核心机制</a></li>
+<li><a href="#_2">适用范围与局限</a></li>
+<li><a href="#_3">详细解读</a><ul>
+<li><a href="#_4">核心总结</a></li>
+<li><a href="#_5">一、引言与研究动机</a></li>
+<li><a href="#_6">二、历史背景与理论基础</a></li>
+<li><a href="#_7">三、定义与形式化</a></li>
+<li><a href="#_8">四、分类体系概览</a></li>
+<li><a href="#_9">五、基础模型改进</a></li>
+<li><a href="#_10">六、脚手架改进</a></li>
+<li><a href="#_11">七、应用领域</a></li>
+<li><a href="#agent-sui-genie">要求控制完整操作系统和第三方应用程序。Agent S引入经验增强的层次规划。UI-Genie提出共进化智能体和奖励模型的自我改进管线。安全是核心关切——智能体可能删除文件、输入密码或发起金融交易。</a></li>
+<li><a href="#_12">八、评估</a></li>
+<li><a href="#_13">九、讨论与未来方向</a></li>
+<li><a href="#_14">十、结论</a></li>
+</ul>
+</li>
+<li><a href="#_15">研究要点表</a></li>
+<li><a href="#_16">原文摘要</a></li>
+</ul>
+</div>
+</details></div><section><h2>引用这篇论文</h2><p id="citation-text" class="citation-text">Zhe Ren, Yimeng Chen, Dandan Guo, et al.. Self-Improvements in Modern Agentic Systems: A Survey. arXiv:2607.13104, 2026.</p><button class="button secondary" type="button" data-copy-citation>复制引用</button><p class="meta-note">延伸阅读</p></section><section><h2>同方向继续阅读</h2><ul class="related-list"><li><a href="../papers/2005.11401.html">Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks</a></li><li><a href="../papers/2309.02427.html">Cognitive Architectures for Language Agents</a></li><li><a href="../papers/2602.06052.html">A Survey of Agent Memory in the Second Half: Towards Self-Evolving and Long-Horizon Agents</a></li><li><a href="../papers/2604.08224.html">Externalization in LLM Agents: A Unified Review of Memory, Skills, Protocols and Harness Engineering</a></li></ul></section></aside></div></div></main>
+<footer class="site-footer"><div><strong>Agent Memory 研究</strong><p>从保存历史，到有依据地更新长期状态。</p></div>
+<div><span>内容更新 · 2026-09-08</span><p>理解方法，比较条件，关注长期影响。</p><a href="../sources.html">阅读指南</a></div></footer>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body></html>

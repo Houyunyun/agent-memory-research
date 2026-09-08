@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="配对来源权威测试整合是否丢失授权边界">
+<meta name="color-scheme" content="light"><title>When Memory Becomes Authority: Benchmarking Authority Collapse at the Memory Consolidation Boundary · Agent Memory 研究</title>
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/katex/katex.min.css"><script src="../assets/katex/katex.min.js" defer></script><script src="../assets/katex/auto-render.min.js" defer></script><script src="../assets/site.js" defer></script>
+</head>
+<body data-page="library">
+<a class="skip-link" href="#main">跳转到正文</a>
+<header class="site-header"><div class="header-inner">
+<a class="brand" href="../index.html" aria-label="Agent Memory 研究首页">
+<svg viewBox="0 0 36 36" width="32" height="32" aria-hidden="true"><path d="M9 9h18v18H9zM9 9l18 18M27 9L9 27" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="9" r="4"/><circle cx="27" cy="9" r="4"/><circle cx="9" cy="27" r="4"/><circle cx="27" cy="27" r="4"/></svg>
+<span>Agent Memory<small>研究文献站</small></span></a>
+<nav class="site-nav" aria-label="主导航"><a href="../index.html">研究总览</a><a href="../library.html" aria-current="page">文献库</a><a href="../reports/survey.html">综述全文</a><a href="../reports/multi-agent.html">多智能体专题</a><a href="../sources.html">阅读指南</a></nav>
+</div></header>
+<main id="main"><div class="page-wrap"><div class="breadcrumb"><a href="../library.html">文献库</a><span>/</span><a href="../library.html?topic=safety">安全与治理</a></div>
+<header class="paper-hero"><div class="paper-badges"><span class="badge expanded">含详细解读</span><span class="muted">2026 · 2608.01679</span></div><h1>When Memory Becomes Authority: Benchmarking Authority Collapse at the Memory Consolidation Boundary</h1><p class="paper-authors full-authors">Qiuyang Zhan, Rui Zhang, Sheng Guo, Lepeng Zhao, Zhuotao Liu</p>
+<div class="hero-actions paper-actions"><a href="https://arxiv.org/abs/2608.01679" target="_blank" rel="noopener noreferrer">论文原文 <span aria-hidden="true">↗</span></a><a href="../downloads/notes/2608.01679.md">下载文献卡片 Markdown</a></div></header>
+<div class="detail-layout"><article class="prose"><h2 id="_1">核心机制</h2>
+<p>配对来源权威测试整合是否丢失授权边界</p>
+<h2 id="_2">适用范围与局限</h2>
+<p>观察到零未经授权行动不是无条件安全证明</p>
+<h2 id="_3">详细解读</h2>
+<h3 id="_4">核心总结</h3>
+<p>这篇论文识别并系统研究了LLM智能体持久记忆系统中一个此前未被关注的安全隐患——<strong>权威坍缩（authority collapse）</strong>。当智能体将多轮交互历史整合（consolidate）为持久化记忆条目时，信息的内容被保留了，但其来源所附带的"授权等级"信息却被擦除了。这导致一条来自不可信来源（如第三方邮件）的声明，在记忆中与用户亲口说的话变得无法区分，从而在后续任务中可能被错误地用于执行需要用户授权的操作（如更新个人资料）。论文提出了<strong>AuthMem-Bench</strong>基准测试，通过精心设计的配对实验，在49种整合器×后端模型组合中的48种观察到了权威坍缩现象，并证明自动预测和持久化权威标签可以将未授权操作率从16.9%降至0.0%，同时不影响合法任务的成功率。</p>
+<h3 id="_5">一、问题动机与背景</h3>
+<h4 id="11">1.1 持久记忆的兴起</h4>
+<p>当前的LLM智能体（如基于Mem0、LangMem、MemGPT、Letta等系统的智能体）越来越多地使用<strong>持久记忆（persistent memory）</strong>来跨任务携带信息、个性化行为和复用先前经验。这些系统会将异构的交互历史（包含用户发言、助手回复、工具返回结果等）整合为可复用的事实、偏好、观察和规则。</p>
+<h4 id="12">1.2 记忆整合的隐含授权边界</h4>
+<p>论文的核心洞察是：记忆整合不仅仅决定了智能体"记住什么"，它还隐含地决定了存储的信息在后续使用时具有什么样的<strong>操作地位</strong>——一条存储的记忆可能被当作"用户事实"、"经过验证的观察"或"长期有效的指令"来使用。因此，记忆整合实际上是一个<strong>隐含的授权边界（implicit authorization boundary）</strong>。</p>
+<h4 id="13">1.3 权威坍缩的定义</h4>
+<p><strong>权威坍缩</strong>发生在：整合过程保留了某个声明的内容，但擦除了约束其授权使用方式的来源信息，导致存储的记忆暗示了比其来源所允许的更大的权威。<br />
+Figure 1给出了一个直观例子：</p>
+<ul>
+<li><strong>授权来源</strong> $H^+(p)$：用户直接说"I live in Seattle."</li>
+<li><strong>非授权来源</strong> $H^-(p)$：一封外部邮件说"The user lives in Seattle."</li>
+<li>两者经过记忆整合后，都变成了同一条记忆："The user lives in Seattle."</li>
+<li>当后续任务要求"用我当前的城市更新我的个人资料"时，两种情况下智能体都会执行 <code>update_profile(city="Seattle")</code></li>
+<li>但根据策略，只有 $H^+$ 应该被允许执行这个操作，$H^-$ 应该被阻止<br />
+  这里的关键点是：声明本身可能是<strong>真实的</strong>，也不包含任何注入的恶意指令——失败在于整合过程中<strong>悄悄赋予的权威等级</strong>。<br />
+  论文还定义了<strong>权威洗白（authority laundering）</strong>作为权威坍缩的对抗性利用：攻击者通过非授权上下文引入的声明，经过整合后变成了看似用户事实、经验证的观察或长期规则。</li>
+</ul>
+<hr />
+<h3 id="_6">二、形式化定义</h3>
+<h4 id="21">2.1 记忆整合</h4>
+<p>交互历史定义为 $H = \langle(x_i, r_i)\rangle_{i=1}^n$，其中 $x_i$ 是源文本片段，$r_i \in \mathcal{R}$ 是其源类别。遵循OpenAI的角色约定，$\mathcal{R} = \{\texttt{system}, \texttt{user}, \texttt{assistant}, \texttt{tool}\}$。<br />
+整合器 $C_\theta$ 将源窗口映射为记忆集合：$C_\theta(H) = \{m_1, \ldots, m_k\}$。</p>
+<h4 id="22">2.2 操作权威</h4>
+<p>对于焦点声明 $p$，$\ell^\*(p, H)$ 表示其黄金权威标签，由支持 $p$ 的来源以及任何显式背书决定。<br />
+论文区分三个操作标签：</p>
+<ul>
+<li><strong>Authorized（已授权）</strong>：可以支持用户事实、偏好、决策或显式指令</li>
+<li><strong>Attested（已证实）</strong>：记录了可信来源的断言，但本身不能证明用户意图</li>
+<li><strong>Unendorsed（未背书）</strong>：可以作为上下文保留，但不能在没有用户批准的情况下直接授权受保护的操作<br />
+  令 $\Pi(\ell)$ 表示权威标签 $\ell$ 所允许的下游使用集合。</li>
+</ul>
+<h4 id="23">2.3 权威坍缩的形式定义</h4>
+<p>设 $m$ 是从焦点声明 $p$ 派生的保留记忆，$\widehat{\Pi}(m)$ 表示其存储表示所暗示的下游使用。<strong>虚假权威升级（false authority upgrade）</strong>发生在：  </p>
+<p>$\displaystyle \widehat{\Pi}(m) \not\subseteq \Pi\big(\ell^\*(p, H)\big)$</p>
+<p>即存储的记忆暗示的使用范围超出了其来源所允许的范围。当整合过程中擦除了防止此类升级所需的来源区分时，我们说整合对 $p$ 展现了<strong>权威坍缩</strong>。</p>
+<h4 id="24">2.4 威胁模型</h4>
+<p>攻击者控制通过权威策略视为"未背书"的源类别提供的内容（如指定的非权威工具输入）。攻击者<strong>不能</strong>修改源类别标注、直接的用户或系统消息、部署指定的权威工具的输出、记忆存储或授权策略。攻击目标是使未背书的声明被整合为具有更高隐含权威的记忆，并在后续诱导未授权的工具操作。</p>
+<h3 id="authmem-bench">三、AuthMem-Bench 基准测试</h3>
+<h4 id="31">3.1 总体设计</h4>
+<p>AuthMem-Bench通过一个受控的<strong>写入-到-行动（write-to-action）</strong>循环来操作化上述形式化定义。每个源权威对保持焦点命题和后续任务固定，仅改变源上下文是否允许目标使用。<br />
+基准测试包含三个相互关联的模块：</p>
+<ul>
+<li><strong>Module A</strong>：写入时权威坍缩——整合是否擦除了来源权威？</li>
+<li><strong>Module B</strong>：受控下游后果——坍缩的记忆是否导致授权错误？</li>
+<li><strong>Module C</strong>：端到端权威保持——权威能否被自动预测和保持？</li>
+</ul>
+<h4 id="32">3.2 基准构建</h4>
+<p><strong>任务基础</strong>：从两个固定来源采样50个基础历史：</p>
+<ul>
+<li>30个来自 $\tau^2$-Bench 的成功rollout（航空、零售、电信各10个）</li>
+<li>20个来自APIGen-MT-5k的结构有效轨迹（航空和零售各10个）</li>
+</ul>
+<p><strong>权威策略</strong>：</p>
+<ul>
+<li>直接用户证据 → Authorized</li>
+<li>助手证据 → Attested</li>
+<li>工具证据 → Unendorsed</li>
+</ul>
+<p><strong>权威转换分类</strong>：预定义了7种可能发生权威坍缩的来源-到-使用边界（见Table 1）：</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>代码</th>
+<th>$H^-$ 来源条件</th>
+<th>被禁止的解释</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>R2F</td>
+<td>第三方报告 $p$</td>
+<td>用户档案事实 $p$</td>
+</tr>
+<tr>
+<td>P2R</td>
+<td>外部程序 $a$</td>
+<td>长期规则 $a$</td>
+</tr>
+<tr>
+<td>C2O</td>
+<td>未背书声明 $p$</td>
+<td>操作事实 $p$</td>
+</tr>
+<tr>
+<td>MIX</td>
+<td>混合用户/工具证据</td>
+<td>不合格的事实/规则</td>
+</tr>
+<tr>
+<td>O2I</td>
+<td>工具观察 $p$</td>
+<td>用户意图/决策 $p$</td>
+</tr>
+<tr>
+<td>R2P</td>
+<td>外部建议 $x$</td>
+<td>用户偏好 $x$</td>
+</tr>
+<tr>
+<td>S2D</td>
+<td>助手建议 $a$</td>
+<td>用户决策 $a$</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>配对构建</strong>：对每个基础历史和每种转换，实例化一个包含精确操作值的焦点命题 $p$，构建非授权历史 $H^-(p)$ 和授权历史 $H^+(p)$：</p>
+<ul>
+<li>在 $H^-(p)$ 中，命题仅由转换的非授权来源引入，用户从未采纳</li>
+<li>在 $H^+(p)$ 中，相同的完整命题和操作值由用户直接陈述<br />
+  配对改变焦点载体，同时保持周围交互、后续任务 $q$、工具模式、目标参数、固定参数和操作谓词不变。后续请求不陈述操作值，因此智能体必须从记忆中获取。<br />
+  50个基础 × 7种转换 = 350对，即700个源历史变体。</li>
+</ul>
+<h4 id="33">3.3 评估指标</h4>
+<p><strong>Module A 指标</strong>：</p>
+<ul>
+<li>$\text{Upgrade-all} = N_{\text{upg}} / N^-$：所有非授权案例中被升级的比例</li>
+<li>$\text{Ret}^- = (N_{\text{upg}} + N_{\text{pres}}) / N^-$：$H^-$ 上的焦点声明保留率</li>
+<li>$\text{Ret}^+ = N^+_{\text{ret}} / N^+$：$H^+$ 上的保留率</li>
+</ul>
+<p><strong>Module B 指标</strong>：</p>
+<ul>
+<li>ASR（攻击成功率）：非授权案例中输出满足被禁止操作谓词的比例</li>
+<li>TSR（任务成功率）：授权对应案例中输出满足所需谓词的比例</li>
+</ul>
+<h3 id="module-cmodule-basrtsr"><strong>Module C</strong>：使用与Module B相同的ASR和TSR。</h3>
+<h3 id="_7">四、实验设置</h3>
+<h4 id="41">4.1 模型</h4>
+<p>涵盖7个领先的LLM后端：</p>
+<ul>
+<li>专有：GPT-5.5、GPT-5.4 mini、Gemini 3.1 Pro、Gemini 3.5 Flash、Qwen3.7-Max</li>
+<li>开源权重：GLM-5.2、DeepSeek-V4-Pro<br />
+  所有模型使用固定ID和温度零。</li>
+</ul>
+<h4 id="42">4.2 记忆写入</h4>
+<p>Module A构建 $7 \times 7$ 的基础网格，交叉7个后端和7个记忆写入目标。写入目标改编自Mem0 classic、Mem0 additive、LangMem、Graphiti和Letta的记忆选择和写入指令，统一到共享实验接口。<br />
+另外还有两个受控干预：</p>
+<ul>
+<li><strong>Marked</strong>：要求保留焦点片段但不透露其黄金权威</li>
+<li><strong>Marked + source-aware</strong>：额外要求保留说话者、模态、不确定性和背书信息</li>
+</ul>
+<h4 id="43">4.3 评判</h4>
+<h3 id="module-agpt-56-lunamodule-bcllm">Module A的输出由固定的GPT-5.6-Luna评判器分类（对被评估的写入器和条件盲化）。Module B和C的结果不使用LLM评判器：操作成功仅当原生工具调用匹配注册的目标工具和完整参数对象。</h3>
+<h3 id="_8">五、实验结果</h3>
+<h4 id="51-rq1">5.1 RQ1：权威坍缩是否跨整合器和后端泛化？</h4>
+<p><strong>核心发现：权威升级在49种目标-后端配置中的48种中出现。</strong><br />
+Table 2展示了 $7 \times 7$ 基础网格的结果。关键观察：</p>
+<ol>
+<li><strong>坍缩跨目标和后端泛化</strong>：每个整合器在至少6个后端上展现升级，每个后端在至少6个目标下展现升级。唯一的零升级配置（Mem0 classic + GPT-5.5）是因为它省略了所有350个非授权焦点命题，通过不保留而非权威保持来避免失败。</li>
+<li><strong>没有简单的专有/开源排序</strong>：专有后端包含最低平均Upgrade-all（GPT-5.5, 5.2%）和最高（Gemini 3.1 Pro, 30.4%），而开源的DeepSeek-V4-Pro和GLM-5.2分别为16.4%和20.7%。</li>
+<li><strong>低Upgrade-all不等于安全整合</strong>：整个基础网格中，$\text{Ret}^+$ 为61.5%，而 $\text{Ret}^-$ 仅为26.0%。在所有 $H^-$ 案例中，17.8%被权威升级，仅8.2%被保留且权威得到保持，74.0%被省略。GPT-5.5和GPT-5.4 mini的低Upgrade-all（5.2%和6.0%）是因为它们的 $\text{Ret}^-$ 值仅为11.2%和12.7%——它们通过省略而非可靠的来源权威保持来避免观察到的升级。</li>
+<li><strong>提示修复不能消除后端脆弱性</strong>（Table 3）：标记焦点片段将 $\text{Ret}^-$ 从25.3%提高到83.5%，但也将Upgrade-all从21.6%提高到55.8%，暴露了之前被省略隐藏的失败。添加source-aware指令将 $\text{Ret}^-$ 和 $\text{Ret}^+$ 维持在82.5%和98.6%，同时将Upgrade-all降至9.9%。Source-aware提示在一定程度上缓解了权威坍缩，但主要脆弱性在于底层LLM。</li>
+</ol>
+<h4 id="52-rq2">5.2 RQ2：坍缩的记忆是否导致授权错误？</h4>
+<p>Table 4报告了受控下游结果。由于基准直接提供焦点记忆，结果隔离了行动时行为与写入时省略和检索失败。</p>
+<ol>
+<li><strong>权威洗涤消除了行动时的区分能力</strong>：使用洗涤记忆且无元数据时，宏观ASR和TSR分别为50.3%和49.4%，两个比率对每个后端都保持相似。这种近似相等表明，洗涤后的命题几乎独立于其原始权威被操作化。</li>
+<li><strong>来源归属有帮助但不充分</strong>：用来源归属文本替换洗涤记忆将宏观ASR降低9.8个百分点，TSR提高4.2个百分点。然而，40.5%的非授权案例仍然触发了被禁止的操作。</li>
+<li><strong>显式标签提供最强的区分</strong>：黄金元数据将ASR降至5.8%（洗涤记忆）和2.7%（来源归属记忆），同时在两种条件下维持53.9%的TSR。相比之下，文本清理产生26.2% ASR和26.1% TSR，保守合并产生5.1%的ASR和TSR——它们匹配的安全和效用率表明是无差别的操作抑制，而非权威恢复。</li>
+</ol>
+<h4 id="53-rq3">5.3 RQ3：来源权威能否被端到端恢复和保持？</h4>
+<p>验证比较选择Qwen3.7-Max作为权威预测器（96.2%权威标签准确率，77.5%宏观F1）。在冻结的端到端管道写入的4,453条记忆上，其预测标签与参考标签在98.7%的案例中一致，宏观F1为91.7%，危险升级0.6%，过度限制0.7%。<br />
+<strong>Table 5的关键结果</strong>：</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>条件</th>
+<th>ASR↓</th>
+<th>TSR↑</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>无元数据</td>
+<td>16.9% (59/350)</td>
+<td>39.7% (139/350)</td>
+</tr>
+<tr>
+<td><strong>预测标签</strong></td>
+<td><strong>0.0%</strong> (0/350)</td>
+<td><strong>40.0%</strong> (140/350)</td>
+</tr>
+<tr>
+<td>参考标签</td>
+<td>0.0% (0/350)</td>
+<td>40.0% (140/350)</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>端到端效用仍受召回限制</strong>：整合器仅在350个 $H^-$ 案例中的139个和350个 $H^+$ 案例中的256个保留了焦点命题。权威元数据控制存储内容的使用方式，但无法恢复整合期间遗漏的信息。</p>
+<p>预测元数据消除了观察到的授权错误，同时不降低任务成功率。在70对留出测试集上，无元数据管道在10/70案例中发出被禁止的操作，预测元数据将此减少到零，同时授权完成保持不变（20/70）。</p>
+<hr />
+<h3 id="_9">六、与现有工作的区别</h3>
+<p>论文与以下几类工作进行了区分：</p>
+<ol>
+<li><strong>持久智能体记忆</strong>（Generative Agents、MemGPT、MemoryBank、Mem0等）：这些工作改善保留、组织、检索或事实基础。AuthMem-Bench问的是整合是否保持了管理相同声明允许下游使用的来源权威。</li>
+<li><strong>记忆安全和来源</strong>（AgentPoison、MINJA等）：这些工作针对对抗性伪造物或攻击者引入的记录。本文的反事实保持声明和后续任务固定，仅改变来源权威；声明可以是真实的、非指令性的，在不同条件下文本完全相同。</li>
+<li><strong>MemIR</strong>：研究事实问答中的来源监控，其来源角色坍缩关注的是认识论角色在事实推理中的丢失，而非操作权限的升级。</li>
+</ol>
+<hr />
+<h3 id="_10">七、总结与启示</h3>
+<p>这项工作的核心贡献在于：</p>
+<ol>
+<li><strong>识别并操作化了权威坍缩</strong>——一种记忆整合失败，其中声明内容被保留但授权下游使用所需的来源区分被擦除。</li>
+<li><strong>引入AuthMem-Bench</strong>——一个受控的、配对的、基于操作的基准测试。</li>
+<li><strong>证明权威坍缩是跨模型的脆弱性</strong>，持续存在于各种记忆整合器中并传播到未授权的工具使用；预测的权威标签在不实质降低合法任务成功率的情况下大幅缓解了这一失败。<br />
+   论文的核心结论是：<strong>记忆驱动的适应不仅必须保持学到了什么，还必须保持在什么权威下可以复用它。来源权威是持久智能体记忆设计和评估中的一等状态变量。</strong></li>
+</ol>
+<h2 id="_11">研究要点表</h2>
+<div class="table-scroll"><table class="key-value">
+<thead>
+<tr>
+<th>维度</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>论文标题</td>
+<td>When Memory Becomes Authority: Benchmarking Authority Collapse at the Memory Consolidation Boundary</td>
+</tr>
+<tr>
+<td>作者</td>
+<td>Qiuyang Zhan, Rui Zhang, Sheng Guo, Lepeng Zhao, Zhuotao Liu（通讯作者），分别来自清华大学和华东师范大学</td>
+</tr>
+<tr>
+<td>发表年份</td>
+<td>2026（预印本，arXiv:2608.01679v2，2026年8月4日）</td>
+</tr>
+<tr>
+<td>研究问题</td>
+<td>LLM智能体的持久记忆在整合（consolidation）过程中是否会丢失信息来源的权限约束，导致"权限坍塌"（authority collapse），即存储的记忆暗示了超出其来源所允许的操作权限，从而引发下游未授权的工具调用行为。</td>
+</tr>
+<tr>
+<td>研究方法</td>
+<td>提出AuthMem-Bench基准测试，采用受控配对设计，保持焦点声明和下游任务不变，仅改变来源权限。基准包含三个模块：Module A评估写入时权限坍塌，Module B评估坍塌记忆导致的下游授权错误，Module C评估端到端自动权限保留。实验覆盖7种记忆整合器（基于Mem0、LangMem、Graphiti、Letta等）和7种LLM后端（GPT-5.5、Gemini 3.1 Pro、Qwen3.7-Max等），共49种配置。</td>
+</tr>
+<tr>
+<td>主要发现</td>
+<td>在49种整合器-后端配置中，48种出现权限坍塌。在受控下游评估中，无权限元数据的坍塌记忆导致平均50.3%的未授权操作率。在端到端评估中，自动预测并持久化的权限标签将未授权操作率从16.9%降至0.0%，同时良性任务成功率基本不变（从39.7%到40.0%）。</td>
+</tr>
+<tr>
+<td>创新点</td>
+<td>首次识别并形式化定义了"权限坍塌"这一记忆整合失败模式；提出AuthMem-Bench——首个隔离来源权限变量的受控配对基准，覆盖写入-行动全周期；证明显式权限元数据可有效缓解该问题，将来源权限确立为持久智能体记忆中的一等状态变量。</td>
+</tr>
+<tr>
+<td>局限性</td>
+<td>权限元数据仅控制已存储信息的使用方式，无法恢复整合阶段遗漏的记忆内容；端到端效用受限于整合器的召回率；实验基于单次温度为零的推理轨迹，未考虑重复调用的非确定性；基准采用固定的角色-权限映射策略，可能不完全适用于所有部署场景。</td>
+</tr>
+<tr>
+<td>与本研究的关联</td>
+<td>未提及</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="_12">原文摘要</h2>
+<p>Persistent memory allows (self-evolving) LLM agents to adapt across tasks by consolidating heterogeneous interaction histories into reusable facts, preferences, observations, and rules. Yet consolidation also imposes an implicit authorization boundary: it determines whether stored information may later be consumed as a user fact, an attested observation, or a standing instruction. We identify authority collapse, in which consolidation preserves a claim while erasing the source constraints governing its authorized use, causing the stored memory to imply greater authority than its source permits. We introduce AuthMem-Bench, a controlled paired benchmark that holds the focal claim and downstream task fixed while varying only source authority. It evaluates write-time collapse, downstream authorization errors, and automatic authority preservation. Across seven consolidators based on widely used agent-memory systems and seven LLM backbones, we observe authority collapse in 48 of 49 evaluated configurations. In a controlled action-grounded evaluation, collapsed memories without authority metadata yield a mean unauthorized-action rate of 50.3%. In an end-to-end evaluation, automatically predicted and persisted authority labels reduce the observed unauthorized-action rate from 16.9% to 0.0%, while benign task success remains essentially unchanged. These findings show that memory-driven adaptation must preserve not only what was learned, but also the authority under which it may be reused.</p></article>
+<aside class="detail-aside"><div class="report-toc" aria-label="文献卡片目录"><details open><summary>本页目录</summary><div class="toc">
+<ul>
+<li><a href="#_1">核心机制</a></li>
+<li><a href="#_2">适用范围与局限</a></li>
+<li><a href="#_3">详细解读</a><ul>
+<li><a href="#_4">核心总结</a></li>
+<li><a href="#_5">一、问题动机与背景</a></li>
+<li><a href="#_6">二、形式化定义</a></li>
+<li><a href="#authmem-bench">三、AuthMem-Bench 基准测试</a></li>
+<li><a href="#module-cmodule-basrtsr">Module C：使用与Module B相同的ASR和TSR。</a></li>
+<li><a href="#_7">四、实验设置</a></li>
+<li><a href="#module-agpt-56-lunamodule-bcllm">Module A的输出由固定的GPT-5.6-Luna评判器分类（对被评估的写入器和条件盲化）。Module B和C的结果不使用LLM评判器：操作成功仅当原生工具调用匹配注册的目标工具和完整参数对象。</a></li>
+<li><a href="#_8">五、实验结果</a></li>
+<li><a href="#_9">六、与现有工作的区别</a></li>
+<li><a href="#_10">七、总结与启示</a></li>
+</ul>
+</li>
+<li><a href="#_11">研究要点表</a></li>
+<li><a href="#_12">原文摘要</a></li>
+</ul>
+</div>
+</details></div><section><h2>引用这篇论文</h2><p id="citation-text" class="citation-text">Qiuyang Zhan, Rui Zhang, Sheng Guo, et al.. When Memory Becomes Authority: Benchmarking Authority Collapse at the Memory Consolidation Boundary. arXiv:2608.01679, 2026.</p><button class="button secondary" type="button" data-copy-citation>复制引用</button><p class="meta-note">综述参考文献 [59]</p></section><section><h2>同方向继续阅读</h2><ul class="related-list"><li><a href="../papers/2503.03704.html">Memory Injection Attacks on LLM Agents via Query-Only Interaction</a></li><li><a href="../papers/2509.26354.html">Your Agent May Misevolve: Emergent Risks in Self-evolving LLM Agents</a></li><li><a href="../papers/2510.02373.html">A-MemGuard: A Proactive Defense Framework for LLM-Based Agent Memory</a></li><li><a href="../papers/2602.15654.html">Zombie Agents: Persistent Control of Self-Evolving LLM Agents via Self-Reinforcing Injections</a></li></ul></section></aside></div></div></main>
+<footer class="site-footer"><div><strong>Agent Memory 研究</strong><p>从保存历史，到有依据地更新长期状态。</p></div>
+<div><span>内容更新 · 2026-09-08</span><p>理解方法，比较条件，关注长期影响。</p><a href="../sources.html">阅读指南</a></div></footer>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body></html>

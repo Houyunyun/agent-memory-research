@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="已知编码/存储/检索/管理组件组合搜索，失败诊断指导提案">
+<meta name="color-scheme" content="light"><title>AutoMem: A Text-Gradient Recursive Self-Improvement Framework for Automated Memory Architectures Search · Agent Memory 研究</title>
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/katex/katex.min.css"><script src="../assets/katex/katex.min.js" defer></script><script src="../assets/katex/auto-render.min.js" defer></script><script src="../assets/site.js" defer></script>
+</head>
+<body data-page="library">
+<a class="skip-link" href="#main">跳转到正文</a>
+<header class="site-header"><div class="header-inner">
+<a class="brand" href="../index.html" aria-label="Agent Memory 研究首页">
+<svg viewBox="0 0 36 36" width="32" height="32" aria-hidden="true"><path d="M9 9h18v18H9zM9 9l18 18M27 9L9 27" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="9" r="4"/><circle cx="27" cy="9" r="4"/><circle cx="9" cy="27" r="4"/><circle cx="27" cy="27" r="4"/></svg>
+<span>Agent Memory<small>研究文献站</small></span></a>
+<nav class="site-nav" aria-label="主导航"><a href="../index.html">研究总览</a><a href="../library.html" aria-current="page">文献库</a><a href="../reports/survey.html">综述全文</a><a href="../reports/multi-agent.html">多智能体专题</a><a href="../sources.html">阅读指南</a></nav>
+</div></header>
+<main id="main"><div class="page-wrap"><div class="breadcrumb"><a href="../library.html">文献库</a><span>/</span><a href="../library.html?topic=evolution">操作与架构演化</a></div>
+<header class="paper-hero"><div class="paper-badges"><span class="badge expanded">含详细解读</span><span class="muted">2026 · 2608.14621</span></div><h1>AutoMem: A Text-Gradient Recursive Self-Improvement Framework for Automated Memory Architectures Search</h1><p class="paper-authors full-authors">Lin Du, Jie Zhou, Yuxuan Cai, Kai Chen, Qin Chen, Xin Li, Bo Zhang, Wei Li, Liang He</p>
+<div class="hero-actions paper-actions"><a href="https://arxiv.org/abs/2608.14621" target="_blank" rel="noopener noreferrer">论文原文 <span aria-hidden="true">↗</span></a><a href="../downloads/notes/2608.14621.md">下载文献卡片 Markdown</a></div></header>
+<div class="detail-layout"><article class="prose"><h2 id="_1">核心机制</h2>
+<p>已知编码/存储/检索/管理组件组合搜索，失败诊断指导提案</p>
+<h2 id="_2">适用范围与局限</h2>
+<p>当前任务级搜索与有限组件空间，不是任意架构生成</p>
+<h2 id="_3">详细解读</h2>
+<h3 id="_4">核心总结</h3>
+<p>这篇论文提出了AUTOMEM，一个面向LLM智能体（Agent）长期记忆架构的自动搜索框架。作者首先将智能体的长期记忆系统分解为四个模块——编码（Encode）、存储（Store）、检索（Retrieve）和管理（Manage），构建了一个包含5种编码器、5种存储方式、6种检索器和4种管理器的离散搜索空间。通过初步实验，作者发现没有任何一种固定的记忆架构能在所有任务上都表现最优，不同任务需要不同的模块组合。基于此发现，AUTOMEM通过"文本梯度"（text-gradient）驱动的递归自改进机制，在有限的评估预算内高效搜索出适配特定任务的最优记忆架构。该框架包含两个核心组件：经验引导的架构搜索（EGAS）和失败引导的模块诊断（FGMD），前者利用历史搜索经验提出候选架构，后者将失败案例定位到具体模块并生成文本反馈指导下一轮搜索。在GAIA、WebWalkerQA和xBench-DeepSearch三个基准上，AUTOMEM发现的记忆架构在六个"基准×骨干模型"设置中平均准确率提升2.8个百分点，同时降低了token消耗。</p>
+<h3 id="1">1. 研究动机与问题背景</h3>
+<h4 id="11-llm">1.1 LLM智能体的长期记忆</h4>
+<p>长期记忆已成为LLM智能体的重要组成部分。它使智能体能够保存过去交互、轨迹和任务执行中的可复用信息，并在未来决策中加以利用。现有工作已经探索了多种记忆形式：</p>
+<ul>
+<li><strong>情景记忆</strong>：对对话和轨迹的总结存储（如Generative Agents、MemGPT、Mem0）</li>
+<li><strong>反思记忆</strong>：从失败中提炼的经验教训（如Reflexion、ExpeL）</li>
+<li><strong>程序性记忆</strong>：可复用的技能、工作流或"备忘录"（如Voyager、Agent Workflow Memory、Dynamic Cheatsheet）</li>
+<li><strong>结构化经验共享</strong>：跨智能体的知识共享（如Agent-KB）</li>
+</ul>
+<h4 id="12">1.2 核心问题</h4>
+<p>然而，大多数记忆系统都是<strong>手动设计且部署后固定不变</strong>的。这存在根本性的局限：记忆的有效性取决于多个模块之间的交互。一个任务可能失败的原因可能是：</p>
+<ul>
+<li>有用信息没有被编码</li>
+<li>存储的表示形式难以检索</li>
+<li>检索器选择了不相关的记忆</li>
+<li>记忆池包含过时、重复或冲突的条目<br />
+  因此，改进智能体记忆需要<strong>优化整个记忆架构</strong>，而不仅仅是调优单个检索组件。</li>
+</ul>
+<hr />
+<h3 id="2">2. 记忆架构的模块化视角</h3>
+<h4 id="21">2.1 四模块分解</h4>
+<p>作者将长期记忆系统分解为四个正交模块：<br />
+<strong>Encode（编码）</strong>：决定什么信息应该写入记忆。候选选项包括：</p>
+<ul>
+<li><code>tip</code>：可迁移的启发式规则</li>
+<li><code>insight</code>：从失败中提炼的根因分析</li>
+<li><code>trajectory</code>：动作-观察的完整轨迹</li>
+<li><code>workflow</code>：编排逻辑（通用化的多步模板）</li>
+<li><code>shortcut</code>：参数化的可执行宏</li>
+</ul>
+<p><strong>Store（存储）</strong>：决定记忆如何表示。候选选项包括：</p>
+<ul>
+<li><code>json</code>：精确的键值对存储</li>
+<li><code>vector</code>：FAISS稠密向量索引</li>
+<li><code>hybrid</code>：json + vector的混合</li>
+<li><code>graph</code>：实体-关系图（NetworkX）</li>
+<li><code>llm_graph</code>：LLM构建的时序知识图谱</li>
+</ul>
+<p><strong>Retrieve（检索）</strong>：决定如何选择相关记忆。候选选项包括：</p>
+<ul>
+<li><code>hybrid</code>：词法+语义混合检索</li>
+<li><code>contrastive</code>：基于成功/失败案例的对比检索</li>
+<li><code>cbr_rerank</code>：案例库+重排序</li>
+<li><code>graph</code>：多跳图遍历</li>
+<li><code>hyde</code>：假设文档嵌入</li>
+<li><code>mmr</code>：多样性重排序</li>
+</ul>
+<p><strong>Manage（管理）</strong>：决定记忆池如何随时间演化。候选选项包括：</p>
+<ul>
+<li><code>lightweight</code>：遗忘</li>
+<li><code>json_full</code>：合并+更新</li>
+<li><code>tool_manager</code>：验证</li>
+<li><code>graph_consolidate</code>：合并+演化</li>
+</ul>
+<h4 id="22">2.2 形式化定义</h4>
+<p>一个记忆架构被定义为一个四元组 $a = (e, s, r, m)$，其中 $e \in \mathcal{E}$, $s \in \mathcal{S}$, $r \in \mathcal{R}$, $m \in \mathcal{M}$。无约束的笛卡尔空间为 $\tilde{\mathcal{A}} = \mathcal{E} \times \mathcal{S} \times \mathcal{R} \times \mathcal{M}$。但并非所有组合都有效（例如图检索器需要图存储），因此定义可行的记忆架构空间为：  </p>
+<p>$\displaystyle \mathcal{A} = \{(e, s, r, m) \in \tilde{\mathcal{A}} \mid \text{Valid}(e, s, r, m) = 1\}$</p>
+<p>其中 $\text{Valid}(\cdot)$ 过滤掉不兼容的模块组合。</p>
+<h4 id="23">2.3 现有系统的分解</h4>
+<p>Table 1展示了将现有代表性记忆系统按这四个模块分解的结果。两个关键发现：</p>
+<ol>
+<li><strong>现有系统通常只专注于一两个模块</strong>：例如技能库和工作流记忆系统在Encode上投入较多，图记忆系统强调Store，而记忆银行和自更新系统侧重Manage。</li>
+<li><strong>其余模块保持通用默认值</strong>，导致当失败源于非专长模块时难以适应。</li>
+</ol>
+<hr />
+<h3 id="3">3. 初步研究：为什么需要记忆架构搜索</h3>
+<p>作者进行了随机搜索的初步实验，从可行空间 $\mathcal{A}$ 中均匀采样架构并评估，得出三个关键发现：<br />
+<strong>发现1：强记忆架构存在，但它们是任务特定的。</strong> 在GAIA上，随机搜索找到的最佳架构达到69.7%，超过最强固定基线MemoryBank的67.8%。在xBench-DeepSearch上，最佳采样架构达到46.0%，超过SOTA的45.0%。但最佳架构在不同数据集上完全不同——一个任务可能偏好workflow编码+hybrid存储+语义检索，另一个可能偏好shortcut编码+graph存储+对比检索。<br />
+<strong>发现2：模块效果是耦合的而非可加的。</strong> 编码器 $e$ 的贡献取决于存储 $s$ 能否以可检索的形式保存其输出；检索器 $r$ 的价值取决于编码的记忆是否有信息量以及存储是否支持所需的检索操作；管理器 $m$ 的效果取决于其他模块产生的记忆池的密度、冗余度和稳定性。<br />
+<strong>发现3：随机搜索能获得SOTA结果但浪费评估预算。</strong> 随机搜索无法将失败试验转化为可复用的搜索信号。每个候选架构需要昂贵的完整智能体运行，但下一个候选的采样与之前的成功和失败完全独立。</p>
+<h4 id="31">3.1 任务自适应记忆架构选择的形式化</h4>
+<p>设 $\mathcal{D}$ 为任务分布，$B = \{(x_i, y_i)\}_{i=1}^n \sim \mathcal{D}$ 为评估批次。设 $A_a$ 为配备记忆架构 $a$ 的智能体，$A_0$ 为无记忆智能体。任务准确率定义为：  </p>
+<p>$\displaystyle \text{Acc}(A_a; B) = \frac{1}{|B|} \sum_{i=1}^{|B|} \mathbf{1}[\hat{y}_i^a = y_i]$</p>
+<p>记忆引入的增益定义为：  </p>
+<p>$\displaystyle \Delta(a; B) = \text{Acc}(A_a; B) - \text{Acc}(A_0; B)$</p>
+<p>给定搜索预算 $T$，目标是找到：  </p>
+<p>$\displaystyle a^\star \in \arg\max_{a \in \mathcal{A}} \mathbb{E}_{B \sim \mathcal{D}}[\text{Acc}(A_a; B)], \quad \text{s.t.} \quad N_{\text{eval}} \leq T$</p>
+<h3 id="4-automem">4. AUTOMEM方法</h3>
+<h4 id="41">4.1 总体框架</h4>
+<p>AUTOMEM是一个文本梯度递归自改进框架。它使用三个不相交的数据批次：</p>
+<ul>
+<li><strong>搜索批次</strong> $B_s$：评估候选架构</li>
+<li><strong>验证批次</strong> $B_v$：确认当前最佳架构的增益</li>
+<li><strong>测试批次</strong> $B_t$：最终报告结果<br />
+  候选架构通过<strong>Pareto目标</strong>进行排序，同时考虑任务准确率、记忆引入增益和运行成本。<br />
+  每一轮包含两个组件：</li>
+</ul>
+<ol>
+<li><strong>经验引导的架构搜索（EGAS）</strong>：基于历史搜索经验提出候选架构</li>
+<li><strong>失败引导的模块诊断（FGMD）</strong>：分析失败的运行轨迹，定位到具体模块，生成文本反馈<br />
+   Algorithm 1描述了完整流程：</li>
+<li>评估无记忆基线 $A_0$</li>
+<li>初始化经验账本 $\mathcal{L}$、观察图 $\mathcal{G}$、Pareto前沿 $P_0 \leftarrow \emptyset$、文本反馈 $\delta_1 \leftarrow \emptyset$</li>
+<li>对于每一轮 $t = 1$ 到 $N$：
+   - EGAS提出 $K$ 个候选架构
+   - 并行评估每个候选
+   - 更新Pareto前沿
+   - 周期性在验证集上验证
+   - FGMD分析失败轨迹，生成文本梯度 $\delta_{t+1}$
+   - 更新 $\mathcal{L}$ 和 $\mathcal{G}$</li>
+<li>返回经过验证的Pareto前沿领导者 $a^\star$</li>
+</ol>
+<h4 id="42-egas">4.2 经验引导的架构搜索（EGAS）</h4>
+<p>EGAS通过三种搜索状态来条件化候选生成：<br />
+<strong>候选提议</strong>：在第 $t$ 轮，EGAS接收最新的文本反馈 $\delta_t$ 并提出 $K$ 个架构：  </p>
+<p>$\displaystyle \{a_t^{(1)}, \ldots, a_t^{(K)}\} = \text{Propose}_\theta(\delta_t, \mathcal{L}_t, \mathcal{G}_t, P_t)$</p>
+<p>每个提议是一个元组 $a = (e, s, r, m)$，而不是重新生成的记忆实现。通过确定性检查器强制有效性：  </p>
+<p>$\displaystyle a_t^{(k)} \in \mathcal{A} \iff \text{Valid}(e_t^{(k)}, s_t^{(k)}, r_t^{(k)}, m_t^{(k)}) = 1$</p>
+<p><strong>经验账本 $\mathcal{L}$</strong>：存储可跨轮复用的搜索知识。每个条目表示为 $\ell = (c, u, q, z)$，其中 $c$ 是适用条件，$u$ 是推荐或不推荐的编辑，$q$ 是支持证据，$z$ 是状态（active/pending/refuted）。例如，如果反复试验表明在记忆池稀疏时图检索表现不佳，账本会将此记录为在稀疏记忆条件下不推荐的Retrieve-Store编辑。<br />
+<strong>观察图 $\mathcal{G}$</strong>：存储任务模式级别的统计信息。对于任务模式 $c$ 和模块选择 $u$，EGAS维护运行统计：  </p>
+<p>$\displaystyle \mu(c, u) = \frac{1}{n(c, u)} \sum_{j: c_j = c, u_j = u} \Delta(a_j; B_j)$</p>
+<p>这些统计作为软先验而非硬规则使用。<br />
+<strong>基于Pareto的接受</strong>：候选 $a_i$ 支配 $a_j$ 当且仅当：  </p>
+<p>$\displaystyle a_i \succ a_j \iff \text{Acc}_i \geq \text{Acc}_j, \; \Delta_i \geq \Delta_j, \; \text{Cost}_i \leq \text{Cost}_j$</p>
+<p>且至少有一个严格不等式。更新后的前沿为：  </p>
+<p>$\displaystyle P_{t+1} = \left\{a \in P_t \cup \{a_t^{(k)}\}_{k=1}^K \mid \nexists a' \in P_t \cup \{a_t^{(k)}\}_{k=1}^K \text{ such that } a' \succ a\right\}$</p>
+<h4 id="43-fgmd">4.3 失败引导的模块诊断（FGMD）</h4>
+<p>FGMD将失败的运行轨迹转化为模块级别的文本梯度，回答三个问题：失败是否与记忆相关、哪个模块最可能负责、下一步应尝试什么架构编辑。<br />
+<strong>范围过滤</strong>：不是每个失败都应更新记忆架构。FGMD首先应用基于规则的范围门控，移除工具错误、超时、不可用网页等与记忆无关的失败。对每个失败轨迹 $\tau_i$：  </p>
+<p>$\displaystyle g_i = \text{Scope}(\tau_i) \in \{0, 1\}$</p>
+<p>只有 $g_i = 1$ 的轨迹被传递到模块归因。<br />
+<strong>模块归因</strong>：FGMD首先应用基于规则的分类器，从记忆轨迹信号中为每个范围内失败分配一个主导失败模式：  </p>
+<p>$\displaystyle f_i = \text{Classify}(\tau_i) \in \mathcal{F}$</p>
+<p>$\mathcal{F}$ 收集记忆失败模式，如：</p>
+<ul>
+<li><code>extraction_gap</code>（提取缺口）→ Encode</li>
+<li><code>extraction_low_quality</code>（低质量提取）→ Encode</li>
+<li><code>retrieval_miss</code>（检索遗漏）→ Retrieve</li>
+<li><code>judge_rejected_all</code>（判断器全部拒绝）→ Retrieve</li>
+<li><code>retrieval_noise</code>（检索噪声）→ Retrieve</li>
+<li><code>memory_stale</code>（记忆过时）→ Manage</li>
+</ul>
+<p><strong>聚合</strong>：将每个任务的模式映射到模块，得到每模块失败直方图：  </p>
+<p>$\displaystyle H_t(q) = \sum_i \mathbf{1}[g_i = 1] \cdot \mathbf{1}[b_i = q], \quad q \in \{E, S, R, M\}$</p>
+<p>直方图提名候选瓶颈，但FGMD通过LLM诊断师确定主要瓶颈 $q_t^\star$，该诊断师同时阅读直方图和代表性失败轨迹。<br />
+<strong>文本梯度合成</strong>：最终，基于LLM的合成器将诊断信号整合为结构化文本梯度：  </p>
+<p>$\displaystyle \delta_{t+1} = (q_t^\star, \mathcal{E}_t, \rho_t, \mathcal{R}_t)$</p>
+<p>其中 $q_t^\star$ 是主要模块瓶颈，$\mathcal{E}_t$ 是基础证据，$\rho_t$ 是置信度（高/中/低），$\mathcal{R}_t$ 是推荐的架构编辑。<br />
+<strong>差分验证</strong>：为避免反复遵循无效的诊断方向，FGMD比较当前轮与上一轮。如果上次编辑针对模块 $q$ 但未改善准确率、记忆增益或验证性能，相应推荐在 $\mathcal{L}$ 中被降级。如果改善了Pareto前沿或验证领导者，推荐被提升为活跃原则。</p>
+<h3 id="5">5. 实验</h3>
+<h4 id="51">5.1 实验设置</h4>
+<p><strong>数据集</strong>：</p>
+<ul>
+<li><strong>GAIA</strong>：提供L1/L2/L3三个难度级别，用于难度分层分析</li>
+<li><strong>WebWalkerQA</strong>：评估深度网页导航和多步信息搜索</li>
+<li><strong>xBench-DeepSearch</strong>：100个中文深度搜索问题</li>
+</ul>
+<p><strong>骨干模型</strong>：Qwen3.5-122B-A10B 和 gpt-5.1-mini<br />
+<strong>基线</strong>：覆盖主要记忆范式——情景/长期记忆（Generative Agents、Mem0、MemoryBank）、经验/反思记忆（ExpeL、DiLu）、程序性/技能记忆（Voyager、Agent Workflow Memory、Agent-KB、Dynamic Cheatsheet、Memp）、自演化记忆（MemEvolve、Mobile-Agent-E）</p>
+<h4 id="52">5.2 主要结果</h4>
+<p>Table 2展示了核心结果：<br />
+<strong>在Qwen3.5-122B-A10B下</strong>：</p>
+<ul>
+<li>GAIA：AUTOMEM达到71.5%，比最强基线MemoryBank（67.8%）提升+3.7</li>
+<li>xBench：AUTOMEM达到46.0%，比MemoryBank（45.0%）提升+1.0</li>
+<li>WebWalkerQA：AUTOMEM达到72.5%，比Agent-KB（68.9%）提升+3.6</li>
+</ul>
+<p><strong>在gpt-5.1-mini下</strong>：</p>
+<ul>
+<li>GAIA：75.2%，比MemEvolve（73.3%）提升+1.9</li>
+<li>xBench：79.0%，比MemEvolve（74.0%）提升+5.0</li>
+<li>WebWalkerQA：76.5%，比MemEvolve（74.7%）提升+1.8<br />
+  重要的是，这些增益不是通过盲目增加记忆使用或交互长度获得的。在Qwen3.5-122B-A10B下，AUTOMEM在GAIA上大幅降低了token成本（128.4k vs 200.4k）、延迟和平均步数。</li>
+</ul>
+<h4 id="53-vs">5.3 引导搜索 vs. 随机搜索</h4>
+<p>Figure 3展示了关键对比：</p>
+<ul>
+<li>AUTOMEM仅用5轮进化就达到71.5%准确率，已超过10次随机试验的最佳结果（69.7%）</li>
+<li>性能随迭代稳步提升：55.8% → 64.2% → 64.2% → 67.9% → 71.5%</li>
+<li>随机搜索高度不稳定，大多数采样架构甚至低于无记忆基线（65.0%）<br />
+  Table 3展示token成本对比：AUTOMEM完成整个搜索仅需随机搜索约0.55×（GAIA）和0.47×（xBench）的token预算。</li>
+</ul>
+<h4 id="54">5.4 消融实验</h4>
+<p>Table 4在GAIA上消融了两个组件：</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>变体</th>
+<th>准确率</th>
+<th>记忆增益</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>完整AUTOMEM</td>
+<td>71.5</td>
+<td>+6.5</td>
+</tr>
+<tr>
+<td>去掉FGMD</td>
+<td>64.2</td>
+<td>-0.8</td>
+</tr>
+<tr>
+<td>去掉EGAS</td>
+<td>57.9</td>
+<td>-7.1</td>
+</tr>
+<tr>
+<td>两者都去掉（=随机搜索）</td>
+<td>63.0</td>
+<td>-2.0</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li><strong>去掉FGMD</strong>：没有模块级归因，搜索容易被引导向昂贵但无效的架构</li>
+<li><strong>去掉EGAS</strong>：没有账本和观察图，提议者无法积累可靠的搜索经验，后续轮次重复提出近乎相同的配置<br />
+  这支持了论文的"文本梯度"观点：FGMD提供梯度信号，EGAS提供更新记忆。</li>
+</ul>
+<h4 id="55">5.5 发现的架构</h4>
+<p>Figure 4展示了AUTOMEM在三个基准上发现的不同架构路径：</p>
+<ul>
+<li><strong>GAIA</strong>（多步网页推理、跨页实体链接）：Tip+Workflow+Trajectory编码 → Graph存储 → Contrastive检索 → Lightweight管理</li>
+<li><strong>WebWalkerQA</strong>（网页导航问答、精确证据定位）：Insight+Workflow+Shortcut编码 → JSON存储 → Hybrid检索 → Tool-manager管理</li>
+<li><strong>xBench-DS</strong>（深度搜索、长期探索、案例复用）：Tip+Insight+Trajectory编码 → JSON存储 → Rerank检索 → Lightweight管理<br />
+  这种多样性解释了为什么手动设计的记忆机制对任务高度敏感，进一步支持了将长期记忆设计视为任务自适应架构搜索问题的观点。</li>
+</ul>
+<hr />
+<h3 id="6">6. 局限性与未来方向</h3>
+<ol>
+<li><strong>任务级 vs. 样本级</strong>：当前AUTOMEM在任务/基准级别搜索架构，对同一任务分布的所有样本使用同一路径。未来可扩展到样本级或情节级的记忆适应。</li>
+<li><strong>组合 vs. 创造</strong>：当前搜索空间由已知记忆组件构成，AUTOMEM主要发现已知机制的新组合。未来可探索开放式的记忆架构生成，让系统提出全新的记忆模块、接口和更新规则。</li>
+</ol>
+<h2 id="_5">研究要点表</h2>
+<div class="table-scroll"><table class="key-value">
+<thead>
+<tr>
+<th>维度</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>论文标题</td>
+<td>AUTOMEM: A Text-Gradient Recursive Self-Improvement Framework for Automated Memory Architectures Search</td>
+</tr>
+<tr>
+<td>作者</td>
+<td>Lin Du, Jie Zhou, Yuxuan Cai, Kai Chen, Qin Chen, Xin Li, Bo Zhang, Wei Li, Liang He（华东师范大学与上海人工智能实验室）</td>
+</tr>
+<tr>
+<td>发表年份</td>
+<td>2026（arXiv预印本，2026年7月14日）</td>
+</tr>
+<tr>
+<td>研究问题</td>
+<td>LLM智能体的长期记忆设计是一个高度耦合的架构问题，不同任务和骨干模型需要不同的记忆模块组合，没有单一记忆架构能在所有任务上一致占优。如何自动搜索任务自适应的记忆架构以替代固定的人工设计？</td>
+</tr>
+<tr>
+<td>研究方法</td>
+<td>提出AUTOMEM框架，将记忆架构分解为Encode、Store、Retrieve、Manage四个模块，构建离散搜索空间（5×5×6×4）。框架包含两个核心组件：经验引导的架构搜索（EGAS），基于历史搜索轨迹、Pareto前沿和经验账本提出候选架构；失败引导的模块诊断（FGMD），将失败的rollout定位到具体模块并转化为文本梯度反馈，形成递归自改进的搜索闭环。</td>
+</tr>
+<tr>
+<td>主要发现</td>
+<td>AUTOMEM在GAIA、WebWalkerQA和xBench-DeepSearch三个基准上，跨两个LLM骨干模型，发现的任务自适应记忆架构在六个基准-骨干设置中平均准确率提升2.8个百分点，超越所有人工设计的记忆基线。同时在Qwen3.5-122B-A10B下减少14.3%的token成本，且仅需少量引导迭代即可发现优于大规模随机搜索的架构。不同任务收敛到明显不同的E/S/R/M组合，验证了记忆架构需要任务自适应的核心论点。</td>
+</tr>
+<tr>
+<td>创新点</td>
+<td>首次将LLM智能体长期记忆设计系统化为E/S/R/M四模块的架构搜索问题；提出文本梯度递归自改进框架，将失败rollout转化为模块级文本反馈闭环驱动架构优化；结合经验账本、观察图和Pareto前沿实现高效的结构化搜索，在有限评估预算下发现强架构。</td>
+</tr>
+<tr>
+<td>局限性</td>
+<td>当前仅在任务/基准级别搜索统一架构，未实现样本级或episode级的动态记忆适配；搜索空间由已有记忆框架的组件构成，仅发现已知机制的新组合，尚未探索开放式的全新记忆模块生成。</td>
+</tr>
+<tr>
+<td>与本研究的关联</td>
+<td>该论文为LLM智能体记忆系统的自动化设计提供了系统化框架和方法论参考，其模块化分解思路（Encode/Store/Retrieve/Manage）和文本梯度优化范式可为相关记忆增强、智能体自改进及自动化架构搜索研究提供重要启发。</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="_6">原文摘要</h2>
+<p>Long-term memory is increasingly central to LLM agents, yet memory design remains a highly coupled architecture problem: what to encode, how to store it, how to retrieve it, and how to manage it can vary substantially across tasks and backbone models. We construct a discrete search space with 5 encoders, 5 stores, 6 retrievers, and 4 managers, and show that no single memory architecture consistently dominates: different tasks favor different module combinations, leading to substantial performance gaps. Motivated by this, we propose \textsc{AutoMem}, a text-gradient recursive self-improvement framework for task-adaptive memory architecture search. \textsc{AutoMem} optimizes over the factored space through two components: Experience-Guided Architecture Search, which proposes candidate architectures from historical search trajectories and accumulated reflections, and Failure-Guided Module Diagnosis, which localizes memory-related failures to specific modules and converts them into targeted textual feedback. Experiments on GAIA, WebWalkerQA, and xBench-DeepSearch across two LLM backbones show that \textsc{AutoMem} consistently discovers task-adaptive memory architectures that outperform the strongest human-designed memory baselines, improving accuracy by $2.8$ points on average across six benchmark-backbone settings. Further analysis shows that \textsc{AutoMem} achieves a favorable accuracy-efficiency trade-off, reducing token cost by $14.3\%$ over the strongest accuracy baselines under Qwen3.5-122B-A10B, while also finding stronger architectures than substantially larger random searches within only a few guided iterations.</p></article>
+<aside class="detail-aside"><div class="report-toc" aria-label="文献卡片目录"><details open><summary>本页目录</summary><div class="toc">
+<ul>
+<li><a href="#_1">核心机制</a></li>
+<li><a href="#_2">适用范围与局限</a></li>
+<li><a href="#_3">详细解读</a><ul>
+<li><a href="#_4">核心总结</a></li>
+<li><a href="#1">1. 研究动机与问题背景</a></li>
+<li><a href="#2">2. 记忆架构的模块化视角</a></li>
+<li><a href="#3">3. 初步研究：为什么需要记忆架构搜索</a></li>
+<li><a href="#4-automem">4. AUTOMEM方法</a></li>
+<li><a href="#5">5. 实验</a></li>
+<li><a href="#6">6. 局限性与未来方向</a></li>
+</ul>
+</li>
+<li><a href="#_5">研究要点表</a></li>
+<li><a href="#_6">原文摘要</a></li>
+</ul>
+</div>
+</details></div><section><h2>引用这篇论文</h2><p id="citation-text" class="citation-text">Lin Du, Jie Zhou, Yuxuan Cai, et al.. AutoMem: A Text-Gradient Recursive Self-Improvement Framework for Automated Memory Architectures Search. arXiv:2608.14621, 2026.</p><button class="button secondary" type="button" data-copy-citation>复制引用</button><p class="meta-note">综述参考文献 [28]</p></section><section><h2>同方向继续阅读</h2><ul class="related-list"><li><a href="../papers/2508.19828.html">Memory-R1: Enhancing Large Language Model Agents to Manage and Utilize Memories via Reinforcement Learning</a></li><li><a href="../papers/2512.18746.html">MemEvolve: Meta-Evolution of Agent Memory Systems</a></li><li><a href="../papers/2602.02474.html">MemSkill: Learning and Evolving Memory Skills for Self-Evolving Agents</a></li><li><a href="../papers/2602.07755.html">Learning to Continually Learn via Meta-learning Agentic Memory Designs</a></li></ul></section></aside></div></div></main>
+<footer class="site-footer"><div><strong>Agent Memory 研究</strong><p>从保存历史，到有依据地更新长期状态。</p></div>
+<div><span>内容更新 · 2026-09-08</span><p>理解方法，比较条件，关注长期影响。</p><a href="../sources.html">阅读指南</a></div></footer>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body></html>

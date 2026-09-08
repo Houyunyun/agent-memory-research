@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="从自评成功与失败中抽象推理策略，可叠加 MaTTS">
+<meta name="color-scheme" content="light"><title>ReasoningBank: Scaling Agent Self-Evolving with Reasoning Memory · Agent Memory 研究</title>
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/katex/katex.min.css"><script src="../assets/katex/katex.min.js" defer></script><script src="../assets/katex/auto-render.min.js" defer></script><script src="../assets/site.js" defer></script>
+</head>
+<body data-page="library">
+<a class="skip-link" href="#main">跳转到正文</a>
+<header class="site-header"><div class="header-inner">
+<a class="brand" href="../index.html" aria-label="Agent Memory 研究首页">
+<svg viewBox="0 0 36 36" width="32" height="32" aria-hidden="true"><path d="M9 9h18v18H9zM9 9l18 18M27 9L9 27" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="9" r="4"/><circle cx="27" cy="9" r="4"/><circle cx="9" cy="27" r="4"/><circle cx="27" cy="27" r="4"/></svg>
+<span>Agent Memory<small>研究文献站</small></span></a>
+<nav class="site-nav" aria-label="主导航"><a href="../index.html">研究总览</a><a href="../library.html" aria-current="page">文献库</a><a href="../reports/survey.html">综述全文</a><a href="../reports/multi-agent.html">多智能体专题</a><a href="../sources.html">阅读指南</a></nav>
+</div></header>
+<main id="main"><div class="page-wrap"><div class="breadcrumb"><a href="../library.html">文献库</a><span>/</span><a href="../library.html?topic=experience">经验与技能</a></div>
+<header class="paper-hero"><div class="paper-badges"><span class="badge expanded">含详细解读</span><span class="muted">2025 · 2509.25140</span></div><h1>ReasoningBank: Scaling Agent Self-Evolving with Reasoning Memory</h1><p class="paper-authors full-authors">Siru Ouyang, Jun Yan, I-Hung Hsu, Yanfei Chen, Ke Jiang, Zifeng Wang, Rujun Han, Long T. Le, Samira Daruki, Xiangru Tang, Vishy Tirumalashetty, George Lee, Mahsan Rofouei, Hangfei Lin, Jiawei Han, Chen-Yu Lee, Tomas Pfister</p>
+<div class="hero-actions paper-actions"><a href="https://arxiv.org/abs/2509.25140" target="_blank" rel="noopener noreferrer">论文原文 <span aria-hidden="true">↗</span></a><a href="../downloads/notes/2509.25140.md">下载文献卡片 Markdown</a></div></header>
+<div class="detail-layout"><article class="prose"><h2 id="_1">核心机制</h2>
+<p>从自评成功与失败中抽象推理策略，可叠加 MaTTS</p>
+<h2 id="_2">适用范围与局限</h2>
+<p>自评可靠性及额外采样预算必须单列</p>
+<h2 id="_3">详细解读</h2>
+<h3 id="_4">核心总结</h3>
+<p>这篇论文提出了 <strong>ReasoningBank</strong>，一个面向LLM智能体（Agent）的新型记忆框架。其核心思想是：当智能体在持续执行任务流时，不应该把每个任务当作孤立事件处理，而应该从过去的成功和失败经验中提炼出可泛化的推理策略，存储为结构化的记忆条目，供未来任务检索和复用。与以往只存储原始轨迹或仅从成功案例中提取工作流的方法不同，ReasoningBank 同时利用成功和失败经验，通过LLM自我判断（无需真实标签）来蒸馏高层次的推理模式。在此基础上，论文进一步提出了<strong>记忆感知的测试时缩放（MaTTS）</strong>，通过在每个任务上分配更多计算资源来生成多样化的探索经验，利用对比信号合成更高质量的记忆，形成记忆与测试时缩放之间的正反馈循环。在WebArena、Mind2Web和SWE-Bench-Verified等基准上，ReasoningBank在有效性（最高20%的相对提升）和效率（最多减少16%的交互步数）上均优于现有方法。</p>
+<h3 id="1">1. 研究动机与问题背景</h3>
+<h4 id="11-llm-agent">1.1 当前LLM Agent的核心局限</h4>
+<p>随着LLM Agent越来越多地被部署在持续运行的角色中（如网页浏览助手、软件工程助手），它们会不断遇到新任务。然而，当前的Agent存在一个关键缺陷：<strong>它们无法从积累的交互历史中学习</strong>。每个新任务都被孤立地处理，导致三个问题：</p>
+<ol>
+<li><strong>重复过去的错误</strong>：曾经犯过的错误会再次出现</li>
+<li><strong>丢弃有价值的洞察</strong>：从相关问题中获得的经验被浪费</li>
+<li><strong>缺乏自我进化能力</strong>：Agent系统无法随时间变得更强</li>
+</ol>
+<h4 id="12">1.2 现有记忆方法的不足</h4>
+<p>已有的Agent记忆方法主要分两类，但都有根本性缺陷：</p>
+<ul>
+<li><strong>轨迹记忆（Trajectory Memory）</strong>：如Synapse，直接存储过去的原始交互轨迹。问题是轨迹太长、太嘈杂，包含大量低层级的执行细节（如具体的点击操作ID），难以迁移到新任务。</li>
+<li><strong>工作流记忆（Workflow Memory）</strong>：如AWM，从成功轨迹中抽象出可复用的操作流程。问题是它只关注成功经验，<strong>完全忽略了失败经验中蕴含的宝贵教训</strong>，而且抽象出的工作流仍然偏向于执行层面而非推理层面。<br />
+  如Figure 1所示，轨迹记忆存储的是具体的点击操作序列，工作流记忆存储的是模板化的操作流程，而ReasoningBank存储的是高层次的推理策略（如"导航策略：检测分页模式、检查所有相关订单、使用回退机制"等）。</li>
+</ul>
+<hr />
+<h3 id="2">2. 问题形式化</h3>
+<h4 id="21-agent">2.1 Agent配置</h4>
+<p>Agent的策略定义为 $\pi_{\mathcal{L}}(\cdot|\mathcal{M}, \mathcal{A})$，其中 $\mathcal{L}$ 是骨干LLM，$\mathcal{M}$ 是记忆模块（即ReasoningBank，初始为空），$\mathcal{A}$ 是动作空间。环境的转移函数为 $\mathcal{T}(s_{t+1}|s_t, a_t)$。对于每个任务，Agent生成一个轨迹 $(o_{0:t}, a_{0:t})$，其中 $o_t$ 是当前状态 $s_t$ 的观测。Agent需要通过以下方式生成下一步动作：  </p>
+<p>$\displaystyle a_{t+1} = \pi_{\mathcal{L}}(o_{0:t}, a_{0:t}; \mathcal{M}, \mathcal{A})$</p>
+<p>在实现中，记忆模块 $\mathcal{M}$ 将相关记忆作为额外的系统指令注入 $\pi_{\mathcal{L}}$。<br />
+对于网页浏览任务，$\mathcal{A}$ 是网页导航操作集合，观测 $o_t$ 是网页的文本可访问性树（accessibility tree）；对于软件工程任务，$\mathcal{A}$ 是bash命令集合，观测是代码片段。</p>
+<h4 id="22">2.2 测试时学习范式</h4>
+<p>论文采用<strong>测试时学习（Test-Time Learning）</strong>范式：任务查询序列 $Q = \{q_1, q_2, ..., q_N\}$ 以流式方式到达，每个查询按顺序揭示并必须依次完成，<strong>测试时没有任何真实标签可用</strong>。Agent必须仅依靠自己过去的轨迹和自我验证来持续进化。<br />
+这个设定提出了两个核心挑战：</p>
+<ol>
+<li>如何从过去的轨迹中提取和保存有用的记忆</li>
+<li>如何有效利用这些记忆来指导未来的查询</li>
+</ol>
+<hr />
+<h3 id="3-reasoningbank">3. ReasoningBank 方法详解</h3>
+<p>ReasoningBank的核心流程如Figure 2所示，包含三个步骤形成闭环：<strong>记忆检索 → 记忆提取 → 记忆整合</strong>。</p>
+<h4 id="31-memory-schema">3.1 记忆模式（Memory Schema）</h4>
+<p>每个记忆条目是一个结构化的知识单元，包含三个组件：</p>
+<ol>
+<li><strong>标题（Title）</strong>：简洁地总结核心策略或推理模式，如"优先使用用户账户区域获取个人数据"</li>
+<li><strong>描述（Description）</strong>：一句话摘要</li>
+<li><strong>内容（Content）</strong>：蒸馏出的推理步骤、决策理由或操作洞察，如"系统地查找并点击相关链接，检测分页模式并检查所有相关项目..."<br />
+   这种设计使得记忆条目既<strong>人类可解读</strong>又<strong>机器可用</strong>，抽象掉了低层级的执行细节，保留了可迁移的推理模式。</li>
+</ol>
+<h4 id="32-memory-retrieval">3.2 记忆检索（Memory Retrieval）</h4>
+<p>当新任务 $q_i$ 到来时：</p>
+<ol>
+<li>使用embedding模型（gemini-embedding-001）对查询进行编码</li>
+<li>在记忆池中使用余弦距离进行相似性搜索</li>
+<li>检索与当前查询最相关的top-$k$个经验对应的记忆条目（默认$k=1$）</li>
+<li>将检索到的记忆条目拼接到Agent的系统提示中<br />
+   注入的指令告诉Agent："以下是我从过去与环境交互中积累的一些记忆条目，可能对解决当前任务有帮助。你可以在觉得相关时使用它们。在每一步中，请先明确讨论是否要使用每个记忆条目，然后再采取行动。"</li>
+</ol>
+<h4 id="33-memory-extraction">3.3 记忆提取（Memory Extraction）</h4>
+<p>当任务完成后，进行记忆提取：<br />
+<strong>第一步：获取代理正确性信号。</strong> 由于测试时没有真实标签，论文采用<strong>LLM-as-a-Judge</strong>方法：用同一个骨干LLM作为评判者，给定查询和轨迹，判断任务是"成功"还是"失败"。评判者不需要任何真实标签参考。<br />
+<strong>第二步：根据信号应用不同的提取策略。</strong></p>
+<ul>
+<li><strong>成功轨迹</strong>：提示LLM分析"为什么这个轨迹成功了"，然后总结出可迁移的推理策略（如Figure 9左侧所示）</li>
+<li><strong>失败轨迹</strong>：提示LLM"首先反思并思考为什么轨迹失败了"，然后总结出教训和预防策略（如Figure 9右侧所示）<br />
+  每个轨迹最多提取3个记忆条目，要求不重复、不提及具体网站或查询字符串，而是聚焦于可泛化的洞察。</li>
+</ul>
+<h4 id="34-memory-consolidation">3.4 记忆整合（Memory Consolidation）</h4>
+<p>新提取的记忆条目通过简单的追加操作加入记忆池。论文有意采用最简单的整合策略（不做修剪、合并或遗忘），以突出ReasoningBank记忆内容本身的贡献。</p>
+<h4 id="35">3.5 与现有方法的关键区别</h4>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>特性</th>
+<th>轨迹记忆(Synapse)</th>
+<th>工作流记忆(AWM)</th>
+<th>ReasoningBank</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>存储内容</td>
+<td>原始轨迹</td>
+<td>抽象操作流程</td>
+<td>高层推理策略</td>
+</tr>
+<tr>
+<td>利用失败经验</td>
+<td>✗</td>
+<td>✗</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>抽象层次</td>
+<td>低（具体操作）</td>
+<td>中（操作模板）</td>
+<td>高（推理原则）</td>
+</tr>
+<tr>
+<td>可迁移性</td>
+<td>低</td>
+<td>中</td>
+<td>高</td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+<h3 id="4-matts">4. MaTTS：记忆感知的测试时缩放</h3>
+<h4 id="41">4.1 动机</h4>
+<p>测试时缩放（Test-Time Scaling, TTS）是近年来提升LLM性能的有效策略，通过在推理时分配更多计算资源来提升表现。ReasoningBank作为一个强大的经验学习器，可以将"更多经验"转化为"更大改进"。<br />
+一个朴素的组合方式（Vanilla TTS，如Figure 3(a)）是：对每个任务生成多条轨迹，每条轨迹独立地转化为记忆条目。但这种方式是次优的，因为它<strong>没有利用同一问题上多次探索之间的对比信号</strong>。</p>
+<h4 id="42-parallel-scaling">4.2 并行缩放（Parallel Scaling）</h4>
+<p>如Figure 3(b)所示：</p>
+<ol>
+<li>在记忆指导下，对同一查询生成 $k$ 条轨迹</li>
+<li>通过<strong>自对比（self-contrast）</strong>跨不同轨迹进行比较</li>
+<li>识别一致的推理模式，过滤掉虚假的解决方案</li>
+<li>从多次试验中策划出更可靠的记忆<br />
+   具体的提示如Figure 11左侧所示，要求模型："比较和对比这些轨迹，识别最有用和可泛化的策略...思考为什么有些轨迹成功而其他失败？"<br />
+   对于最终答案的选择，使用Best-of-N（BoN）策略：用LLM从 $N$ 条轨迹中选择最佳答案（Figure 12展示了详细的评估标准，包括目标进展、效率、循环检测、错误严重性等）。</li>
+</ol>
+<h4 id="43-sequential-scaling">4.3 顺序缩放（Sequential Scaling）</h4>
+<p>如Figure 3(c)所示：</p>
+<ol>
+<li>完成初始轨迹后，遵循<strong>自精炼（self-refinement）</strong>原则迭代优化</li>
+<li>自精炼过程中产生的中间笔记也作为记忆的有价值信号</li>
+<li>这些笔记捕获了推理尝试、纠正和洞察<br />
+   具体的提示如Figure 11右侧所示，第一次检查要求"仔细重新检查之前的轨迹，特别注意是否使用了正确的页面元素"，后续检查则简单地要求"再检查一次"。</li>
+</ol>
+<h4 id="44">4.4 记忆与缩放的协同效应</h4>
+<p>MaTTS建立了记忆与测试时缩放之间的<strong>双向正反馈循环</strong>：</p>
+<ul>
+<li><strong>高质量记忆 → 更有效的缩放</strong>：好的记忆引导缩放探索朝向更有前景的路径</li>
+<li><strong>更多探索 → 更好的记忆</strong>：丰富的经验提供了更多对比信号来锻造更强的记忆<br />
+  这个正反馈循环将<strong>记忆驱动的经验缩放</strong>定位为Agent的一个新的缩放维度。</li>
+</ul>
+<hr />
+<h3 id="5">5. 实验设置</h3>
+<h4 id="51">5.1 数据集</h4>
+<ul>
+<li><strong>WebArena</strong>：通用网页导航，跨多个领域（购物187题、管理182题、Gitlab 180题、Reddit 106题、跨站29题，共684题）</li>
+<li><strong>Mind2Web</strong>：测试Agent在多样操作和环境上的泛化能力（跨任务252题、跨网站177题、跨领域912题，共1341题）</li>
+<li><strong>SWE-Bench-Verified</strong>：仓库级别的软件问题解决（500个人工验证的测试实例）</li>
+</ul>
+<h4 id="52">5.2 基线方法</h4>
+<ul>
+<li><strong>No Memory</strong>：无记忆的骨干LLM Agent</li>
+<li><strong>Synapse</strong>：基于轨迹的记忆，将过去轨迹作为上下文示例</li>
+<li><strong>AWM</strong>：基于工作流的记忆，从轨迹中抽象出可复用的工作流</li>
+</ul>
+<h4 id="53">5.3 骨干模型</h4>
+<ul>
+<li>Gemini-2.5-Flash</li>
+<li>Gemini-2.5-Pro</li>
+<li>Claude-3.7-Sonnet<br />
+  所有Agent使用ReAct风格，在BrowserGym环境中执行网页浏览任务。</li>
+</ul>
+<h4 id="54">5.4 评估指标</h4>
+<ul>
+<li><strong>有效性</strong>：成功率（SR），$SR = \frac{1}{N}\sum_{i=1}^{N}\text{isSuccess}(q_i)$</li>
+<li><strong>效率</strong>：平均步数（AS），$AS = \frac{1}{N}\sum_{i=1}^{N}\text{Steps}(q_i)$</li>
+<li>Mind2Web额外使用元素准确率（EA）、动作F1（AF1）、步骤成功率（SSR）和任务级成功率（SR）</li>
+</ul>
+<hr />
+<h3 id="6">6. 实验结果</h3>
+<h4 id="61-reasoningbanktable-1-2-3">6.1 ReasoningBank的主要结果（Table 1, 2, 3）</h4>
+<p><strong>WebArena（Table 1）</strong>：ReasoningBank在所有骨干LLM上一致优于基线：</p>
+<ul>
+<li>Gemini-2.5-flash：整体SR从40.5（No Memory）提升到48.8（+8.3）</li>
+<li>Gemini-2.5-pro：从46.7提升到53.9（+7.2）</li>
+<li>Claude-3.7-sonnet：从41.7提升到46.3（+4.6）<br />
+  同时，平均步数也显著降低，如Gemini-2.5-flash从9.7步降到8.3步。</li>
+</ul>
+<p><strong>跨域泛化能力</strong>：在WebArena的Multi子集（需要跨多个网站迁移记忆）上，ReasoningBank平均SR比最强基线高+4.6。而AWM在这个设置下甚至性能下降（如Gemini-2.5-flash从10.3降到3.4）。在Mind2Web的跨领域设置中，ReasoningBank的优势尤为明显。<br />
+<strong>SWE-Bench-Verified（Table 2）</strong>：ReasoningBank同样有效，Gemini-2.5-pro的解决率从54.0提升到57.4，平均步数从21.1降到19.8。</p>
+<h4 id="62-mattsfigure-4">6.2 MaTTS的结果（Figure 4）</h4>
+<p>在WebArena-Shopping子集上使用Gemini-2.5-flash进行详细分析：<br />
+<strong>并行缩放</strong>：随着缩放因子 $k$ 增加，MaTTS的SR从49.7（$k=1$）稳步增长到55.1（$k=5$）。而没有记忆的MaTTS w/o memory在39.0到42.2之间波动，改进不稳定。<br />
+<strong>顺序缩放</strong>：MaTTS的SR从49.7增长到54.5（$k=5$）。<br />
+<strong>MaTTS vs. Vanilla TTS</strong>：在 $k=5$ 时，MaTTS并行缩放达到55.1，而Vanilla TTS只有52.4；顺序缩放分别为54.5 vs. 51.9。这说明记忆感知的协调和聚合至关重要。<br />
+<strong>并行vs.顺序的比较</strong>：对于ReasoningBank，顺序缩放在小 $k$ 时有短期优势（因为自精炼能快速纠错），但在大 $k$ 时并行缩放占优（因为并行提供更多样化的rollout供对比学习）。</p>
+<h4 id="63-figure-5">6.3 记忆与测试时缩放的协同效应（Figure 5）</h4>
+<p>这是论文的一个核心发现，通过WebArena-Shopping子集、$k=5$的并行缩放快照来展示：<br />
+<strong>更好的记忆 → 更强的缩放效果</strong>（看BoN指标）：</p>
+<ul>
+<li>No Memory：BoN从39.0只提升到42.2（+3.2）</li>
+<li>Synapse：提升到44.4</li>
+<li>AWM：提升到47.6</li>
+<li>ReasoningBank：从49.7提升到55.1（+5.4）</li>
+</ul>
+<p><strong>缩放 → 更好的记忆策划</strong>（看Pass@1指标，衡量记忆策划后轨迹的平均质量）：</p>
+<ul>
+<li>Synapse：从40.6微升到41.2</li>
+<li>AWM：从44.4微升到45.5</li>
+<li>ReasoningBank：从49.7大幅提升到53.0<br />
+  这说明只有配合好的记忆机制，缩放才能贡献到更有效记忆的策划，形成良性循环。</li>
+</ul>
+<hr />
+<h3 id="7">7. 深入分析</h3>
+<h4 id="71-figure-6">7.1 涌现行为（Figure 6）</h4>
+<p>论文发现ReasoningBank中的策略不是静态的，而是随时间<strong>涌现式进化</strong>，类似强化学习的学习动态：</p>
+<ol>
+<li><strong>初始阶段</strong>：执行导向的程序性策略（如"主动查找并点击'下一页'链接"）</li>
+<li><strong>中期</strong>：原子级自我反思（如"首先重新检查元素的当前标识符"）</li>
+<li><strong>后期</strong>：进化的自适应检查（如"在扫描前，总是利用可用的搜索或过滤功能，确保完整性"）</li>
+<li><strong>成熟阶段</strong>：泛化的复杂策略（如"定期将当前视图与任务需求交叉参照以防止错误...如果当前数据不符合预期，重新评估可用选项"）</li>
+</ol>
+<h4 id="72-figure-7">7.2 失败经验的价值（Figure 7）</h4>
+<p>在WebArena-Shopping上的消融实验显示：</p>
+<ul>
+<li>Synapse：仅成功→40.6，加入失败→41.7（微升）</li>
+<li>AWM：仅成功→44.4，加入失败→42.2（<strong>下降</strong>，因为AWM不具备从失败中学习的能力）</li>
+<li>ReasoningBank：仅成功→46.5，加入失败→49.7（<strong>显著提升</strong>）<br />
+  这证明ReasoningBank能将失败转化为建设性信号而非噪声。</li>
+</ul>
+<h4 id="73-llm-as-a-judgefigure-8">7.3 对LLM-as-a-Judge的鲁棒性（Figure 8）</h4>
+<p>LLM-as-a-Judge的基线准确率为72.7%。论文模拟了不同准确率水平（50%-100%），发现在70%-90%的合理范围内，ReasoningBank的性能差异很小（SR在47.6-49.7之间），说明框架对验证噪声具有鲁棒性。</p>
+<h4 id="74-table-4">7.4 效率增益的来源（Table 4）</h4>
+<p>将步数减少分解到成功和失败案例：</p>
+<ul>
+<li>成功案例的步数减少更显著（Shopping从6.8降到4.7，减少2.1步，即26.9%）</li>
+<li>失败案例的步数减少较小（Shopping从8.7降到7.3，减少1.4步）<br />
+  这说明ReasoningBank主要通过<strong>加强Agent沿有效推理路径前进的能力</strong>来减少交互，而非简单地截断失败轨迹。</li>
+</ul>
+<h4 id="75-figure-13">7.5 检索经验数量的影响（Figure 13）</h4>
+<p>消融实验显示：检索1个经验时效果最好（SR=49.7），随着数量增加性能逐渐下降（2个→46.0，3个→45.5，4个→44.4）。这说明记忆的<strong>相关性和质量</strong>比数量更重要，过多经验可能引入冲突或噪声。</p>
+<h4 id="76-table-5">7.6 推理成本分析（Table 5）</h4>
+<p>与No Memory相比，ReasoningBank的总token消耗仅增加约4.3%（53054.5 vs. 50847.4），但性能提升了20.5%。而Synapse和AWM的token消耗增加更多（58514.7和59372.8），性能提升却更少。</p>
+<h4 id="77-table-6">7.7 小模型上的效果（Table 6）</h4>
+<p>在开源的Gemma-3-12B-Instruct上，ReasoningBank同样有效：SR从17.1%（No Memory）提升到24.1%，平均步数从13.7降到11.8，优于Synapse（16.0%）和AWM（21.4%）。</p>
+<h4 id="78-passkfigure-14">7.8 Pass@k分析（Figure 14）</h4>
+<p>Pass@$k$分析揭示了两个效应：</p>
+<ol>
+<li>Vanilla TTS已经使测试时学习类似于RL训练，通过引导探索来提高样本效率</li>
+<li>MaTTS进一步推动性能，在$k=5$时Pass@5达到62.1，而MaTTS w/o memory仅52.4</li>
+</ol>
+<hr />
+<h3 id="8">8. 案例研究</h3>
+<p>论文提供了三个具体案例：<br />
+<strong>有效性案例（Figure 15）</strong>：查询"我第一次购买的日期"。无记忆的Agent只查看"最近订单"表，错误地输出最近的购买日期。ReasoningBank的Agent回忆起过去的推理提示，导航到完整的订单历史并正确找到最早的订单。<br />
+<strong>效率案例（Figure 16）</strong>：购买"男鞋"类别中评分最高的产品。无记忆的Agent花了29步，其中8步浪费在低效的导航搜索上。ReasoningBank的Agent利用存储的分类过滤推理，仅用10步完成任务。<br />
+<strong>从失败中学习的案例（Figure 17）</strong>：搜索Sony蓝牙耳机时，原始轨迹因搜索查询不精确导致返回太多无关项目而失败。ReasoningBank能够诊断失败原因，提炼出"搜索查询优化"、"调整每页显示数量"、"使用可用过滤器"等策略。</p>
+<h3 id="9">9. 总结与局限性</h3>
+<p><strong>主要贡献</strong>：</p>
+<ol>
+<li>提出ReasoningBank，从成功和失败经验中蒸馏可泛化的推理策略</li>
+<li>提出MaTTS，建立记忆与测试时缩放的双向协同</li>
+<li>在三个基准上验证了方法的有效性、效率和泛化能力</li>
+</ol>
+<p><strong>局限性</strong>：</p>
+<ul>
+<li>聚焦于记忆内容，未与情景记忆、层次记忆等架构进行广泛比较</li>
+<li>有意采用简单的检索和整合策略，更复杂的策略可能进一步提升性能</li>
+<li>依赖LLM-as-a-Judge获取正确性信号，可能在模糊任务上引入噪声</li>
+</ul>
+<h2 id="_5">研究要点表</h2>
+<div class="table-scroll"><table class="key-value">
+<thead>
+<tr>
+<th>维度</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>论文标题</td>
+<td>ReasoningBank: Scaling Agent Self-Evolving with Reasoning Memory</td>
+</tr>
+<tr>
+<td>作者</td>
+<td>Siru Ouyang, Jun Yan, I-Hung Hsu, Yanfei Chen, Ke Jiang, Zifeng Wang, Rujun Han, Long T. Le, Samira Daruki, Xiangru Tang, Vishy Tirumalashetty, George Lee, Mahsan Rofouei, Hangfei Lin, Jiawei Han, Chen-Yu Lee, Tomas Pfister</td>
+</tr>
+<tr>
+<td>发表年份</td>
+<td>2026（arXiv预印本，2026年3月16日）</td>
+</tr>
+<tr>
+<td>研究问题</td>
+<td>LLM智能体在持续执行任务时无法从积累的交互历史中学习，导致重复错误、丢弃有价值的洞察且缺乏自我进化能力。如何构建记忆感知的智能体系统，使其能从成功和失败经验中提炼可泛化的推理策略，并随时间持续提升能力？</td>
+</tr>
+<tr>
+<td>研究方法</td>
+<td>提出ReasoningBank记忆框架，将智能体自判断的成功和失败经验蒸馏为结构化记忆项（包含标题、描述、内容），通过记忆检索、提取和整合形成闭环学习过程。进一步提出记忆感知的测试时缩放（MaTTS），包括并行缩放（自对比多条轨迹）和顺序缩放（自精炼单条轨迹），在WebArena、Mind2Web和SWE-Bench-Verified基准上进行广泛实验。</td>
+</tr>
+<tr>
+<td>主要发现</td>
+<td>ReasoningBank在所有数据集和LLM骨干上一致优于基线方法，成功率相对提升最高达20%，交互步数减少最高达16%。MaTTS进一步放大了这些增益，记忆与测试时缩放之间存在强协同效应：高质量记忆引导缩放探索更有前景的路径，而丰富的探索经验又反过来锻造更强的记忆。此外，ReasoningBank展现出涌现行为，策略从低级执行逐步演化为高级组合推理。</td>
+</tr>
+<tr>
+<td>创新点</td>
+<td>（1）首次从成功和失败经验中蒸馏可泛化的策略级推理记忆，而非仅存储原始轨迹或成功工作流；（2）提出MaTTS建立记忆与测试时缩放的双向协同，将记忆驱动的经验缩放确立为新的缩放维度；（3）无需真实标签，通过LLM-as-a-Judge自评估实现完全自主的测试时学习闭环。</td>
+</tr>
+<tr>
+<td>局限性</td>
+<td>（1）侧重记忆内容设计，未与情景记忆或层次化记忆等架构进行广泛比较；（2）有意采用简单的嵌入检索和直接添加的整合策略，未探索更复杂的检索和整合机制；（3）依赖LLM-as-a-Judge提供正确性信号，当任务模糊或判断模型出错时可能引入噪声。</td>
+</tr>
+<tr>
+<td>与本研究的关联</td>
+<td>该论文提出了一种通过记忆机制实现智能体自我进化的框架，对于研究LLM智能体的持续学习、经验复用、测试时适应以及记忆增强的决策系统具有重要参考价值，特别是其从失败中学习和记忆与推理协同的思路。</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="_6">原文摘要</h2>
+<p>With the growing adoption of large language model agents in persistent real-world roles, they naturally encounter continuous streams of tasks. A key limitation, however, is their failure to learn from the accumulated interaction history, forcing them to discard valuable insights and repeat past errors. We propose ReasoningBank, a novel memory framework that distills generalizable reasoning strategies from an agent's self-judged successful and failed experiences. At test time, an agent retrieves relevant memories from ReasoningBank to inform its interaction and then integrates new learnings back, enabling it to become more capable over time. Building on this powerful experience learner, we further introduce memory-aware test-time scaling (MaTTS), which accelerates and diversifies this learning process by scaling up the agent's interaction experience. By allocating more compute to each task, the agent generates abundant, diverse experiences that provide rich contrastive signals for synthesizing higher-quality memory. The better memory in turn guides more effective scaling, establishing a powerful synergy between memory and test-time scaling. Across web browsing and software engineering benchmarks, ReasoningBank consistently outperforms existing memory mechanisms that store raw trajectories or only successful task routines, improving both effectiveness and efficiency; MaTTS further amplifies these gains. These findings establish memory-driven experience scaling as a new scaling dimension, enabling agents to self-evolve with emergent behaviors naturally arise. Our code can be found at  this https URL .</p></article>
+<aside class="detail-aside"><div class="report-toc" aria-label="文献卡片目录"><details open><summary>本页目录</summary><div class="toc">
+<ul>
+<li><a href="#_1">核心机制</a></li>
+<li><a href="#_2">适用范围与局限</a></li>
+<li><a href="#_3">详细解读</a><ul>
+<li><a href="#_4">核心总结</a></li>
+<li><a href="#1">1. 研究动机与问题背景</a></li>
+<li><a href="#2">2. 问题形式化</a></li>
+<li><a href="#3-reasoningbank">3. ReasoningBank 方法详解</a></li>
+<li><a href="#4-matts">4. MaTTS：记忆感知的测试时缩放</a></li>
+<li><a href="#5">5. 实验设置</a></li>
+<li><a href="#6">6. 实验结果</a></li>
+<li><a href="#7">7. 深入分析</a></li>
+<li><a href="#8">8. 案例研究</a></li>
+<li><a href="#9">9. 总结与局限性</a></li>
+</ul>
+</li>
+<li><a href="#_5">研究要点表</a></li>
+<li><a href="#_6">原文摘要</a></li>
+</ul>
+</div>
+</details></div><section><h2>引用这篇论文</h2><p id="citation-text" class="citation-text">Siru Ouyang, Jun Yan, I-Hung Hsu, et al.. ReasoningBank: Scaling Agent Self-Evolving with Reasoning Memory. arXiv:2509.25140, 2025.</p><button class="button secondary" type="button" data-copy-citation>复制引用</button><p class="meta-note">综述参考文献 [20]</p></section><section><h2>同方向继续阅读</h2><ul class="related-list"><li><a href="../papers/2303.11366.html">Reflexion: Language Agents with Verbal Reinforcement Learning</a></li><li><a href="../papers/2305.16291.html">Voyager: An Open-Ended Embodied Agent with Large Language Models</a></li><li><a href="../papers/2409.07429.html">Agent Workflow Memory</a></li><li><a href="../papers/2510.04618.html">Agentic Context Engineering: Evolving Contexts for Self-Improving Language Models</a></li></ul></section></aside></div></div></main>
+<footer class="site-footer"><div><strong>Agent Memory 研究</strong><p>从保存历史，到有依据地更新长期状态。</p></div>
+<div><span>内容更新 · 2026-09-08</span><p>理解方法，比较条件，关注长期影响。</p><a href="../sources.html">阅读指南</a></div></footer>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body></html>

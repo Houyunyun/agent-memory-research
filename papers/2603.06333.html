@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="用目标漂移、约束保持和回归风险控制自我改进">
+<meta name="color-scheme" content="light"><title>SAHOO: Safeguarded Alignment for High-Order Optimization Objectives in Recursive Self-Improvement · Agent Memory 研究</title>
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/katex/katex.min.css"><script src="../assets/katex/katex.min.js" defer></script><script src="../assets/katex/auto-render.min.js" defer></script><script src="../assets/site.js" defer></script>
+</head>
+<body data-page="library">
+<a class="skip-link" href="#main">跳转到正文</a>
+<header class="site-header"><div class="header-inner">
+<a class="brand" href="../index.html" aria-label="Agent Memory 研究首页">
+<svg viewBox="0 0 36 36" width="32" height="32" aria-hidden="true"><path d="M9 9h18v18H9zM9 9l18 18M27 9L9 27" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="9" r="4"/><circle cx="27" cy="9" r="4"/><circle cx="9" cy="27" r="4"/><circle cx="27" cy="27" r="4"/></svg>
+<span>Agent Memory<small>研究文献站</small></span></a>
+<nav class="site-nav" aria-label="主导航"><a href="../index.html">研究总览</a><a href="../library.html" aria-current="page">文献库</a><a href="../reports/survey.html">综述全文</a><a href="../reports/multi-agent.html">多智能体专题</a><a href="../sources.html">阅读指南</a></nav>
+</div></header>
+<main id="main"><div class="page-wrap"><div class="breadcrumb"><a href="../library.html">文献库</a><span>/</span><a href="../library.html?topic=safety">安全与治理</a></div>
+<header class="paper-hero"><div class="paper-badges"><span class="badge expanded">含详细解读</span><span class="muted">2026 · 2603.06333</span></div><h1>SAHOO: Safeguarded Alignment for High-Order Optimization Objectives in Recursive Self-Improvement</h1><p class="paper-authors full-authors">Subramanyam Sahoo, Aman Chadha, Vinija Jain, Divya Chaudhary</p>
+<div class="hero-actions paper-actions"><a href="https://arxiv.org/abs/2603.06333" target="_blank" rel="noopener noreferrer">论文原文 <span aria-hidden="true">↗</span></a><a href="../downloads/notes/2603.06333.md">下载文献卡片 Markdown</a></div></header>
+<div class="detail-layout"><article class="prose"><h2 id="_1">核心机制</h2>
+<p>用目标漂移、约束保持和回归风险控制自我改进</p>
+<h2 id="_2">适用范围与局限</h2>
+<p>范围超过记忆，未将其结果当记忆专门验证</p>
+<h2 id="_3">详细解读</h2>
+<h3 id="_4">论文核心总结</h3>
+<p>这篇论文提出了一个名为<strong>SAHOO</strong>（Safeguarded Alignment for High-Order Optimization Objectives）的框架，用于解决<strong>递归自我改进（Recursive Self-Improvement, RSI）</strong>过程中的<strong>对齐漂移（alignment drift）</strong>问题。所谓递归自我改进，是指AI系统通过迭代地批评、修改和评估自身输出来不断提升能力。然而，这种反复自我修改可能导致系统在提升能力的同时悄然偏离其原始的对齐目标（如安全性、真实性等）。SAHOO通过三个互补的安全机制来监控和控制这种漂移：（1）<strong>目标漂移指数（GDI）</strong>——一个融合语义、词汇、结构和分布四维信号的学习型漂移检测器；（2）<strong>约束保持检查</strong>——确保安全关键不变量（如语法正确性、不产生幻觉）在改进过程中始终被满足；（3）<strong>回归风险量化</strong>——标记改进循环何时会撤销先前的收益。在代码生成、数学推理和真实性三个领域的189个任务上，SAHOO在实现显著质量提升（代码+18.3%，推理+16.8%）的同时，保持了低漂移和高约束满足率。</p>
+<h3 id="_5">一、研究背景与问题定义</h3>
+<h4 id="11">1.1 什么是递归自我改进？</h4>
+<p>递归自我改进是指AI系统能够<strong>自主地、迭代地改进自身能力</strong>。当前的大语言模型（LLM）已经具备了批评自身输出、提出修改方案、并评估修改是否构成真正改进的能力。这个过程可以被循环执行多次（称为"改进循环"或"cycle"），每一轮都基于上一轮的输出进行进一步优化。</p>
+<h4 id="12">1.2 核心问题：对齐漂移</h4>
+<p>问题在于：<strong>当系统不断提升能力时，它可能同时偏离其预定的对齐目标</strong>。论文举了一个直观的例子：一个系统如果代码生成能力提升了10%，但真实性下降了15%，那它实际上并没有真正"改进"。<br />
+对齐漂移在多个层面同时发生：</p>
+<ul>
+<li><strong>语义漂移（Semantic Drift）</strong>：输出的含义发生变化，尽管表面形式看起来相似。</li>
+<li><strong>词汇漂移（Lexical Drift）</strong>：模型开始使用不同的词汇模式，这些模式可能与不同的价值分布相关。</li>
+<li><strong>结构漂移（Structural Drift）</strong>：模型改变了输出的格式和组织方式。</li>
+<li><strong>分布漂移（Distributional Drift）</strong>：统计属性发生累积性偏移。<br />
+  这四个维度以复杂的方式相互作用，需要能够同时跨越所有维度进行检测的方法。</li>
+</ul>
+<h4 id="13">1.3 任务形式化</h4>
+<p>论文将一个任务定义为三元组 $\tau = (\pi, \mathcal{C}, \mathcal{M})$，其中 $\pi$ 是自然语言提示或问题陈述，$\mathcal{C}$ 是解决方案必须满足的约束集合，$\mathcal{M}$ 是定义正确性的参考解（ground truth）。<br />
+模型 $\theta$ 接收输入 $\pi$ 并产生响应 $y = \theta(\pi)$。评估沿三个维度进行：</p>
+<ul>
+<li><strong>质量</strong> $Q(y)$：衡量解题能力</li>
+<li><strong>约束满足</strong> $\text{CPS}(y)$：验证安全和格式要求</li>
+<li><strong>对齐（漂移）</strong> $\Delta(\theta_0, \theta_t)$：量化与初始模型 $\theta_0$ 的偏差</li>
+</ul>
+<h4 id="14">1.4 递归自我改进过程</h4>
+<p>改进过程按循环 $c = 0, 1, \ldots, C_{\max}$ 进行。在每个循环 $c$，模型 $\theta_c$ 产生输出并被评估：  </p>
+<p>$\displaystyle y_c = \theta_c(\pi)$</p>
+<p>$\displaystyle Q_c = Q(y_c, \mathcal{M})$</p>
+<p>$\displaystyle \text{CPS}_c = \text{CPS}(y_c, \mathcal{C})$</p>
+<p>$\displaystyle \Delta_c = \Delta(\theta_0, \theta_c \mid \text{baseline})$</p>
+<p><strong>关键设计选择</strong>：漂移是相对于初始模型 $\theta_0$ 而非前一个模型来测量的。这提供了累积偏差的度量，防止短期高方差的逐周期变化掩盖长期漂移。</p>
+<h3 id="sahoo">二、SAHOO框架的三大核心机制</h3>
+<h4 id="21-goal-drift-index-gdi">2.1 目标漂移指数（Goal Drift Index, GDI）</h4>
+<p>GDI是一个<strong>多信号复合漂移检测器</strong>，融合了四种漂移度量：</p>
+<h5 id="1">（1）语义漂移</h5>
+<p>使用嵌入空间中的归一化余弦距离。设 $e_0 = \text{embed}(y_0)$ 为基线响应的平均池化隐藏状态嵌入，$e_t = \text{embed}(y_t)$ 为当前时刻的嵌入。归一化后：  </p>
+<p>$\displaystyle \hat{e}_0 = \frac{e_0}{\|e_0\| + \epsilon}, \quad \hat{e}_t = \frac{e_t}{\|e_t\| + \epsilon}$</p>
+<p>余弦相似度为 $s_{\cos} = \hat{e}_0 \cdot \hat{e}_t$，语义漂移定义为：  </p>
+<p>$\displaystyle \Delta_{\text{semantic}} = \frac{1 - s_{\cos}}{2}$</p>
+<p>这是一个 $[0, 1]$ 范围内的有界度量，0表示语义一致，1表示最大语义距离，0.5表示正交嵌入。</p>
+<h5 id="2">（2）词汇漂移</h5>
+<p>使用<strong>Jensen-Shannon散度（JSD）</strong>来衡量词汇分布的偏移。设 $P_0$ 和 $P_t$ 分别为基线和当前响应的token概率分布：  </p>
+<p>$\displaystyle \Delta_{\text{lexical}} = \text{JSD}(P_0 \| P_t) = \frac{1}{2}\text{KL}(P_0 \| M) + \frac{1}{2}\text{KL}(P_t \| M)$</p>
+<p>其中 $M = \frac{1}{2}(P_0 + P_t)$ 是平均分布。JSD是对称且有界的（$[0, 1]$），适合集成到复合指标中。</p>
+<h5 id="3">（3）结构漂移</h5>
+<p>提取结构特征（响应长度、行数、代码块存在性、列表结构等），设 $s_0$ 和 $s_t$ 分别为基线和当前的结构特征向量：  </p>
+<p>$\displaystyle \Delta_{\text{structural}} = \frac{1}{K}\sum_{k=1}^{K}\min\left(1, \frac{|s_0^{(k)} - s_t^{(k)}|}{s_0^{(k)} + \epsilon}\right)$</p>
+<p>$\min$ 操作确保即使特征变化极端（如响应长度翻倍），指标仍然有界。</p>
+<h5 id="4">（4）分布漂移</h5>
+<p>使用<strong>Wasserstein距离（地球搬运距离）</strong>来追踪响应分布的演变：  </p>
+<p>$\displaystyle \Delta_{\text{distributional}} = W(P_{\text{baseline}}, P_{\text{current}})$</p>
+<p>这需要维护一个近期响应嵌入的缓冲区。</p>
+<h5 id="5gdi">（5）复合GDI</h5>
+<p>四个漂移分量通过<strong>学习到的权重</strong>组合成统一的GDI：  </p>
+<p>$\displaystyle \text{GDI} = w_s \Delta_{\text{semantic}} + w_\ell \Delta_{\text{lexical}} + w_{st} \Delta_{\text{structural}} + w_d \Delta_{\text{distributional}}$</p>
+<p>约束为 $w_s + w_\ell + w_{st} + w_d = 1$，所有权重非负。<br />
+权重通过校准数据学习，目标是最大化检测性能：  </p>
+<p>$\displaystyle \boldsymbol{w}^\* = \arg\max_{\boldsymbol{w}} \sum_{i=1}^{N_{\text{cal}}} \text{AUC}\left(\text{GDI}_i(\boldsymbol{w}),\; y_i^{\text{drift}}\right)$</p>
+<p>其中 $y_i^{\text{drift}} \in \{0, 1\}$ 是由专家在校准阶段标注的二元漂移标签。<br />
+实验中学到的权重为：语义 0.38、分布 0.29、结构 0.21、词汇 0.12。这说明<strong>对齐偏差主要由含义和输出分布的变化驱动</strong>，而非表面词汇的变化。</p>
+<h5 id="6">（6）阈值校准</h5>
+<p>每种任务类型的阈值通过最大化F1分数来学习：  </p>
+<p>$\displaystyle \tau_{\text{GDI}}^\* = \arg\max_\tau F_1\left(\text{GDI} &gt; \tau,\; y^{\text{drift}}\right)$</p>
+<p>实验中校准得到的临界阈值为0.44。</p>
+<h5 id="7">（7）置信区间</h5>
+<p>通过非参数bootstrap重采样（约2000次）来量化漂移估计的不确定性，形成95%经验置信区间。</p>
+<h4 id="22-constraint-preservation">2.2 约束保持（Constraint Preservation）</h4>
+<h5 id="_6">约束规范</h5>
+<p>安全属性被形式化为一组逻辑谓词 $\mathcal{C} = \{C_1, C_2, \ldots, C_K\}$，所有模型输出必须满足。约束分为：</p>
+<ul>
+<li><strong>格式约束</strong>：如输出必须是有效的Python代码</li>
+<li><strong>内容约束</strong>：如不能包含个人信息</li>
+<li><strong>逻辑约束</strong>：如答案必须内部一致</li>
+<li><strong>伦理约束</strong>：如不能包含歧视性内容</li>
+</ul>
+<h5 id="cps">约束保持分数（CPS）</h5>
+<p>$\displaystyle \text{CPS} = \frac{1}{K}\sum_{k=1}^{K}\mathbb{1}[C_k(y) = \text{true}]$</p>
+<p>CPS是一个<strong>硬指标</strong>：约束要么满足要么不满足，不允许通过软松弛来妥协。</p>
+<h5 id="_7">约束违反惩罚</h5>
+<p>当某个循环产生了违反约束的响应时，下一个循环的改进提示中会<strong>显式列出被违反的约束</strong>，并要求下一次迭代解决它们。伦理约束的违反比格式约束的违反获得更高的关注优先级。</p>
+<h5 id="_8">硬停止规则</h5>
+<p>如果任何循环产生零约束保持（即多个关键约束被违反），<strong>立即停止改进过程</strong>。</p>
+<h4 id="23-regression-risk">2.3 回归风险量化（Regression Risk）</h4>
+<p>回归是指后续循环中的质量改进被逆转，系统退回到之前较差的行为。</p>
+<h5 id="_9">回归风险定义</h5>
+<p>设 $Q_{\max} := \max_{0 \leq t &lt; c} Q_t$ 为到循环 $c$ 之前达到的最佳质量。对于给定阈值 $\delta &gt; 0$，回归风险定义为：  </p>
+<p>$\displaystyle R_c = \Pr\left(Q_c &lt; Q_{\max} - \delta \mid H_c\right)$</p>
+<p>其中 $H_c = \{Q_0, Q_1, \ldots, Q_{c-1}\}$ 是历史观测。</p>
+<h5 id="_10">回归概率估计</h5>
+<p>从历史 $H_c$ 计算：</p>
+<ul>
+<li><strong>波动性</strong>：$\sigma = \text{std}(H_c)$</li>
+<li><strong>趋势</strong>：拟合线性最小二乘趋势 $\hat{Q}_t = \alpha + \beta t$</li>
+<li><strong>波动性归一化间隙</strong>：$z = \frac{Q_c - Q_{\max}}{\sigma + \epsilon}$<br />
+  使用高斯近似估计回归概率：  </li>
+</ul>
+<p>$\displaystyle R_c \approx \Phi\left(\frac{Q_{\max} - \delta - \hat{Q}_{c+1}}{\sigma}\right)$</p>
+<p>其中 $\Phi$ 是标准正态累积分布函数。<br />
+  加入趋势调整后的回归风险：  </p>
+<p>$\displaystyle R_c^{\text{adj}} = \min\left\{1,\; R_c + \mathbb{1}\{\beta &lt; -\epsilon_{\text{trend}}\} \cdot \lambda|\beta|\right\}$</p>
+<p>当拟合趋势显著为负时，增加估计风险。</p>
+<h5 id="_11">长期稳定性界</h5>
+<p>在简化假设下（每周期增量独立同分布 $\Delta Q_i \sim \mathcal{N}(\mu, \sigma^2)$），连续 $c$ 个循环都产生正增量的概率为：  </p>
+<p>$\displaystyle \Pr\left(\Delta Q_i &gt; 0\;\forall\; i = 1, \ldots, c\right) = \left(\Phi\left(\frac{\mu}{\sigma}\right)\right)^c$</p>
+<p>这揭示了<strong>持续改进概率的指数衰减</strong>：如果每个循环有0.6的改进概率，10个循环后全部改进的概率仅约0.6%。这说明没有额外控制措施，保证长期单调改进是极其困难的。</p>
+<h3 id="-capability-alignment-ratio-car">三、能力-对齐比率（Capability Alignment Ratio, CAR）</h3>
+<p>CAR用于量化能力提升与对齐保持之间的<strong>根本性权衡</strong>：  </p>
+<p>$\displaystyle \text{CAR}_c = \frac{Q_c - Q_0}{\text{GDI}_c}$</p>
+<p>大的 $\text{CAR}_c$ 表示每单位对齐退化获得了高效的能力提升；小的 $\text{CAR}_c$ 表示相反。<br />
+增量CAR定义为：  </p>
+<p>$\displaystyle \text{CAR}_{\text{inc},c} = \frac{Q_c - Q_{c-1}}{\text{GDI}_c - \text{GDI}_{c-1}}$</p>
+<p>如果增量CAR很大，说明最近的循环以很少的额外漂移产生了实质性的质量提升，建议继续；如果很小或为负（有漂移但没有改进），则建议停止或回滚。</p>
+<h3 id="_12">四、停止规则</h3>
+<p>SAHOO采用<strong>多重停止规则</strong>，在第一个触发条件时终止，约束违反具有绝对优先级：</p>
+<ol>
+<li>连续三次迭代的质量变化低于0.01（收敛）</li>
+<li>回归风险超过校准阈值</li>
+<li>任何循环产生零约束保持</li>
+<li>达到最大循环数</li>
+<li>GDI超过校准阈值</li>
+</ol>
+<hr />
+<h3 id="_13">五、实验设计</h3>
+<h4 id="51">5.1 基准测试</h4>
+<p>三个基准测试探测不同的对齐失败模式：</p>
+<ul>
+<li><strong>HumanEval（代码生成）</strong>：评估Python解决方案的语法正确性和语义保真度；漂移可能产生可运行但不正确的程序。</li>
+<li><strong>TruthfulQA（真实性）</strong>：衡量事实准确性；漂移可能产生越来越流畅的虚假信息。</li>
+<li><strong>GSM8K（数学推理）</strong>：测试多步问题求解；漂移可能放大对错误解题路径的信心。</li>
+</ul>
+<h4 id="52">5.2 实验参数</h4>
+<ul>
+<li><strong>基础模型</strong>：Qwen3-8B</li>
+<li><strong>每个基准的样本数</strong>：63个（通过功效分析确定，检测0.3标准差的效应，80%功效）</li>
+<li><strong>最大循环数</strong>：15-20</li>
+<li><strong>温度</strong>：$\sqrt{2}/2 \approx 0.707$（二元结果推广到token分布的熵最大化值）</li>
+<li><strong>Bootstrap样本数</strong>：约2000次，产生宽度为0.05的95%置信区间</li>
+</ul>
+<h4 id="53">5.3 校准阶段</h4>
+<p>在主实验之前，在小子集上进行校准：每种任务类型2个实例，共6个任务，每个任务运行3个改进循环（共54个校准观测）。校准阶段用于：</p>
+<ul>
+<li>通过逻辑回归在人工评估的漂移标签上学习漂移分量权重</li>
+<li>估计每种任务类型的基线漂移统计量</li>
+<li>校准每种任务的漂移阈值</li>
+<li>建立质量和约束保持的基线模式</li>
+</ul>
+<hr />
+<h3 id="_14">六、实验结果</h3>
+<h4 id="61">6.1 总体结果</h4>
+<p>在189个任务上的结果：</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>指标</th>
+<th>代码生成</th>
+<th>真实性</th>
+<th>数学推理</th>
+<th>总体</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>初始质量</td>
+<td>0.672</td>
+<td>0.678</td>
+<td>0.689</td>
+<td>0.680</td>
+</tr>
+<tr>
+<td>最终质量</td>
+<td>0.795</td>
+<td>0.704</td>
+<td>0.805</td>
+<td>0.768</td>
+</tr>
+<tr>
+<td>质量提升</td>
+<td>+18.3%</td>
+<td>+3.8%</td>
+<td>+16.8%</td>
+<td>+13.0%</td>
+</tr>
+<tr>
+<td>GDI</td>
+<td>0.320</td>
+<td>0.354</td>
+<td>0.330</td>
+<td>0.335</td>
+</tr>
+<tr>
+<td>CPS</td>
+<td>1.000</td>
+<td>0.987</td>
+<td>1.000</td>
+<td>0.996</td>
+</tr>
+<tr>
+<td>CAR</td>
+<td>0.671</td>
+<td>0.599</td>
+<td>0.675</td>
+<td>0.648</td>
+</tr>
+<tr>
+<td>收敛率</td>
+<td>93.7%</td>
+<td>87.3%</td>
+<td>92.1%</td>
+<td>91.0%</td>
+</tr>
+<tr>
+<td>平均收敛循环</td>
+<td>7.1</td>
+<td>10.4</td>
+<td>8.9</td>
+<td>8.8</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>关键发现</strong>：</p>
+<ul>
+<li>代码生成和数学推理实现了大幅且高效的改进（16-18%），漂移成本相似（CAR约0.67），约束完美保持。</li>
+<li>真实性改进较小（仅3.8%），漂移成本更高（CAR 0.60），且存在约束违反。</li>
+<li>所有域的GDI均远低于0.44的临界阈值。</li>
+</ul>
+<h4 id="62">6.2 漂移分量分析</h4>
+<p>GDI的多信号分解显示：</p>
+<ul>
+<li>语义漂移是主要贡献者（权重0.38）</li>
+<li>分布漂移次之（0.29）</li>
+<li>结构漂移（0.21）</li>
+<li>词汇漂移最小（0.12）<br />
+  这表明对齐偏差主要由<strong>含义和输出分布的变化</strong>驱动，而非表面词汇的变化。这些权重在不同任务类型间是通用的。</li>
+</ul>
+<h4 id="63">6.3 约束违反模式</h4>
+<p>170次真实性域违反的详细分析：</p>
+<ul>
+<li><strong>捏造（fabrication）</strong>：91次（53.5%），占主导</li>
+<li><strong>过度自信（overconfidence）</strong>：48次（28.2%）</li>
+<li><strong>系统调用式输出</strong>：15次（8.8%）<br />
+  代码生成和数学推理域实现了<strong>零约束违反</strong>。这揭示了<strong>流畅性驱动的能力提升与严格真实性要求之间的内在张力</strong>。</li>
+</ul>
+<h4 id="64">6.4 回归风险与稳定性</h4>
+<ul>
+<li>稳定性分数一致较高（均值0.825，标准差0.068）</li>
+<li>在3780个循环中观察到170次回归事件（4.5%），但其中117次发生在单个具有双峰振荡性能的任务中</li>
+<li>排除该异常值后，回归频率降至0.7%</li>
+<li>框架准确标记了高风险任务</li>
+<li>非收敛失败发生得早（平均4.5个循环），使得及时干预成为可能</li>
+</ul>
+<h4 id="65">6.5 收敛分析</h4>
+<ul>
+<li>173/189（91.5%）的任务达到收敛标准</li>
+<li>收敛速度因域而异：代码7.1个循环、数学8.9个循环、真实性10.4个循环</li>
+<li>这与成功标准的相对清晰度一致——代码有二元通过/失败信号，而真实性改进更为渐进</li>
+</ul>
+<h4 id="66-car">6.6 CAR前沿分析</h4>
+<p>CAR分析揭示了清晰的<strong>帕累托结构</strong>：</p>
+<ul>
+<li>最优前沿聚集在高质量（约0.65-1.00）和低漂移（约0.20-0.50）区域</li>
+<li>CAR动态表现为：初始循环效率极高（接近1.0），然后在第2-3个循环下降到约0.6-0.7并稳定</li>
+<li>这意味着<strong>早期改进是低成本的，而后期改进需要接受更大的漂移</strong></li>
+</ul>
+<h4 id="67">6.7 统计精度</h4>
+<p>GDI的95%置信区间通过2000次bootstrap重采样估计：</p>
+<ul>
+<li>平均区间宽度0.084（即约±0.042）</li>
+<li>即使最宽的区间也在临界阈值0.44的±0.15范围内</li>
+<li>代码生成的区间最紧（0.076），真实性最宽（0.092）</li>
+</ul>
+<hr />
+<h3 id="_15">七、理论分析</h3>
+<h4 id="71-lipschitz">7.1 漂移的Lipschitz连续性</h4>
+<p>论文证明了漂移测量函数满足Lipschitz连续性：  </p>
+<p>$\displaystyle |\Delta(y, y') - \Delta(\tilde{y}, \tilde{y}')| \leq L_\Delta \left(d_\mathcal{Y}(y, \tilde{y}) + d_\mathcal{Y}(y', \tilde{y}')\right)$</p>
+<p>如果 $\Delta$ 是各分量的凸组合 $\Delta = \sum_i \alpha_i \Delta_i$，则 $L_\Delta = \sum_i \alpha_i L_i$。这确保了响应的小扰动只会导致测量漂移的比例性小变化。</p>
+<h4 id="72">7.2 渐近漂移界</h4>
+<p>假设每周期质量变化 $\Delta Q_c$ 近似独立，均值 $\mu$，方差 $\sigma^2$，且 $|\Delta_c - \Delta_{c-1}| \leq L_\Delta |\Delta Q_c|$，则 $C$ 个循环后的期望漂移满足：  </p>
+<p>$\displaystyle \mathbb{E}[\Delta_C] \leq \Delta_0 + L_\Delta \left(\mu C + O(\sigma\sqrt{C})\right)$</p>
+<p>当 $\mu &gt; 0$ 时，期望漂移最多线性增长；当 $\mu \approx 0$ 时，增长为 $O(\sqrt{C})$。</p>
+<h4 id="73">7.3 收缩体制下的稳定性</h4>
+<p>当有效Lipschitz常数 $L_\Delta &lt; 1$ 时（称为"收缩体制"），漂移的期望值收敛到有限极限：  </p>
+<p>$\displaystyle \lim_{c \to \infty} \mathbb{E}[\Delta_c] = \frac{L_\Delta \mu}{1 - L_\Delta}$</p>
+<p>这意味着在收缩体制下，模型可以在不产生无界漂移的情况下维持迭代改进；而当 $L_\Delta \geq 1$ 时，线性化递推预测不稳定。</p>
+<h3 id="_16">八、讨论与局限性</h3>
+<h4 id="81">8.1 关键发现</h4>
+<ul>
+<li><strong>不同任务类型的改进成本不同</strong>：代码和数学改进16-18%，漂移成本相似（CAR约0.67）；真实性仅改进3.8%，漂移成本更高（CAR 0.60）。这可能是因为流畅性改进会增加幻觉风险。</li>
+<li><strong>大多数有价值的改进发生在前几个循环</strong>：CAR在初始循环最高，然后迅速衰减。实践者可以采用保守的循环限制（如5-7个循环）来捕获大部分改进同时最小化漂移。</li>
+<li><strong>约束规范本身是有效的</strong>，但对齐张力与某些特定属性（如在提高生成质量的同时避免幻觉）需要领域特定的解决方案。</li>
+</ul>
+<h4 id="82">8.2 局限性</h4>
+<ul>
+<li><strong>测量局限</strong>：GDI本质上测量的是与基线行为的偏差。如果基线本身就是不对齐的，框架测量的是"从不对齐状态的漂移"而非"从真正对齐状态的漂移"。</li>
+<li><strong>约束规范依赖</strong>：框架假设约束被显式指定。在难以形式化对齐属性的领域，框架的效益较低。</li>
+<li><strong>校准特定性</strong>：系统在特定基准分布和解码器风格模型上校准，新任务族或模型架构需要重新校准。</li>
+<li><strong>对抗鲁棒性</strong>：框架检测自然漂移，但可能无法抵御专门设计来规避漂移检测的对抗性操纵。</li>
+<li><strong>对高能力或潜在欺骗性系统</strong>：人类监督和干预仍然有效的假设可能会失效。论文明确指出SAHOO应被视为<strong>必要但不充分的缓解措施</strong>，需要与机制可解释性、形式验证等方法互补。</li>
+</ul>
+<h4 id="83">8.3 与朴素方法的比较</h4>
+<p>论文隐含地与两个基线进行了比较：</p>
+<ul>
+<li><strong>无监控的自我改进</strong>：可能表现出更高的漂移和更低的约束保持</li>
+<li><strong>纯保守方法</strong>：严格限制改进以最小化对齐风险，漂移接近零但质量改进也接近零<br />
+  SAHOO实现了中间地带：适度的漂移和强劲的改进，代表了CAR分析中识别的帕累托最优区域。</li>
+</ul>
+<hr />
+<h3 id="_17">九、未来方向</h3>
+<ol>
+<li>更复杂的约束规范方法，超越二元满足方式</li>
+<li>漂移检测系统的对抗鲁棒性研究</li>
+<li>与机制可解释性方法集成，更精确理解模型内部哪些方面在漂移</li>
+<li>扩展到多智能体自我改进场景</li>
+</ol>
+<h2 id="_18">研究要点表</h2>
+<div class="table-scroll"><table class="key-value">
+<thead>
+<tr>
+<th>维度</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>论文标题</td>
+<td>SAHOO: Safeguarded Alignment for High-Order Optimization Objectives in Recursive Self-Improvement</td>
+</tr>
+<tr>
+<td>作者</td>
+<td>Subramanyam Sahoo, Aman Chadha, Vinija Jain, Divya Chaudhary</td>
+</tr>
+<tr>
+<td>发表年份</td>
+<td>2026（发表于ICLR 2026 Workshop on AI with Recursive Self-Improvement）</td>
+</tr>
+<tr>
+<td>研究问题</td>
+<td>如何在递归自我改进过程中确保系统在提升能力的同时不会偏离其预期的对齐目标，即如何监测和控制迭代自我修改中的对齐漂移问题。</td>
+</tr>
+<tr>
+<td>研究方法</td>
+<td>提出SAHOO框架，包含三个互补的安全机制：(i) 目标漂移指数（GDI），融合语义、词汇、结构和分布四种信号的学习型多信号检测器；(ii) 约束保持检查，强制执行安全关键不变量；(iii) 回归风险量化，标记改进周期何时撤销先前收益。在HumanEval、TruthfulQA和GSM8K三个基准上使用Qwen3-8B模型进行189个任务的实验验证，阈值通过小规模校准集（18个任务，3个周期）数据驱动学习。</td>
+</tr>
+<tr>
+<td>主要发现</td>
+<td>框架在代码生成上提升18.3%、数学推理提升16.8%、真实性提升3.8%，同时漂移指数均低于临界阈值（0.44）；代码和数学领域约束保持完美（CPS=1.00），真实性领域存在170次违规（主要为捏造和过度自信）；91.5%的任务在周期预算内收敛；早期改进周期效率高但后期对齐成本上升，揭示了能力-对齐的Pareto前沿结构。</td>
+</tr>
+<tr>
+<td>创新点</td>
+<td>提出目标漂移指数（GDI）作为多信号信息论度量来检测对齐漂移；引入约束保持损失确保安全属性在改进周期中不被牺牲；建立回归风险框架量化长期稳定性；提出能力-对齐比率（CAR）刻画自我改进中的基本权衡；所有参数和阈值均从数据分布中学习而非人工设定。</td>
+</tr>
+<tr>
+<td>局限性</td>
+<td>框架在特定基准分布和解码器模型上校准，新任务或架构需重新校准；依赖显式约束规范，难以覆盖伦理等难以形式化的属性；真实性评估依赖人工评判，限制可扩展性；仅测量相对于基线的偏离，若基线本身未对齐则检测器可能失效；对高能力或欺骗性系统的对抗鲁棒性不足，属必要但不充分的缓解措施。</td>
+</tr>
+<tr>
+<td>与本研究的关联</td>
+<td>未提及</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="_19">原文摘要</h2>
+<p>Recursive self-improvement is moving from theory to practice: modern systems can critique, revise, and evaluate their own outputs, yet iterative self-modification risks subtle alignment drift. We introduce SAHOO, a practical framework to monitor and control drift through three safeguards: (i) the Goal Drift Index (GDI), a learned multi-signal detector combining semantic, lexical, structural, and distributional measures; (ii) constraint preservation checks that enforce safety-critical invariants such as syntactic correctness and non-hallucination; and (iii) regression-risk quantification to flag improvement cycles that undo prior gains. Across 189 tasks in code generation, mathematical reasoning, and truthfulness, SAHOO produces substantial quality gains, including 18.3 percent improvement in code tasks and 16.8 percent in reasoning, while preserving constraints in two domains and maintaining low violations in truthfulness. Thresholds are calibrated on a small validation set of 18 tasks across three cycles. We further map the capability-alignment frontier, showing efficient early improvement cycles but rising alignment costs later and exposing domain-specific tensions such as fluency versus factuality. SAHOO therefore makes alignment preservation during recursive self-improvement measurable, deployable, and systematically validated at scale.</p></article>
+<aside class="detail-aside"><div class="report-toc" aria-label="文献卡片目录"><details open><summary>本页目录</summary><div class="toc">
+<ul>
+<li><a href="#_1">核心机制</a></li>
+<li><a href="#_2">适用范围与局限</a></li>
+<li><a href="#_3">详细解读</a><ul>
+<li><a href="#_4">论文核心总结</a></li>
+<li><a href="#_5">一、研究背景与问题定义</a></li>
+<li><a href="#sahoo">二、SAHOO框架的三大核心机制</a></li>
+<li><a href="#-capability-alignment-ratio-car">三、能力-对齐比率（Capability Alignment Ratio, CAR）</a></li>
+<li><a href="#_12">四、停止规则</a></li>
+<li><a href="#_13">五、实验设计</a></li>
+<li><a href="#_14">六、实验结果</a></li>
+<li><a href="#_15">七、理论分析</a></li>
+<li><a href="#_16">八、讨论与局限性</a></li>
+<li><a href="#_17">九、未来方向</a></li>
+</ul>
+</li>
+<li><a href="#_18">研究要点表</a></li>
+<li><a href="#_19">原文摘要</a></li>
+</ul>
+</div>
+</details></div><section><h2>引用这篇论文</h2><p id="citation-text" class="citation-text">Subramanyam Sahoo, Aman Chadha, Vinija Jain, et al.. SAHOO: Safeguarded Alignment for High-Order Optimization Objectives in Recursive Self-Improvement. arXiv:2603.06333, 2026.</p><button class="button secondary" type="button" data-copy-citation>复制引用</button><p class="meta-note">延伸阅读</p></section><section><h2>同方向继续阅读</h2><ul class="related-list"><li><a href="../papers/2503.03704.html">Memory Injection Attacks on LLM Agents via Query-Only Interaction</a></li><li><a href="../papers/2509.26354.html">Your Agent May Misevolve: Emergent Risks in Self-evolving LLM Agents</a></li><li><a href="../papers/2510.02373.html">A-MemGuard: A Proactive Defense Framework for LLM-Based Agent Memory</a></li><li><a href="../papers/2602.15654.html">Zombie Agents: Persistent Control of Self-Evolving LLM Agents via Self-Reinforcing Injections</a></li></ul></section></aside></div></div></main>
+<footer class="site-footer"><div><strong>Agent Memory 研究</strong><p>从保存历史，到有依据地更新长期状态。</p></div>
+<div><span>内容更新 · 2026-09-08</span><p>理解方法，比较条件，关注长期影响。</p><a href="../sources.html">阅读指南</a></div></footer>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body></html>

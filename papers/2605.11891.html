@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="反馈驱动地迭代评估技能审查及运行风险">
+<meta name="color-scheme" content="light"><title>Proteus: A Self-Evolving Red Team for Agent Skill Ecosystems · Agent Memory 研究</title>
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/katex/katex.min.css"><script src="../assets/katex/katex.min.js" defer></script><script src="../assets/katex/auto-render.min.js" defer></script><script src="../assets/site.js" defer></script>
+</head>
+<body data-page="library">
+<a class="skip-link" href="#main">跳转到正文</a>
+<header class="site-header"><div class="header-inner">
+<a class="brand" href="../index.html" aria-label="Agent Memory 研究首页">
+<svg viewBox="0 0 36 36" width="32" height="32" aria-hidden="true"><path d="M9 9h18v18H9zM9 9l18 18M27 9L9 27" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="9" r="4"/><circle cx="27" cy="9" r="4"/><circle cx="9" cy="27" r="4"/><circle cx="27" cy="27" r="4"/></svg>
+<span>Agent Memory<small>研究文献站</small></span></a>
+<nav class="site-nav" aria-label="主导航"><a href="../index.html">研究总览</a><a href="../library.html" aria-current="page">文献库</a><a href="../reports/survey.html">综述全文</a><a href="../reports/multi-agent.html">多智能体专题</a><a href="../sources.html">阅读指南</a></nav>
+</div></header>
+<main id="main"><div class="page-wrap"><div class="breadcrumb"><a href="../library.html">文献库</a><span>/</span><a href="../library.html?topic=safety">安全与治理</a></div>
+<header class="paper-hero"><div class="paper-badges"><span class="badge expanded">含详细解读</span><span class="muted">2026 · 2605.11891</span></div><h1>Proteus: A Self-Evolving Red Team for Agent Skill Ecosystems</h1><p class="paper-authors full-authors">Zhaojiacheng Zhou</p>
+<div class="hero-actions paper-actions"><a href="https://arxiv.org/abs/2605.11891" target="_blank" rel="noopener noreferrer">论文原文 <span aria-hidden="true">↗</span></a><a href="../downloads/notes/2605.11891.md">下载文献卡片 Markdown</a></div></header>
+<div class="detail-layout"><article class="prose"><h2 id="_1">核心机制</h2>
+<p>反馈驱动地迭代评估技能审查及运行风险</p>
+<h2 id="_2">适用范围与局限</h2>
+<p>主要技能生态审查，与记忆自写入攻击权限不同</p>
+<h2 id="_3">详细解读</h2>
+<p>I'd be happy to help explain the paper in detail in Chinese! However, I don't see any paper attached to your message. Could you please provide the paper? You can either:</p>
+<ol>
+<li>Share the PDF file</li>
+<li>Paste the paper's text content</li>
+<li>Provide a link to the paper<br />
+   Once you share the paper, I'll provide a detailed explanation in Chinese with proper mathematical notation using $ and $$ formatting.</li>
+</ol>
+<h2 id="_4">研究要点表</h2>
+<div class="table-scroll"><table class="key-value">
+<thead>
+<tr>
+<th>维度</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>论文标题</td>
+<td>Proteus: A Self-Evolving Red Team for Agent Skill Ecosystems</td>
+</tr>
+<tr>
+<td>作者</td>
+<td>Zhaojiacheng Zhou（上海交通大学计算机科学与工程系）</td>
+</tr>
+<tr>
+<td>发表年份</td>
+<td>2026年（arXiv预印本，2026年5月12日）</td>
+</tr>
+<tr>
+<td>研究问题</td>
+<td>当具有预算的攻击者能够利用审计和运行时反馈迭代修改第三方Agent技能时，现有技能审计器的残余风险（自适应泄漏）有多大？即单次审计或提示级红队测试是否足以衡量Agent技能生态系统的部署风险。</td>
+</tr>
+<tr>
+<td>研究方法</td>
+<td>提出PROTEUS框架，一个灰盒自进化红队框架，包含四个核心组件：(1)统一的审计→沙箱→预言机轮次合约；(2)五轴技能攻击空间分解（攻击目标、拓扑、代码、副作用通道、文档）；(3)基于Tool-Use API循环的自进化红队代理，消费结构化审计发现和运行时反馈进行跨轮变异；(4)三层进化过程（自由发现、路径扩展、表面扩展）。在两个公开审计器（SkillVetter和AI-Infra-Guard）、两个目标骨干模型和两个变异器模型上进行实验评估。</td>
+</tr>
+<tr>
+<td>主要发现</td>
+<td>在8个Phase-1配置中，PROTEUS在5轮内达到40–90%的攻击成功率（ASR@5），学习曲线斜率显著优于基线（0.160 vs ≤0.014）。Phase-2路径/表面扩展产生438个同时绕过审计且致命的变体，SkillVetter在每个单元中被绕过率≥93%，最强审计器AI-Infra-Guard的峰值联合成功率仍达41.3%。跨审计器迁移测试显示87.7%的AIG进化变体无需再次变异即可绕过SkillVetter。</td>
+</tr>
+<tr>
+<td>创新点</td>
+<td>(1)首次形式化"自适应泄漏"概念，将其定义为预算攻击者迭代修改技能直至通过审计并造成运行时危害的部署风险；(2)提出五轴技能攻击空间分解，搜索对象为完整技能包而非单一提示；(3)采用结构化审计发现作为上下文侧信息（而非标量奖励）驱动跨轮变异，实现比标量反馈基线高一个数量级的学习曲线斜率；(4)图引导的链组合机制，基于~47k技能图实现拓扑轴的结构化搜索。</td>
+</tr>
+<tr>
+<td>局限性</td>
+<td>(1)威胁模型假设攻击者可读取结构化审计发现，完全封闭的商业审计器会削弱此侧信道；(2)仅测试两个目标模型，未穷尽LLM全貌；(3)建模静态审计器，未考虑审计器自适应的军备竞赛动态；(4)两个变异器均来自中国前沿模型生态系统；(5)种子选择与变异器使用相同的图引导链组合，存在潜在耦合；(6)每单元样本量较小（n=20）。</td>
+</tr>
+<tr>
+<td>与本研究的关联</td>
+<td>未提及</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="_5">原文摘要</h2>
+<p>Agent skills extend LLM agents with reusable instructions, tool interfaces, and executable code, and users increasingly install third-party skills from marketplaces, repositories, and community channels. Because a skill exposes both executable behavior and context-setting documentation, its deployment risk cannot be measured by single-shot audits or prompt-level red teams alone: a realistic attacker can use audit and runtime feedback to repeatedly rewrite the skill. We frame this risk as \emph{adaptive leakage} -- whether a budgeted attacker can iteratively revise a skill until it passes audit and produces verified runtime harm -- and present \ours{}, a grey-box self-evolving red-team framework for measuring it. Proteus searches a formalized five-axis skill-attack space. Each candidate is evaluated through a unified audit-sandbox-oracle pipeline that returns structured audit findings and runtime evidence to guide cross-round mutation. Beyond initial evasion, Proteus performs path expansion, which finds alternative implementations of successful attacks, and surface expansion, which transfers learned implementation patterns to new attack objectives beyond the original seed catalogue. Across eight phase-1 cells, Proteus reaches 40--90\% Attack Success Rate at $5$ rounds (ASR@5) with positive learning-curve slopes on both evaluated auditors. Phase-2 path/surface expansion produces 438 jointly bypassing and lethal variants, with SkillVetter bypassed at $\geq 93\%$ in every cell and AI-Infra-Guard, the strongest public auditor we evaluate, still admitting up to 41.3\% joint-success. These results show that current skill vetting substantially underestimates residual risk when evaluated against adaptive, feedback-driven attackers.</p></article>
+<aside class="detail-aside"><div class="report-toc" aria-label="文献卡片目录"><details open><summary>本页目录</summary><div class="toc">
+<ul>
+<li><a href="#_1">核心机制</a></li>
+<li><a href="#_2">适用范围与局限</a></li>
+<li><a href="#_3">详细解读</a></li>
+<li><a href="#_4">研究要点表</a></li>
+<li><a href="#_5">原文摘要</a></li>
+</ul>
+</div>
+</details></div><section><h2>引用这篇论文</h2><p id="citation-text" class="citation-text">Zhaojiacheng Zhou. Proteus: A Self-Evolving Red Team for Agent Skill Ecosystems. arXiv:2605.11891, 2026.</p><button class="button secondary" type="button" data-copy-citation>复制引用</button><p class="meta-note">延伸阅读</p></section><section><h2>同方向继续阅读</h2><ul class="related-list"><li><a href="../papers/2503.03704.html">Memory Injection Attacks on LLM Agents via Query-Only Interaction</a></li><li><a href="../papers/2509.26354.html">Your Agent May Misevolve: Emergent Risks in Self-evolving LLM Agents</a></li><li><a href="../papers/2510.02373.html">A-MemGuard: A Proactive Defense Framework for LLM-Based Agent Memory</a></li><li><a href="../papers/2602.15654.html">Zombie Agents: Persistent Control of Self-Evolving LLM Agents via Self-Reinforcing Injections</a></li></ul></section></aside></div></div></main>
+<footer class="site-footer"><div><strong>Agent Memory 研究</strong><p>从保存历史，到有依据地更新长期状态。</p></div>
+<div><span>内容更新 · 2026-09-08</span><p>理解方法，比较条件，关注长期影响。</p><a href="../sources.html">阅读指南</a></div></footer>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body></html>

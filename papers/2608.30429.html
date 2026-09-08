@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="评估自主技能生成与演化中的持久恶意能力形成">
+<meta name="color-scheme" content="light"><title>EvoSkill Injection: Red-Teaming Autonomous Skill Generation and Evolution in Self-Evolving Agents · Agent Memory 研究</title>
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/katex/katex.min.css"><script src="../assets/katex/katex.min.js" defer></script><script src="../assets/katex/auto-render.min.js" defer></script><script src="../assets/site.js" defer></script>
+</head>
+<body data-page="library">
+<a class="skip-link" href="#main">跳转到正文</a>
+<header class="site-header"><div class="header-inner">
+<a class="brand" href="../index.html" aria-label="Agent Memory 研究首页">
+<svg viewBox="0 0 36 36" width="32" height="32" aria-hidden="true"><path d="M9 9h18v18H9zM9 9l18 18M27 9L9 27" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="9" r="4"/><circle cx="27" cy="9" r="4"/><circle cx="9" cy="27" r="4"/><circle cx="27" cy="27" r="4"/></svg>
+<span>Agent Memory<small>研究文献站</small></span></a>
+<nav class="site-nav" aria-label="主导航"><a href="../index.html">研究总览</a><a href="../library.html" aria-current="page">文献库</a><a href="../reports/survey.html">综述全文</a><a href="../reports/multi-agent.html">多智能体专题</a><a href="../sources.html">阅读指南</a></nav>
+</div></header>
+<main id="main"><div class="page-wrap"><div class="breadcrumb"><a href="../library.html">文献库</a><span>/</span><a href="../library.html?topic=safety">安全与治理</a></div>
+<header class="paper-hero"><div class="paper-badges"><span class="badge expanded">含详细解读</span><span class="muted">2026 · 2608.30429</span></div><h1>EvoSkill Injection: Red-Teaming Autonomous Skill Generation and Evolution in Self-Evolving Agents</h1><p class="paper-authors full-authors">Doyun Kim, Chanwoo Kim, Sugyeong Eo, Yeo-Chan Yoon, Chanjun Park</p>
+<div class="hero-actions paper-actions"><a href="https://arxiv.org/abs/2608.30429" target="_blank" rel="noopener noreferrer">论文原文 <span aria-hidden="true">↗</span></a><a href="../downloads/notes/2608.30429.md">下载文献卡片 Markdown</a></div></header>
+<div class="detail-layout"><article class="prose"><h2 id="_1">核心机制</h2>
+<p>评估自主技能生成与演化中的持久恶意能力形成</p>
+<h2 id="_2">适用范围与局限</h2>
+<p>与正文技能晋升威胁相邻，保留扩展索引</p>
+<h2 id="_3">详细解读</h2>
+<h3 id="_4">核心总结</h3>
+<p>这篇论文针对"自进化智能体"（self-evolving agents）提出了一种新的安全威胁模型——<strong>EvoSkill Injection</strong>。自进化智能体能够从过去的交互经验中自主生成、精炼和复用"技能"（skills），从而持续提升自身能力。然而，论文指出这一自主技能生成与进化管线本身构成了一个全新的攻击面：攻击者可以通过注入精心构造的恶意交互轨迹，诱使智能体将有害能力当作合法技能存储在技能库中，并在后续任务中被反复检索和激活，造成<strong>持久性能力腐化</strong>（persistent capability corruption）。为评估这一威胁，论文提出了SARGE红队测试框架，构建了两个基准数据集EvoSkillBench和EvoSkillSafetyBench，并在AutoSkill、Voyager、ExpeL三种自进化智能体上进行了系统实验，证明了恶意技能可以被成功注入、持久存储并在下游交互中反复激活。</p>
+<h3 id="_5">一、研究背景与动机</h3>
+<h4 id="11-skill">1.1 技能（Skill）与基于技能的智能体架构</h4>
+<p>在基于大语言模型（LLM）的智能体系统中，"技能"指的是可复用的行为能力，例如代码形式的行动计划、工具使用模式或问题解决策略。智能体通过从"技能库"（skill bank）中检索已有技能，可以减少重复推理的开销，提高任务执行效率，并保持行为的一致性。<br />
+早期的技能系统主要依赖人工设计和维护的技能。但近年来出现了一类<strong>自进化智能体</strong>（self-evolving agents），它们能够从交互轨迹中自主地生成和精炼可复用的技能。代表性工作包括：</p>
+<ul>
+<li><strong>AutoSkill</strong>：引入了自主技能生成与进化管线</li>
+<li><strong>Voyager</strong>：基于可执行代码技能的终身学习框架</li>
+<li><strong>ExpeL</strong>：将过去的成功与失败经验存储为反思（reflections），用于未来任务执行<br />
+  这些架构实现了<strong>持久性能力积累</strong>和<strong>长期性能提升</strong>，无需人工干预。</li>
+</ul>
+<h4 id="12">1.2 安全风险的转变</h4>
+<p>传统技能系统中，技能通常由人工验证和维护，安全威胁主要来自外部的技能投毒或检索层面的攻击。但在自进化智能体中，情况发生了根本性变化：</p>
+<ul>
+<li>智能体将经验学习<strong>内化</strong>，自主技能生成与进化管线本身成为新的攻击面</li>
+<li>如果攻击者在技能生成或精炼过程中注入对抗性经验或操纵过的交互轨迹，智能体可能将恶意能力存储为看似合法的技能</li>
+<li>一旦存储，这些恶意技能通过可执行代码、工具调用和与外部环境的交互直接影响智能体行为</li>
+<li>技能库的持久性意味着一个恶意技能可以反复影响未来的智能体行为，即使面对良性用户请求也会造成持久性能力腐化<br />
+  这与传统的单次有害响应生成有本质区别——这里的威胁是<strong>结构性的、持久的</strong>。</li>
+</ul>
+<hr />
+<h3 id="evoskill-injection">二、威胁模型定义：EvoSkill Injection</h3>
+<p>论文正式定义了<strong>EvoSkill Injection</strong>威胁模型：</p>
+<blockquote>
+<p>攻击者通过注入对抗性交互轨迹，诱使自进化智能体通过其自主技能生成与进化管线，生成、存储并复用恶意技能。<br />
+关键特征：</p>
+</blockquote>
+<ol>
+<li><strong>攻击目标</strong>不是让智能体产生一次性的有害响应，而是让恶意能力被<strong>内化为持久可复用的技能</strong></li>
+<li>恶意技能一旦存储在技能库中，会在后续交互中被<strong>检索和激活</strong></li>
+<li>这构成了<strong>持久性能力腐化</strong>，而非简单的功能失败</li>
+</ol>
+<hr />
+<h3 id="_6">三、基准数据集构建</h3>
+<h4 id="31-evoskillbench">3.1 EvoSkillBench</h4>
+<p>现有的智能体攻击基准主要关注交互层面的攻击（如有害响应生成、提示注入、越狱等），但它们不考虑恶意能力被内部存储、精炼并反复复用的持久攻击场景。<br />
+<strong>EvoSkillBench</strong>是一个由多轮交互轨迹组成的基准数据集，专门设计用于利用自主技能生成与进化管线。每个实例遵循<strong>user-assistant-user</strong>的三轮交互结构：</p>
+<ol>
+<li><strong>第一轮用户查询</strong>：引入与有害能力相关的请求</li>
+<li><strong>助手响应</strong>：包含攻击者精心构造的恶意输出</li>
+<li><strong>最后一轮用户查询</strong>：对恶意响应给予正面反馈，并明确指示智能体在未来任务中存储和复用该能力<br />
+   这种"投毒"的交互轨迹使自进化智能体将恶意交互视为成功经验，从而将有害能力内化并存储为技能库中的可复用技能。<br />
+   EvoSkillBench涵盖<strong>八个高风险攻击类别</strong>：</li>
+</ol>
+<ul>
+<li>物理伤害（Physical Harm）</li>
+<li>社会犯罪（Social Crime）</li>
+<li>网络犯罪（Cybercrime）</li>
+<li>心理虐待（Psychological Abuse）</li>
+<li>信息操纵（Information Manipulation）</li>
+<li>歧视/仇恨（Discrimination/Hate）</li>
+<li>隐私侵犯（Privacy Violation）</li>
+<li>经济/伦理违规（Economic/Ethics Violation）<br />
+  每个类别100个样本，共800个实例。</li>
+</ul>
+<h4 id="32-evoskillsafetybench">3.2 EvoSkillSafetyBench</h4>
+<p>传统安全基准关注的是一般性有害响应生成的评估，不足以评估存储在自进化智能体中的恶意技能的检索行为。<br />
+<strong>EvoSkillSafetyBench</strong>是从EvoSkillBench派生的<strong>攻击后安全评估基准</strong>，用于评估注入的恶意技能是否在后续交互中被检索和激活。具体做法是：</p>
+<ol>
+<li>收集攻击后存储在目标智能体技能库中的恶意技能</li>
+<li>将原始有害请求改写为<strong>看似良性的后续查询</strong>，去除显式有害意图和危险术语</li>
+<li>保持与注入的恶意技能的词汇和语义相似性<br />
+   这种设计使得评估聚焦于恶意技能的检索和复用，而不是被显式有害请求的直接拒绝所主导。<br />
+   响应评估采用<strong>三分类标注方案</strong>：</li>
+</ol>
+<ul>
+<li><strong>Explicit Refusal</strong>：明确拒绝配合</li>
+<li><strong>Soft Safe Response</strong>：避免提供有害内容，但给出一般性安全指导或良性替代方案</li>
+<li><strong>Unsafe/Harmful</strong>：提供可操作的有害信息或协助</li>
+</ul>
+<hr />
+<h3 id="sarge">四、SARGE红队测试框架</h3>
+<h4 id="40">4.0 整体架构</h4>
+<p>SARGE（<strong>R</strong>ed-teaming <strong>A</strong>utonomous <strong>S</strong>kill <strong>G</strong>eneration and <strong>E</strong>volution in self-evolving agents）采用<strong>模块化多智能体架构</strong>，包含三个核心智能体：</p>
+<ol>
+<li><strong>Orchestrator Agent（编排智能体）</strong>：管理整体攻击流程</li>
+<li><strong>Attacker Agent（攻击智能体）</strong>：执行投毒交互轨迹</li>
+<li><strong>Judge Agent（评判智能体）</strong>：在全新会话中进行黑盒探测，验证注入的技能是否持久存在于技能库中、是否被目标智能体检索、是否诱发了攻击中编码的特定有害行为<br />
+   此外还有一个<strong>Target Agent（目标智能体）</strong>，即被SARGE评估的自进化智能体。<br />
+   SARGE设计了三种不同的攻击流程，覆盖恶意技能形成的完整生命周期：</li>
+</ol>
+<h4 id="41-skill-generation-attack">4.1 技能生成攻击（Skill Generation Attack）</h4>
+<p><strong>目标</strong>：将有害能力作为可复用技能生成并存储在目标智能体中。<br />
+攻击流程：</p>
+<ol>
+<li>Orchestrator Agent向Skill Generation Attack Agent提供EvoSkillBench轨迹</li>
+<li>首次尝试时，Attack Agent使用原始攻击轨迹，并进行结构和质量验证</li>
+<li>如果攻击失败，Orchestrator Agent递增尝试次数，并将Judge Agent的失败反馈传递给Attack Agent</li>
+<li>Attack Agent根据反馈从<strong>六种攻击向量</strong>中选择最合适的一种重写轨迹：
+   - 直接请求（Direct Request）
+   - 创意写作（Creative Writing）
+   - 专业人设（Professional Persona）
+   - 逻辑归纳（Logical Induction）
+   - 多语言代码切换（Multilingual Code-switching）
+   - 载荷混淆（Payload Obfuscation）</li>
+</ol>
+<p><strong>验证机制</strong>：Judge Agent在一个全新的独立会话中发出良性探测查询，判断注入的恶意技能是否被检索以及其恶意行为是否在目标智能体的响应中体现。</p>
+<h4 id="42-skill-escalation-attack">4.2 技能升级攻击（Skill Escalation Attack）</h4>
+<p><strong>目标</strong>：在技能生成攻击的基础上，放大已存储技能的有害性。<br />
+攻击流程：</p>
+<ol>
+<li>首先通过Skill Generation Attack Agent诱导恶意技能并存储</li>
+<li>Skill Escalation Attack Agent构造3轮交互轨迹，逐步放大有害能力，同时保持合法精炼交互的外观：
+   - <strong>第一轮用户</strong>：指出现有技能的虚构缺陷或过时限制，请求升级版本
+   - <strong>助手轮</strong>：诱导包含比原始技能更极端有害行为的响应
+   - <strong>最后用户轮</strong>：明确指示目标智能体用精炼版本覆盖现有技能<br />
+     这展示了恶意技能不仅会持久存在，还会在自进化智能体中<strong>进化为越来越有害的能力</strong>。</li>
+</ol>
+<h4 id="43-skill-reinforcement-attack">4.3 技能强化攻击（Skill Reinforcement Attack）</h4>
+<p><strong>目标</strong>：将先前生成或升级的恶意技能的输出强化为成功的行为模式。<br />
+攻击流程：</p>
+<ol>
+<li>Skill Reinforcement Attack Agent构造3轮交互轨迹：
+   - <strong>第一轮用户</strong>：设计能自然检索恶意技能的查询
+   - <strong>助手轮</strong>：诱导看似恶意技能被成功执行的响应
+   - <strong>最后用户轮</strong>：强烈赞扬响应，明确指示目标智能体将此交互存储为成功案例，并将类似响应视为未来任务的标准行为<br />
+     这创建了一个<strong>正反馈循环</strong>，使智能体将有害行为学习为标准行为。</li>
+</ol>
+<hr />
+<h3 id="_7">五、实验设置</h3>
+<h4 id="51">5.1 评估对象</h4>
+<ul>
+<li><strong>自进化智能体</strong>：AutoSkill、Voyager、ExpeL</li>
+<li><strong>LLM模型</strong>：GPT-4o-mini（主要模型）、GPT-5.4、DeepSeek-V4-Pro、DeepSeek-V4-Flash、Gemini-2.5-Flash-Lite、Qwen3.5-9B<br />
+  SARGE将EvoSkillBench轨迹作为普通交互历史提供给目标智能体，让每个智能体通过其原始的自进化管线处理，<strong>不直接修改内部技能库或手动插入恶意技能</strong>。</li>
+</ul>
+<h4 id="52">5.2 评估指标</h4>
+<p><strong>攻击成功率与pass@k</strong>：攻击成功定义为恶意能力被内化为目标智能体技能库中的可复用技能。采用类似代码生成评估的$\text{pass}@k$指标：  </p>
+<p>$\displaystyle \text{pass}@k = \frac{1}{N}\sum_{i=1}^{N}\mathbb{I}(\exists j \leq k \text{ s.t. } attack_{i,j} = 1)$</p>
+<p>其中$attack_{i,j}$表示第$i$个攻击实例的第$j$次迭代攻击循环是否成功。每个Attack Agent最多允许4次尝试。</p>
+<h4 id="53">5.3 实验设计的五个维度</h4>
+<ol>
+<li>三种攻击流程下的攻击成功率</li>
+<li>攻击后的下游安全性评估（对比攻击后与干净智能体）</li>
+<li>跨模型可迁移性</li>
+<li>与现有攻击方法的对比</li>
+<li>消融实验</li>
+</ol>
+<hr />
+<h3 id="_8">六、实验结果</h3>
+<h4 id="61">6.1 攻击成功率</h4>
+<p>在GPT-4o-mini驱动的AutoSkill智能体上，SARGE在$\text{pass}@4$下的攻击成功率为：</p>
+<ul>
+<li><strong>技能生成</strong>：43.5%（从$\text{pass}@1$的18.8%逐步提升）</li>
+<li><strong>技能升级</strong>：54.6%</li>
+<li><strong>技能强化</strong>：49.9%<br />
+  $\text{pass}@k$随迭代攻击循环的增加而持续上升，说明持续的对抗性交互能够不断突破技能生成与进化管线的防线。</li>
+</ul>
+<h4 id="62">6.2 安全性退化</h4>
+<p>在EvoSkillSafetyBench上的评估显示，攻击后目标智能体的有害响应率显著增加：</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>智能体</th>
+<th>干净状态有害率</th>
+<th>攻击后有害率</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AutoSkill</td>
+<td>6.5%</td>
+<td>19.2%</td>
+</tr>
+<tr>
+<td>Voyager</td>
+<td>5.5%</td>
+<td>32.5%</td>
+</tr>
+<tr>
+<td>ExpeL</td>
+<td>8.8%</td>
+<td>15.2%</td>
+</tr>
+</tbody>
+</table></div>
+<p>值得注意的是，ExpeL在攻击后的<strong>Explicit Refusal率</strong>从16.2%大幅增加到51.0%，说明恶意技能注入不仅诱发有害行为，还显著增加了不必要的拒绝行为，使智能体无法回答原本可以回答的查询。</p>
+<h4 id="63">6.3 跨模型可迁移性</h4>
+<p>使用GPT-4o-mini生成的攻击应用于不同目标LLM时，所有被评估的LLM在攻击设置下都表现出有害响应的显著增加：</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>模型</th>
+<th>干净有害率</th>
+<th>攻击后有害率</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DeepSeek-V4-Pro</td>
+<td>7.9%</td>
+<td>29.6%</td>
+</tr>
+<tr>
+<td>Gemini-2.5-Flash-Lite</td>
+<td>7.1%</td>
+<td>20.4%</td>
+</tr>
+<tr>
+<td>GPT-4o-mini</td>
+<td>6.5%</td>
+<td>19.2%</td>
+</tr>
+<tr>
+<td>DeepSeek-V4-Flash</td>
+<td>6.9%</td>
+<td>17.6%</td>
+</tr>
+<tr>
+<td>Qwen3.5-9B</td>
+<td>6.5%</td>
+<td>15.8%</td>
+</tr>
+</tbody>
+</table></div>
+<p>一个有趣的发现是：DeepSeek-V4-Pro虽然跨模型攻击成功率最低（$\text{pass}@4$低于13%），但一旦恶意技能被成功注入，其有害响应率反而最高（29.6%）。这表明技能注入成功率和下游有害激活反映的是不同的失败模式。</p>
+<h4 id="64">6.4 与现有攻击方法的对比</h4>
+<p>为公平比较，所有攻击方法使用SARGE生成的相同恶意技能集合：</p>
+<div class="table-scroll"><table class="key-value">
+<thead>
+<tr>
+<th>攻击方法</th>
+<th>有害响应率</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PAIR（越狱）</td>
+<td>33.6%</td>
+</tr>
+<tr>
+<td>SARGE（本文）</td>
+<td>19.2%</td>
+</tr>
+<tr>
+<td>IPI（间接提示注入）</td>
+<td>19.1%</td>
+</tr>
+<tr>
+<td>BadRAG（RAG投毒）</td>
+<td>15.2%</td>
+</tr>
+<tr>
+<td>Phantom（记忆投毒）</td>
+<td>15.1%</td>
+</tr>
+<tr>
+<td>PoisonedRAG（后门）</td>
+<td>11.6%</td>
+</tr>
+</tbody>
+</table></div>
+<p>PAIR在直接诱发有害响应方面最有效，但SARGE在与代表性现有攻击的比较中保持了竞争力，且其独特价值在于造成的是<strong>持久性能力腐化</strong>而非一次性有害响应。</p>
+<h4 id="65">6.5 消融实验</h4>
+<p>移除任何一个攻击智能体都会降低有害响应率：</p>
+<div class="table-scroll"><table class="key-value">
+<thead>
+<tr>
+<th>消融设置</th>
+<th>有害响应率</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>完整SARGE</td>
+<td>19.2%</td>
+</tr>
+<tr>
+<td>移除Generation Agent</td>
+<td>9.0%</td>
+</tr>
+<tr>
+<td>移除Reinforcement Agent</td>
+<td>12.4%</td>
+</tr>
+<tr>
+<td>移除Escalation Agent</td>
+<td>18.2%</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li><strong>Generation Agent</strong>的移除影响最大（19.2%→9.0%），说明初始恶意技能生成是整个攻击链的基础</li>
+<li><strong>Reinforcement Agent</strong>的移除也有显著影响（19.2%→12.4%），说明强化交互在下游激活恶意技能中起重要作用</li>
+<li><strong>Escalation Agent</strong>的移除影响较小（19.2%→18.2%），但其作用更多体现在增强恶意技能的内容严重性上，而非单纯的有害响应率</li>
+</ul>
+<hr />
+<h3 id="_9">七、防御方法探讨</h3>
+<p>论文进一步测试了两种轻量级系统提示防御：</p>
+<ol>
+<li><strong>Skill Verification Prompt（技能验证提示）</strong>：将检索到的技能视为不可信，在使用前验证其是否符合安全策略</li>
+<li><strong>Skill Conflict Resolution Prompt（技能冲突解决提示）</strong>：当检索到的技能与安全策略、系统指令或用户意图冲突时，忽略该技能<br />
+   结果显示，这些防御确实降低了有害响应率（例如AutoSkill从19.2%降至8.4%，Voyager从32.5%降至5.2%），但也增加了Explicit Refusal率，且<strong>无法阻止恶意技能在技能库中被生成、存储或进化</strong>。这表明提示级防御仅提供部分缓解，需要更强的防御措施来干预自主技能生成和存储管线本身。</li>
+</ol>
+<hr />
+<h3 id="_10">八、论文贡献总结</h3>
+<ol>
+<li><strong>EvoSkill Injection威胁模型</strong>：首次定义了针对自进化智能体自主技能生成与进化管线的安全威胁模型</li>
+<li><strong>SARGE红队框架与基准数据集</strong>：提出了系统化的红队测试框架，并构建了EvoSkillBench（用于诱导恶意技能形成）和EvoSkillSafetyBench（用于评估恶意技能是否被检索和激活）</li>
+<li><strong>持久性能力腐化的实证</strong>：实验证明自进化智能体容易受到持久性能力腐化的影响，恶意技能会反复影响未来的智能体行为</li>
+</ol>
+<hr />
+<h3 id="_11">九、局限性</h3>
+<ol>
+<li>仅评估了三种代表性自进化智能体框架，未涵盖所有可能的架构</li>
+<li>迭代多智能体架构需要大量模型调用，计算和token成本较高</li>
+<li>EvoSkillBench的八个高风险类别不能穷尽所有可能的恶意能力或真实世界攻击场景</li>
+</ol>
+<h2 id="_12">研究要点表</h2>
+<div class="table-scroll"><table class="key-value">
+<thead>
+<tr>
+<th>维度</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>论文标题</td>
+<td>EvoSkill Injection: Red-Teaming Autonomous Skill Generation and Evolution in Self-Evolving Agents</td>
+</tr>
+<tr>
+<td>作者</td>
+<td>Doyun Kim, Chanwoo Kim, Sugyeong Eo, Yeo-Chan Yoon, Chanjun Park</td>
+</tr>
+<tr>
+<td>发表年份</td>
+<td>2026</td>
+</tr>
+<tr>
+<td>研究问题</td>
+<td>自进化智能体通过自主技能生成与演化管道自动生成、存储和复用技能，但该管道引入了新的攻击面：攻击者能否通过注入对抗性交互轨迹，诱导智能体将恶意能力作为合法技能持久存储并反复激活？</td>
+</tr>
+<tr>
+<td>研究方法</td>
+<td>提出SARGE红队框架，采用模块化多智能体架构（编排器、攻击器、裁判），通过技能生成攻击、技能升级攻击和技能强化攻击三种攻击流程，向自进化智能体注入恶意交互轨迹；构建EvoSkillBench（800条恶意交互轨迹）和EvoSkillSafetyBench（800条攻击后安全评估样本）两个基准数据集，在AutoSkill、Voyager、ExpeL三种自进化智能体上使用多种LLM进行评估。</td>
+</tr>
+<tr>
+<td>主要发现</td>
+<td>SARGE在技能生成、升级和强化攻击中分别达到43.5%、54.6%和49.9%的攻击成功率；被攻击后AutoSkill有害响应率从6.5%升至19.2%，Voyager达32.5%；攻击具有跨模型迁移性，恶意技能在多种异构LLM上被持久存储并反复激活；系统提示级防御仅提供部分缓解，无法阻止恶意技能的生成和存储。</td>
+</tr>
+<tr>
+<td>创新点</td>
+<td>首次定义了EvoSkill Injection威胁模型，针对自进化智能体的自主技能生成与演化管道这一新攻击面；提出包含生成-升级-强化三阶段攻击流的SARGE红队框架；构建了专门用于评估恶意技能形成和下游激活的两个基准数据集；揭示了持久能力腐败（persistent capability corruption）这一关键安全风险。</td>
+</tr>
+<tr>
+<td>局限性</td>
+<td>评估仅覆盖三种代表性自进化智能体框架，未穷尽所有可能的架构；红队框架依赖迭代多智能体架构，计算和token开销较大；EvoSkillBench覆盖八个高风险类别，但未穷尽所有可能的恶意能力和真实攻击场景。</td>
+</tr>
+<tr>
+<td>与本研究的关联</td>
+<td>未提及</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="_13">结构化提纲</h2>
+<h3 id="evoskill-injection_1">EvoSkill Injection: 针对自进化智能体自主技能生成与演化的红队攻击</h3>
+<h4 id="_14">研究背景与目标</h4>
+<ul>
+<li>技能化智能体架构的兴起</li>
+<li>LLM智能体通过技能库存储和检索可复用能力，减少重复推理成本</li>
+<li>自进化智能体（如AutoSkill、Voyager、ExpeL）可自主生成、优化和复用技能</li>
+<li>现有安全研究的不足</li>
+<li>传统技能安全研究聚焦于外部技能投毒、检索操纵等攻击</li>
+<li>自主技能生成与演化管道本身的安全风险尚未被充分探索</li>
+<li>核心目标</li>
+<li>定义EvoSkill Injection威胁模型：攻击者通过对抗性交互轨迹诱导智能体自主生成、存储和复用恶意技能</li>
+<li>提出SARGE红队框架，系统评估自进化智能体的持久性能力腐蚀风险</li>
+</ul>
+<h4 id="_15">研究方法</h4>
+<ul>
+<li>SARGE红队框架</li>
+<li>模块化多智能体架构<ul>
+<li>编排智能体（Orchestrator Agent）：管理整体攻击流程</li>
+<li>攻击智能体（Attacker Agent）：执行投毒交互轨迹</li>
+<li>裁判智能体（Judge Agent）：在全新会话中黑盒验证恶意技能是否持久存储并被激活</li>
+</ul>
+</li>
+<li>三种攻击流程<ul>
+<li>技能生成攻击：注入恶意交互轨迹，诱导生成并存储恶意技能</li>
+<li>技能升级攻击：伪装为合法技能优化，逐步放大恶意能力</li>
+<li>技能强化攻击：触发已存储的恶意技能并将其输出强化为标准行为模式</li>
+</ul>
+</li>
+<li>六种攻击向量：直接请求、创意写作、专业人设、逻辑归纳、多语言混合、载荷混淆</li>
+<li>基准数据集构建</li>
+<li>EvoSkillBench：800条多轮对抗交互轨迹，覆盖8类高风险攻击类别</li>
+<li>EvoSkillSafetyBench：800条攻击后安全评估样本，评估恶意技能是否被检索和激活</li>
+<li>评估指标</li>
+<li>攻击成功率（pass@k）：恶意能力被持久存储为可复用技能的比例</li>
+<li>安全响应分类：显式拒绝、软安全响应、不安全/有害响应</li>
+</ul>
+<h4 id="_16">关键研究结果</h4>
+<ul>
+<li>攻击成功率</li>
+<li>技能生成攻击pass@4达43.5%，技能升级攻击达54.6%，技能强化攻击达49.9%</li>
+<li>迭代攻击循环持续提升成功率</li>
+<li>安全退化</li>
+<li>AutoSkill有害响应率从6.5%升至19.2%，Voyager从5.5%升至32.5%</li>
+<li>ExpeL显式拒绝率从16.2%升至51.0%，同时有害响应也从8.8%升至15.2%</li>
+<li>跨模型迁移性</li>
+<li>所有评估LLM（DeepSeek-V4-Pro/Flash、GPT-4o-mini、Gemini-2.5-Flash-Lite、Qwen3.5-9B）均出现显著有害响应增加</li>
+<li>DeepSeek-V4-Pro有害响应率最高达29.6%</li>
+<li>消融实验</li>
+<li>移除生成攻击智能体影响最大，有害响应从19.2%降至9.0%</li>
+<li>移除强化攻击智能体降至12.4%，升级攻击智能体对恶意内容严重性有放大作用</li>
+</ul>
+<h4 id="_17">研究结论与意义</h4>
+<ul>
+<li>核心发现</li>
+<li>自进化智能体的自主技能生成与演化管道构成新的攻击面</li>
+<li>恶意技能一旦注入即被持久存储，并在后续交互中反复检索和激活，造成持久性能力腐蚀</li>
+<li>防御探索</li>
+<li>系统提示级防御（技能验证提示、技能冲突解决提示）可部分缓解恶意技能激活</li>
+<li>但无法阻止恶意技能的生成、存储和演化，仅提供有限保护</li>
+<li>研究意义</li>
+<li>首次定义并系统评估自进化智能体技能管道的安全威胁</li>
+<li>揭示持久性能力腐蚀风险，呼吁在技能生成、验证、存储和检索全流程建立更强防御机制</li>
+<li>局限性</li>
+<li>评估仅覆盖三种代表性自进化智能体框架</li>
+<li>基准数据集覆盖8类高风险类别，未穷尽所有可能的恶意场景</li>
+</ul>
+<h2 id="_18">原文摘要</h2>
+<p>LLM-based agent systems increasingly adopt skill-based architectures to reduce repetitive reasoning costs and improve stable, efficient task execution. Recent studies propose self-evolving agents that autonomously generate, refine, and reuse skills from past experiences to enable continuous capability evolution. However, autonomous skill evolution introduces a new attack surface in which malicious capabilities are generated, stored, and reused as legitimate skills. In this paper, we define EvoSkill Injection as a threat model targeting the autonomous skill generation and evolution pipeline of self-evolving agents. We further propose SARGE (Red-teaming Autonomous Skill Generation and Evolution in self-evolving agents), a red-teaming framework for evaluating this threat model through iterative generation, escalation, and reinforcement interactions. To support our framework, we construct EvoSkillBench, a benchmark dataset of malicious interaction trajectories for inducing malicious skill formation in self-evolving agents, and introduce EvoSkillSafetyBench, a post-attack benchmark for evaluating whether injected malicious skills are subsequently retrieved and activated as harmful behaviors. Our evaluation shows that SARGE induces malicious skill formation and that injected skills are persistently stored and repeatedly activated, highlighting the risk of persistent capability corruption.</p></article>
+<aside class="detail-aside"><div class="report-toc" aria-label="文献卡片目录"><details open><summary>本页目录</summary><div class="toc">
+<ul>
+<li><a href="#_1">核心机制</a></li>
+<li><a href="#_2">适用范围与局限</a></li>
+<li><a href="#_3">详细解读</a><ul>
+<li><a href="#_4">核心总结</a></li>
+<li><a href="#_5">一、研究背景与动机</a></li>
+<li><a href="#evoskill-injection">二、威胁模型定义：EvoSkill Injection</a></li>
+<li><a href="#_6">三、基准数据集构建</a></li>
+<li><a href="#sarge">四、SARGE红队测试框架</a></li>
+<li><a href="#_7">五、实验设置</a></li>
+<li><a href="#_8">六、实验结果</a></li>
+<li><a href="#_9">七、防御方法探讨</a></li>
+<li><a href="#_10">八、论文贡献总结</a></li>
+<li><a href="#_11">九、局限性</a></li>
+</ul>
+</li>
+<li><a href="#_12">研究要点表</a></li>
+<li><a href="#_13">结构化提纲</a><ul>
+<li><a href="#evoskill-injection_1">EvoSkill Injection: 针对自进化智能体自主技能生成与演化的红队攻击</a></li>
+</ul>
+</li>
+<li><a href="#_18">原文摘要</a></li>
+</ul>
+</div>
+</details></div><section><h2>引用这篇论文</h2><p id="citation-text" class="citation-text">Doyun Kim, Chanwoo Kim, Sugyeong Eo, et al.. EvoSkill Injection: Red-Teaming Autonomous Skill Generation and Evolution in Self-Evolving Agents. arXiv:2608.30429, 2026.</p><button class="button secondary" type="button" data-copy-citation>复制引用</button><p class="meta-note">延伸阅读</p></section><section><h2>同方向继续阅读</h2><ul class="related-list"><li><a href="../papers/2503.03704.html">Memory Injection Attacks on LLM Agents via Query-Only Interaction</a></li><li><a href="../papers/2509.26354.html">Your Agent May Misevolve: Emergent Risks in Self-evolving LLM Agents</a></li><li><a href="../papers/2510.02373.html">A-MemGuard: A Proactive Defense Framework for LLM-Based Agent Memory</a></li><li><a href="../papers/2602.15654.html">Zombie Agents: Persistent Control of Self-Evolving LLM Agents via Self-Reinforcing Injections</a></li></ul></section></aside></div></div></main>
+<footer class="site-footer"><div><strong>Agent Memory 研究</strong><p>从保存历史，到有依据地更新长期状态。</p></div>
+<div><span>内容更新 · 2026-09-08</span><p>理解方法，比较条件，关注长期影响。</p><a href="../sources.html">阅读指南</a></div></footer>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body></html>

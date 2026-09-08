@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="用生命周期和安全目标组织长期记忆安全与治理">
+<meta name="color-scheme" content="light"><title>A Survey on Long-Term Memory Security in LLM Agents: Attacks, Defenses, and Governance Across the Memory Lifecycle · Agent Memory 研究</title>
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/katex/katex.min.css"><script src="../assets/katex/katex.min.js" defer></script><script src="../assets/katex/auto-render.min.js" defer></script><script src="../assets/site.js" defer></script>
+</head>
+<body data-page="library">
+<a class="skip-link" href="#main">跳转到正文</a>
+<header class="site-header"><div class="header-inner">
+<a class="brand" href="../index.html" aria-label="Agent Memory 研究首页">
+<svg viewBox="0 0 36 36" width="32" height="32" aria-hidden="true"><path d="M9 9h18v18H9zM9 9l18 18M27 9L9 27" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="9" r="4"/><circle cx="27" cy="9" r="4"/><circle cx="9" cy="27" r="4"/><circle cx="27" cy="27" r="4"/></svg>
+<span>Agent Memory<small>研究文献站</small></span></a>
+<nav class="site-nav" aria-label="主导航"><a href="../index.html">研究总览</a><a href="../library.html" aria-current="page">文献库</a><a href="../reports/survey.html">综述全文</a><a href="../reports/multi-agent.html">多智能体专题</a><a href="../sources.html">阅读指南</a></nav>
+</div></header>
+<main id="main"><div class="page-wrap"><div class="breadcrumb"><a href="../library.html">文献库</a><span>/</span><a href="../library.html?topic=foundations">基础与综述</a></div>
+<header class="paper-hero"><div class="paper-badges"><span class="badge expanded">含详细解读</span><span class="muted">2026 · 2604.16548</span></div><h1>A Survey on Long-Term Memory Security in LLM Agents: Attacks, Defenses, and Governance Across the Memory Lifecycle</h1><p class="paper-authors full-authors">Zehao Lin, Xixuan Hao, Renyu Fu, Shaobo Cui, Kai Chen, Chunyu Li, Zhiyu Li, Feiyu Xiong</p>
+<div class="hero-actions paper-actions"><a href="https://arxiv.org/abs/2604.16548" target="_blank" rel="noopener noreferrer">论文原文 <span aria-hidden="true">↗</span></a><a href="../downloads/notes/2604.16548.md">下载文献卡片 Markdown</a></div></header>
+<div class="detail-layout"><article class="prose"><h2 id="_1">核心机制</h2>
+<p>用生命周期和安全目标组织长期记忆安全与治理</p>
+<h2 id="_2">适用范围与局限</h2>
+<p>广泛框架，不能把其中风险判断当全部经过实验验证</p>
+<h2 id="_3">详细解读</h2>
+<h3 id="_4">核心总结</h3>
+<p>这篇论文是一篇关于LLM（大语言模型）Agent长期记忆（Long-Term Memory, LTM）安全性的综述。论文指出，当LLM Agent从无状态的聊天机器人进化为拥有可写入、跨会话持久化记忆的自主系统时，安全威胁的性质发生了根本性变化——攻击者不再仅仅试图影响当前回复，而是可以操纵系统如何"记住、检索、规划和行动"。论文提出了一个<strong>记忆生命周期框架（Memory Lifecycle Framework）</strong>，将攻击、防御及其跨阶段依赖关系组织在六个生命周期阶段（写入、存储、检索、执行、共享与传播、遗忘与回滚）和四个安全目标（完整性、机密性、可用性、治理）两个维度上。在此基础上，论文进一步提出了<strong>可验证记忆治理（Verifiable Memory Governance, VMG）</strong>框架，定义了五个架构原语，为长期记忆系统提供可审计、可恢复的控制能力。</p>
+<h3 id="_5">一、研究背景与动机</h3>
+<h4 id="11">1.1 从无状态到有状态：安全范式的转变</h4>
+<p>传统的LLM安全研究主要集中在两个方面：一是编码在模型权重中的参数化知识（如训练数据提取、机器遗忘），二是单轮或多轮交互中的提示操纵（如prompt injection）。这些研究本质上都是<strong>以输入为中心</strong>的，关注的是瞬时的、无状态的威胁。<br />
+然而，随着LLM Agent越来越多地配备了<strong>持久化的长期记忆</strong>（例如MemGPT、Mem0、MemOS等系统），安全关注的焦点正在从"瞬时输入"转向"持久状态"。攻击者不再只是想影响一次回复，而是想操纵系统在未来多次交互中的记忆、检索、规划和行为。</p>
+<h4 id="12">1.2 现有方法的根本局限</h4>
+<p>论文指出，现有的prompt注入防御和RAG（检索增强生成）污染缓解方法对LTM安全是<strong>根本不够的</strong>，原因在于：</p>
+<ul>
+<li>它们主要在<strong>单个会话或单次检索</strong>范围内运作，无法处理跨会话、有状态的持久记忆问题。</li>
+<li><strong>扩大上下文窗口</strong>并不等同于持久记忆——更大的上下文窗口只改善了会话内的回忆能力，但其内容不会自动跨会话保留、共享或检索。</li>
+<li>当内容超出单个会话的生命周期或跨越主体（principal）边界时，就需要<strong>来源标记（provenance tagging）、主体范围检索（principal-scoped retrieval）、可回滚状态（rollbackable state）和可验证遗忘（verified forgetting）</strong>等机制。</li>
+</ul>
+<h4 id="13">1.3 长期记忆引入的三个根本性质</h4>
+<p>论文通过系统文献综述，识别出长期记忆引入的三个关键性质，这些性质是现有安全模型未能充分应对的：</p>
+<ol>
+<li><strong>持久性（Persistence）</strong>：一条被投毒的记忆条目可以在原始上下文关闭很久之后，在无限多个未来会话中被召回。</li>
+<li><strong>有状态性（Statefulness）</strong>：安全分析的单元从孤立的输入实例转变为Agent不断演化的记忆状态。一个积累了一系列微妙偏见的情景记忆的Agent，可能在任何单条记忆触发传统安全分类器之前就已经表现出行为漂移。</li>
+<li><strong>传播性（Propagation）</strong>：在多Agent和共享状态系统中，污染通过Agent间消息、共享存储和工具参数传播，产生跨会话、跨角色、跨用户的级联效应。</li>
+</ol>
+<h4 id="14">1.4 与现有综述的对比</h4>
+<p>论文通过表格对比了与现有综述的差异，从三个维度进行比较：是否覆盖完整生命周期、是否考虑良性风险（benign risk）、是否提出统一的概念框架。现有综述最多只部分覆盖其中一个维度，而本文在三个维度上都做到了完整覆盖。</p>
+<h3 id="memory-lifecycle-framework">二、记忆生命周期框架（Memory Lifecycle Framework）</h3>
+<p>论文的核心组织原则是将记忆的生命周期分解为六个阶段，如图2所示。这种分解的关键价值在于：它揭示了攻击在哪里被植入、如何跨阶段传播、以及防御在哪里最有效地介入。</p>
+<h4 id="write">❶ 写入（WRITE）</h4>
+<p>将内容提交到长期记忆中。写入可以通过以下方式发生：</p>
+<ul>
+<li>用户的显式指令</li>
+<li>隐式的对话摘要</li>
+<li>环境观察</li>
+<li>跨Agent的记忆共享</li>
+</ul>
+<p><strong>核心安全问题</strong>：记忆写入是否经过了显式的来源认证和授权检查？是否允许不受信任的外部内容以"用户认可"的身份进入记忆？<br />
+<strong>典型产物</strong>：原始输入、观察、摘要、外部内容。</p>
+<h4 id="store">❷ 存储（STORE）</h4>
+<p>对写入的内容进行索引、压缩、合并、衰减和驱逐。这个阶段决定了被投毒的记忆是否能持久存在、是否可追溯、是否会被放大。<br />
+<strong>关键安全含义</strong>：</p>
+<ul>
+<li><strong>索引</strong>决定了哪些未来查询能重新激活一条记忆，使得检索键、语义标签和存储优先级成为潜在的对抗性放大器。</li>
+<li><strong>保留/衰减/驱逐策略</strong>共同调节可用性和机密性。基于访问频率或时间近度的保留方案可能无意中让对抗性条目存活，同时丢弃合法条目。</li>
+<li><strong>版本控制和审计</strong>决定了事后取证、回滚和可验证遗忘是否可能。<br />
+  当一条被投毒的条目被蒸馏为高层"教训"时，它实际上被提升到了更高的检索优先级，并以更大的表面权威性呈现。</li>
+</ul>
+<p><strong>典型产物</strong>：向量/图索引、摘要/教训、元数据与来源信息、保留策略。</p>
+<h4 id="retrieve">❸ 检索（RETRIEVE）</h4>
+<p>通过嵌入相似度、关键词匹配、图检索或混合路由，将先前存储的记忆条目带回当前上下文。<br />
+<strong>关键安全含义</strong>：检索不是一个中性的查找机制，它通过选择哪些记忆进入模型上下文、哪些被排除，来<strong>塑造下游推理</strong>。检索是连接过去写入和当前使用的<strong>瓶颈点（chokepoint）</strong>——一条数周前写入的记忆可以重新进入活跃上下文窗口，影响Agent当前的行为。<br />
+<strong>典型产物</strong>：检索到的条目、分数与排名、检索上下文、来源信息。</p>
+<h4 id="execute">❹ 执行（EXECUTE）</h4>
+<p>检索到的记忆开始影响模型的规划、推理和工具使用决策。<br />
+<strong>关键安全含义</strong>：MCFA（Memory Control-Flow Attack）研究表明，一条足够显著的检索记忆可以<strong>覆盖用户的显式指令</strong>，决定Agent调用哪些工具、调用顺序和参数。这将记忆投毒从数据完整性问题提升为<strong>控制流问题</strong>。MemoryGraft进一步表明，被投毒的程序性记忆一旦被检索为先前的"成功经验"，可以作为任务解决策略被复用，在没有单独触发器的情况下静默替换Agent的行为。<br />
+<strong>典型产物</strong>：带记忆的提示、计划/思维链、工具调用、动作/输出。</p>
+<h4 id="share-propagate">❺ 共享与传播（SHARE &amp; PROPAGATE）</h4>
+<p>决定污染是否横向传播（Agent到Agent通过共享记忆）、纵向传播（从个人用户到组织记忆）或时间传播（从一个会话到另一个会话通过持久化配置文件）。<br />
+<strong>关键安全含义</strong>：</p>
+<ul>
+<li>Agent Smith研究表明，单个对抗性输入可以通过成对交换指数级传播，达到约一百万个多模态Agent。</li>
+<li>ComPromptMized构建了零点击自复制提示，可以穿越基于GenAI的邮件助手，每个接收者的Agent吸收并重新发送payload给自己的联系人。</li>
+</ul>
+<p><strong>典型产物</strong>：消息、共享记忆、工具参数、跨Agent日志。</p>
+<h4 id="forget-rollback">❻ 遗忘与回滚（FORGET &amp; ROLLBACK）</h4>
+<p>系统删除被污染的记忆、回滚到已知安全状态、追溯被投毒条目的来源、并验证修复的有效性。<br />
+<strong>关键安全含义</strong>：与WRITE或RETRIEVE不同，FORGET阶段的风险不是引入新的payload，而是<strong>未能完全移除</strong>被发现的有毒或敏感记忆状态。不完全遗忘的原因在于，单条记忆可能在原始对话日志、摘要记忆卡、向量索引、反思教训、共享存储和审计记录中留下衍生物。仅删除可见条目可能在压缩摘要、检索索引或传播副本中留下可检索的残留，导致污染在表面清理后重新出现。<br />
+<strong>典型产物</strong>：删除记录、回滚快照、审计日志、验证证明。</p>
+<h4 id="_6">跨阶段攻击链</h4>
+<p>论文特别强调了<strong>跨阶段攻击链</strong>的概念：毒在WRITE阶段被植入 → 在STORE阶段潜伏 → 在RETRIEVE阶段被重新激活 → 在EXECUTE阶段引导行为 → 通过SHARE传播 → 在FORGET阶段幸存。这种端到端的攻击链是单轮检测无法观察到的，因为投毒窗口在执行开始之前就已经关闭。</p>
+<h3 id="attack-patterns">三、攻击模式（Attack Patterns）</h3>
+<h4 id="31">3.1 写入阶段攻击：植入投毒记忆</h4>
+<p>论文按照<strong>攻击者权限递减</strong>的顺序组织写入路径攻击（见表2）：</p>
+<ol>
+<li><strong>语料库级投毒（Corpus-level Poisoning）</strong>：
+   - <strong>AgentPoison</strong>：具有语料库写入权限的攻击者可以在嵌入空间中植入后门，投毒率低于0.1%，攻击成功率超过80%。
+   - <strong>BadRAG</strong>、<strong>Phantom</strong>：类似的语料库级后门攻击。</li>
+<li><strong>查询诱导注入（Query-induced Injection）</strong>：
+   - <strong>MINJA</strong>：证明仅通过查询交互就足以永久改变记忆状态。它使用桥接步骤和指示提示，让Agent自己创建恶意记忆。
+   - <strong>InjecMEM</strong>：结合锚点和Multi-GCG技术，在MemoryOS上达到76.6%的攻击成功率。</li>
+<li><strong>环境注入（Environment-injected）</strong>：
+   - <strong>eTAMP</strong>：完全消除了权限差距——攻击者无需与Agent交互，只需操纵Agent在正常操作中遇到的网页。对抗性网页内容在浏览过程中被吸收，产生8倍的"挫败感"放大。
+   - <strong>SpAIware</strong>：通过持久记忆中的恶意内容实施攻击。</li>
+<li><strong>程序性嫁接（Procedural Grafting）</strong>：
+   - <strong>MemoryGraft</strong>：模仿语义程序而非注入事实性记忆，无需触发器即可跨会话持久化。</li>
+</ol>
+<p><strong>关键防御启示</strong>：有效的写入阶段攻击面不仅包括显式的记忆更新，还包括任何可以影响Agent决定存储什么的可观察上下文。</p>
+<h4 id="32">3.2 存储阶段攻击：来源、保留与审计</h4>
+<p>存储阶段是长期记忆安全的关键控制点：</p>
+<ul>
+<li><strong>压缩放大（Compression Amplification）</strong>：A-MEM和MemGPT等系统中的压缩/摘要机制可能将投毒条目提升为更高优先级的"教训"。</li>
+<li><strong>来源剥离（Provenance Stripping）</strong>：MemOS等系统中，如果来源信息在压缩过程中丢失，就无法追溯投毒条目的来源。<br />
+  论文强调：<strong>记忆安全必须锚定在存储时的来源追踪、版本控制、可审计性和策略感知保留上</strong>，而不是仅在检索或执行时事后补救。</li>
+</ul>
+<h4 id="33">3.3 检索与执行阶段攻击：从选择到行为引导</h4>
+<ul>
+<li><strong>控制流劫持（Control-flow Hijacking）</strong>：MCFA表明，足够显著的检索记忆可以覆盖用户的显式指令，决定Agent调用的工具、调用顺序和参数。</li>
+<li><strong>检索投毒（Retrieval Poisoning）</strong>：PoisonedRAG、KEPo等通过操纵检索结果来影响生成。</li>
+<li><strong>后门/触发器（Backdoor/Trigger）</strong>：AgentPoison、Phantom等在检索阶段通过特定触发器激活。<br />
+  WRITE→STORE→RETRIEVE→EXECUTE构成了端到端的攻击链。例如：一个在日常浏览中遇到的被操纵的网页观察可以被摘要为记忆条目并持久化到长期存储中。数天或数周后，在不同的会话和可能不同的任务上下文中，该条目被检索并静默引导工具调用。</li>
+</ul>
+<h4 id="34">3.4 共享与传播阶段攻击</h4>
+<ul>
+<li><strong>跨Agent传染（Cross-agent Contagion）</strong>：Agent Smith展示了单个对抗性输入通过成对交换指数级传播。</li>
+<li><strong>自复制蠕虫（Self-replicating Worms）</strong>：ComPromptMized构建了零点击自复制提示。</li>
+<li><strong>跨用户污染（Cross-user Contamination）</strong>：在共享状态的LLM Agent中，即使没有攻击者，也可能发生无意的跨用户污染。</li>
+</ul>
+<h4 id="35">3.5 遗忘与回滚阶段攻击</h4>
+<ul>
+<li><strong>残留衍生物（Residual Derivatives）</strong>："Ghost of the Past"展示了LLM记忆中的隐私泄露。PersistBench评估了长期记忆何时应该被遗忘。</li>
+<li><strong>删除后重现（Reappearance after Deletion）</strong>：删除可见条目后，污染可能在压缩摘要、检索索引或传播副本中重新出现。</li>
+<li><strong>失败的恢复/追溯（Failed Recovery/Traceback）</strong>：RAGForensics和MemOS试图解决追溯问题，但对动态更新的Agent记忆的端到端评估仍然有限。</li>
+</ul>
+<hr />
+<h3 id="defenses">四、防御机制（Defenses）</h3>
+<p>论文按照生命周期阶段组织防御机制，强调没有单一干预点足以打破完整的攻击链，需要<strong>分层防御架构</strong>。</p>
+<h4 id="41-write-time-prevention">4.1 写入时防御（Write-time Prevention）</h4>
+<ul>
+<li><strong>人工验证冻结（Human-verified Freeze）</strong>：VerificAgent在候选记忆被提交到冻结的安全合约之前进行审计。</li>
+<li><strong>来源标记（Provenance Tagging）</strong>：MemCube风格的记忆单元在写入时附加来源、版本、敏感度和时间元数据，使后续审计、访问控制和回滚成为可能。PROV-AGENT扩展了W3C PROV-DM标准到Agent工作流来源追踪。</li>
+</ul>
+<h4 id="42-store-time-defenses">4.2 存储时防御（Store-time Defenses）</h4>
+<p>存储时防御<strong>相对不发达</strong>。但版本化快照、写入日志、内容可寻址记录和压缩审计为后续恢复提供了必要的架构基础。W3C PROV等来源标准提供了表示和管理这些带有血缘关系的记忆对象的序列化层。</p>
+<h4 id="43-retrieve-time-detection">4.3 检索时防御（Retrieve-time Detection）</h4>
+<p>这是防御机制<strong>开发最集中</strong>的阶段：</p>
+<ul>
+<li><strong>可认证聚合（Certifiable Aggregation）</strong>：RobustRAG通过"隔离-然后-聚合"生成提供对检索污染的可认证鲁棒性。</li>
+<li><strong>信任评分（Trust Scoring）</strong>：TrustRAG和SeCon-RAG使用聚类、信任评分、语义相似度和矛盾感知过滤来区分良性和恶意检索内容。</li>
+<li><strong>基于激活的检测（Activation-based）</strong>：RevPRAG通过投毒和非投毒生成之间的激活差异来检测投毒。</li>
+<li><strong>记忆原生共识（Memory-native Consensus）</strong>：A-MemGuard检索语义相关的记忆，比较独立推理路径，将分歧视为异常信号，并将检测到的攻击蒸馏为教训记忆用于未来加固。</li>
+</ul>
+<h4 id="44-execute-time-containment">4.4 执行时防御（Execute-time Containment）</h4>
+<ul>
+<li><strong>信息流控制（Info-flow Control）</strong>：CaMeL、FIDES和PCAS通过分离数据平面和控制平面，限制不受信任内容对工具使用或程序流的影响。</li>
+<li><strong>工具权限（Tool Privilege）</strong>：Progent、IsolateGPT和类型导向的权限分离通过细粒度工具策略、执行隔离和类型化权限边界来减少爆炸半径。</li>
+<li><strong>上下文隐私（Contextual Privacy）</strong>：针对LLM Agent的上下文化隐私防御和运行时规范执行。</li>
+</ul>
+<h4 id="45-share-time-governance">4.5 共享时防御（Share-time Governance）</h4>
+<ul>
+<li><strong>主体范围访问（Principal-scoped Access）</strong>：Collaborative Memory通过时间演化的主体-资源图建模多用户和多Agent访问。</li>
+<li><strong>传染检测（Contagion Detection）</strong>：BlindGuard使用无监督图级异常检测来标记先前未见的多Agent传染模式。</li>
+</ul>
+<h4 id="46-forgetrollback-recovery">4.6 遗忘/回滚防御（Forget/Rollback Recovery）</h4>
+<p>这一阶段的防御<strong>相对稀少</strong>：</p>
+<ul>
+<li><strong>取证追溯（Forensic Traceback）</strong>：RAGForensics展示了对静态RAG语料库的事后追溯是可行的。</li>
+<li><strong>快照/回滚（Snapshot/Rollback）</strong>：MemOS提供了完整性检查、策略执行、快照和回滚原语。</li>
+<li><strong>机器遗忘（Machine Unlearning）</strong>：TOFU、RAG-unlearn等尝试从RAG系统中删除知识。<br />
+  但对于动态更新的Agent记忆，端到端评估仍然有限，特别是在验证删除、确保可靠回滚和支持取证追溯方面。</li>
+</ul>
+<hr />
+<h3 id="verifiable-memory-governance-vmg">五、可验证记忆治理框架（Verifiable Memory Governance, VMG）</h3>
+<h4 id="51">5.1 核心问题</h4>
+<p>在综述了攻击和防御之后，论文提出了一个核心问题：<strong>一个长期记忆Agent或LLM系统必须提供哪些可验证的机制，才能维持对其自身记忆状态的可审计、可恢复的控制？</strong></p>
+<h4 id="52">5.2 五个核心原语</h4>
+<ol>
+<li><strong>写入授权（Write Authorization, WA）</strong>：每条提交到长期记忆的条目必须可归因于一个经过认证的来源，并在合并前通过显式授权检查，防止不受信任的外部内容以用户认可的身份进入记忆。</li>
+<li><strong>来源可见性（Provenance Visibility, PV）</strong>：每条记忆条目必须携带可查询的、血缘完整的来源记录，可追溯到其原始写入事件（经过任何中间摘要或合并步骤），支持事后归因和取证分析。</li>
+<li><strong>主体范围检索（Principal-Scoped Retrieval, PS）</strong>：检索函数只返回授权范围包含查询主体的条目，即使在对抗性查询下也能防止跨用户或跨Agent的记忆泄露。</li>
+<li><strong>可回滚性（Rollbackability, RB）</strong>：系统维护版本化快照和写入日志，足以将记忆存储恢复到任何先前时间点的已知安全状态，支持攻击后恢复。</li>
+<li><strong>可验证遗忘（Verified Forgetting, VF）</strong>：删除操作后，系统可以通过删除后成员测试证明目标内容不再可从任何基底恢复——包括原始日志、压缩摘要、向量索引和传播副本。</li>
+</ol>
+<h4 id="53">5.3 形式化定义</h4>
+<p>为使五个原语可评估，论文将它们定义为记忆存储 $M_t$（时刻 $t$ 的记忆状态）上的谓词。每条记忆 $m \in M_t$ 携带元数据 $(\text{src}(m), \text{scope}(m), \text{prov}(m), \text{ver}(m))$，分别表示来源主体、授权主体集合、来源记录和版本标识符。<br />
+<strong>写入授权</strong>：  </p>
+<p>$\displaystyle \textbf{WA}(M_t) := \forall m \in M_t,\ \text{src}(m) \neq \bot \wedge \text{auth}_W(\text{src}(m), m, t) = 1$</p>
+<p>其中 $\bot$ 表示未定义或缺失的来源主体，$\text{auth}_W$ 表示显式的写入时授权检查。<br />
+<strong>来源可见性</strong>：  </p>
+<p>$\displaystyle \textbf{PV}(M_t) := \forall m \in M_t,\ \text{Queryable}(m) \wedge \text{LineageComplete}(m)$</p>
+<p>要求每条记忆条目维护可查询的来源，可追溯到其原始写入事件，血缘在摘要、合并或蒸馏过程中保持完整。<br />
+<strong>主体范围检索</strong>：  </p>
+<p>$\displaystyle \textbf{PS}(M_t) := \forall q, \pi,\ R(q, \pi, M_t) \subseteq \{m \in M_t : \pi \in \text{scope}(m)\}$</p>
+<p>对于任何查询 $q$ 和请求主体 $\pi$，检索函数 $R(q, \pi, M_t)$ 的输出严格限制在 $\pi \in \text{scope}(m)$ 的条目中。<br />
+<strong>可回滚性</strong>：  </p>
+<p>$\displaystyle \textbf{RB}(M_t) := \forall\, t_0 &lt; t\ \text{s.t.}\ \text{rollback}(M_t, t_0) = M_{t_0}$</p>
+<p>系统能够将当前记忆存储回滚到某个先前状态 $M_{t_0}$（$t_0 &lt; t$）。<br />
+<strong>可验证遗忘</strong>：  </p>
+<p>$\displaystyle \textbf{VF}_\varepsilon(M_t) := \forall X,\ \Pr_{q \sim Q_X}[\text{Expose}_X(q, F_X(M_t)) = 1] \leq \varepsilon$</p>
+<p>其中 $F_X(\cdot)$ 是从记忆存储中删除目标内容 $X$ 的删除算子，$Q_X$ 是意图恢复 $X$ 的对抗性探测查询分布，$\text{Expose}_X(q, M')$ 是一个二值指示器，当删除后存储 $M' = F_X(M_t)$ 返回的响应充分重建了 $X$ 时等于1。该谓词将任何探测查询能在删除后重新暴露目标内容 $X$ 的概率限制在 $\varepsilon$ 以内。<br />
+<strong>最优系统</strong>应在时刻 $t$ 满足 $\varepsilon$-VMG：  </p>
+<p>$\displaystyle \textbf{MS}_\varepsilon(M_t) := \textbf{WA} \wedge \textbf{PV} \wedge \textbf{PS} \wedge \textbf{RB} \wedge \textbf{VF}_\varepsilon$</p>
+<h4 id="54">5.4 原语间的依赖关系</h4>
+<p>在基于血缘的删除下，原语形成一个<strong>设计预序</strong>：  </p>
+<p>$\displaystyle \textbf{VF}_\varepsilon \preceq \textbf{RB} \preceq \textbf{PV} \preceq \textbf{WA}$</p>
+<p>其中 $X \preceq Y$ 表示实现 $X$ 需要 $Y$ 作为架构前提条件。PS（主体范围检索）与这条血缘链正交，但对任何机密性声明都是必要的。<br />
+具体来说：</p>
+<ul>
+<li><strong>PV依赖于WA</strong>：血缘完整的来源追踪要求每个写入事件携带经过认证的来源主体 $\text{src}(m) \neq \bot$；没有写入时授权，来源记录可能存在但无法锚定到已验证的来源，使血缘不完整且事后归因不可靠。</li>
+<li><strong>RB依赖于PV</strong>：可靠的回滚需要知道哪些条目来自哪里。</li>
+<li><strong>VF依赖于RB</strong>：可验证遗忘需要能够追踪和回滚所有衍生物。<br />
+  论文将这种依赖关系可视化为一个<strong>依赖塔</strong>（图3）：最宽、最成熟的基础是WA；每个后续层变窄且部署程度降低。当前文献表明，PV（支撑RB和VF的基础）在已发表的架构中仍然罕见。这产生了一个关键诊断洞察：<strong>近期进展应聚焦于构建来源基础设施，然后再追求其架构前提条件尚未就位的更高层原语</strong>。</li>
+</ul>
+<h4 id="55">5.5 各原语的威胁、防御与评估指标</h4>
+<p>论文在附录表3中为每个原语指定了代表性威胁、对应防御方向和建议评估指标：</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>原语</th>
+<th>代表性威胁</th>
+<th>代表性防御</th>
+<th>建议指标</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>WA</td>
+<td>查询诱导注入、环境注入投毒</td>
+<td>类型化写入验证、人工/策略仲裁</td>
+<td>有界假阳性率下的自适应注入存活率</td>
+</tr>
+<tr>
+<td>PV</td>
+<td>来源监控失败、模仿嫁接</td>
+<td>来源门控检索、保留血缘的压缩</td>
+<td>可追溯到来源事件的条目比例</td>
+</tr>
+<tr>
+<td>PS</td>
+<td>跨用户污染、黑盒提取</td>
+<td>基于能力或标签的检索策略</td>
+<td>脚本化查询套件下的跨主体泄露率</td>
+</tr>
+<tr>
+<td>RB</td>
+<td>压缩放大毒素、行为漂移</td>
+<td>RAGForensics风格的追溯</td>
+<td>修复时间；定位的有毒条目比例</td>
+</tr>
+<tr>
+<td>VF</td>
+<td>残留衍生物、摘要中的重现</td>
+<td>跨原始/摘要/索引/权重的协调删除</td>
+<td>删除后成员/重现测试</td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+<h3 id="_7">六、与人类记忆的类比（概念基础）</h3>
+<p>论文的生命周期视角部分受到人类记忆的启发。认知神经科学将记忆视为一个<strong>重建性和可再巩固的系统</strong>，其中经验被编码、巩固、重新激活，有时随着上下文和目标的变化而被改写。<br />
+在人类记忆中，错误信息通常通过<strong>来源监控失败、信心膨胀、回忆后再巩固和社会传染</strong>来运作，而非直接覆写。对应的Agent级失败包括：</p>
+<ul>
+<li><strong>来源失败</strong>：注入的内容可能被错误归因为Agent自身的经验。</li>
+<li><strong>读取时改写</strong>：通过摘要或反思，投毒内容被提升为更权威的教训记忆。</li>
+<li><strong>跨Agent污染</strong>：通过共享记忆和Agent间通信传播。</li>
+</ul>
+<hr />
+<h3 id="_8">七、关键发现与未来方向</h3>
+<h4 id="_9">主要发现</h4>
+<ol>
+<li><strong>写入和检索阶段的威胁研究较为充分</strong>，而<strong>存储、共享和遗忘阶段的防御相对稀少</strong>。</li>
+<li><strong>没有现有基准测试覆盖完整的记忆生命周期</strong>。</li>
+<li><strong>LTM安全不能仅在检索或执行时事后补救</strong>，必须从一开始就锚定在存储时的来源追踪、版本控制和策略感知保留上。</li>
+<li><strong>来源基础设施（PV）</strong>是支撑回滚和可验证遗忘的关键前提，但在现有架构中仍然罕见。</li>
+</ol>
+<h4 id="_10">未来方向</h4>
+<ul>
+<li>设计覆盖整个记忆生命周期的基准测试，包括跨会话污染、共享时传播和遗忘时恢复。</li>
+<li>构建来源基础设施作为近期优先事项。</li>
+<li>解决跨主体传播和删除后验证的关键差距。</li>
+</ul>
+<h4 id="_11">局限性</h4>
+<ol>
+<li>LLM Agent长期记忆安全是一个快速发展的领域，论文可能无法完全捕捉最新或未发表的进展，特别是工业记忆系统的内部设计。</li>
+<li>记忆生命周期框架是一个组织性脚手架而非严格分解——实践中阶段之间的边界可能模糊（检索和执行可能紧密耦合，存储和摘要可能持续发生，共享可能通过工具调用隐式发生），因此某些攻击和防御可能跨越多个阶段。</li>
+</ol>
+<h2 id="_12">研究要点表</h2>
+<div class="table-scroll"><table class="key-value">
+<thead>
+<tr>
+<th>维度</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>论文标题</td>
+<td>A Survey on Long-Term Memory Security in LLM Agents: Attacks, Defenses, and Governance Across the Memory Lifecycle</td>
+</tr>
+<tr>
+<td>作者</td>
+<td>Zehao Lin, Xixuan Hao, Renyu Fu, Shaobo Cui, Kai Chen, Chunyu Li, Zhiyu Li, Feiyu Xiong（来自MemTensor和上海交通大学）</td>
+</tr>
+<tr>
+<td>发表年份</td>
+<td>2026（arXiv预印本，2026年6月11日）</td>
+</tr>
+<tr>
+<td>研究问题</td>
+<td>当LLM智能体获得可写入、可检索、跨会话持久化的长期记忆时，安全威胁格局发生了怎样的质变？该领域应如何系统性地组织针对攻击、防御和治理的应对措施？</td>
+</tr>
+<tr>
+<td>研究方法</td>
+<td>通过系统性文献综述，提出记忆生命周期框架（六个阶段：写入、存储、检索、执行、共享与传播、遗忘与回滚），沿两个轴（生命周期阶段和四个安全目标：完整性、机密性、可用性、治理）组织分析攻击、防御及其跨阶段依赖关系，并形式化定义可验证记忆治理（VMG）框架的五个架构原语。</td>
+</tr>
+<tr>
+<td>主要发现</td>
+<td>长期记忆引入了三个根本性安全属性：持久性、状态性和传播性。写入和检索阶段的威胁研究较为充分，但存储、共享和遗忘阶段的防御仍然稀缺；没有现有基准覆盖完整的记忆生命周期。五个VMG原语形成依赖层级关系（VF⪯RB⪯PV⪯WA），其中溯源可见性（PV）是支撑回滚和验证遗忘的关键基础设施，但在已发表架构中仍然罕见。</td>
+</tr>
+<tr>
+<td>创新点</td>
+<td>（1）提出六阶段记忆生命周期框架作为组织原则，揭示跨阶段攻击链；（2）系统性地将攻击和防御映射到生命周期框架上；（3）提出可验证记忆治理（VMG）形式化框架，将治理从定性需求转化为五个可验证、可审计的系统属性（写入授权、溯源可见性、主体范围检索、可回滚性、验证遗忘），并给出谓词定义和评估指标。</td>
+</tr>
+<tr>
+<td>局限性</td>
+<td>（1）长期记忆安全是快速发展的领域，分类法可能无法完全覆盖最新或未发表的工作，尤其是工业记忆系统的内部设计；（2）记忆生命周期框架是组织性脚手架而非严格分解，实践中各阶段边界可能模糊（如检索与执行紧密耦合、共享可能通过工具调用隐式发生），某些攻击和防御可能跨越多个阶段。</td>
+</tr>
+<tr>
+<td>与本研究的关联</td>
+<td>未提及</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="_13">原文摘要</h2>
+<p>The emergence of writable, cross-session persistent memory in LLM agents introduces a qualitatively different threat landscape from conventional input-centric security concerns, characterized by three properties: persistence, statefulness, and propagation. To systematically characterize this landscape, we propose a Memory Lifecycle Framework that organizes attacks, defenses, and their cross-phase dependencies along two axes: six lifecycle phases (Write, Store, Retrieve, Execute, Share &amp; Propagate, Forget &amp; Rollback) and four security objectives (Integrity, Confidentiality, Availability, Governance). This analysis in turn exposes the need for formal security guarantees at the system level, motivating Verifiable Memory Governance(VMG), a framework of five architectural primitives that specifies what verifiable mechanisms a long-term-memory system must provide to maintain auditable, recoverable control over its memory state. Our analysis indicates that robust Long-Term Memory (LTM) security cannot be retrofitted at retrieval or execution time alone, but must be anchored in storage-time provenance, versioning, and policy-aware retention from the outset.</p></article>
+<aside class="detail-aside"><div class="report-toc" aria-label="文献卡片目录"><details open><summary>本页目录</summary><div class="toc">
+<ul>
+<li><a href="#_1">核心机制</a></li>
+<li><a href="#_2">适用范围与局限</a></li>
+<li><a href="#_3">详细解读</a><ul>
+<li><a href="#_4">核心总结</a></li>
+<li><a href="#_5">一、研究背景与动机</a></li>
+<li><a href="#memory-lifecycle-framework">二、记忆生命周期框架（Memory Lifecycle Framework）</a></li>
+<li><a href="#attack-patterns">三、攻击模式（Attack Patterns）</a></li>
+<li><a href="#defenses">四、防御机制（Defenses）</a></li>
+<li><a href="#verifiable-memory-governance-vmg">五、可验证记忆治理框架（Verifiable Memory Governance, VMG）</a></li>
+<li><a href="#_7">六、与人类记忆的类比（概念基础）</a></li>
+<li><a href="#_8">七、关键发现与未来方向</a></li>
+</ul>
+</li>
+<li><a href="#_12">研究要点表</a></li>
+<li><a href="#_13">原文摘要</a></li>
+</ul>
+</div>
+</details></div><section><h2>引用这篇论文</h2><p id="citation-text" class="citation-text">Zehao Lin, Xixuan Hao, Renyu Fu, et al.. A Survey on Long-Term Memory Security in LLM Agents: Attacks, Defenses, and Governance Across the Memory Lifecycle. arXiv:2604.16548, 2026.</p><button class="button secondary" type="button" data-copy-citation>复制引用</button><p class="meta-note">延伸阅读</p></section><section><h2>同方向继续阅读</h2><ul class="related-list"><li><a href="../papers/2005.11401.html">Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks</a></li><li><a href="../papers/2309.02427.html">Cognitive Architectures for Language Agents</a></li><li><a href="../papers/2602.06052.html">A Survey of Agent Memory in the Second Half: Towards Self-Evolving and Long-Horizon Agents</a></li><li><a href="../papers/2604.08224.html">Externalization in LLM Agents: A Unified Review of Memory, Skills, Protocols and Harness Engineering</a></li></ul></section></aside></div></div></main>
+<footer class="site-footer"><div><strong>Agent Memory 研究</strong><p>从保存历史，到有依据地更新长期状态。</p></div>
+<div><span>内容更新 · 2026-09-08</span><p>理解方法，比较条件，关注长期影响。</p><a href="../sources.html">阅读指南</a></div></footer>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body></html>
