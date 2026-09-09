@@ -24,13 +24,271 @@
 <h2 id="_2">适用范围与局限</h2>
 <p>主要技能生态审查，与记忆自写入攻击权限不同</p>
 <h2 id="_3">详细解读</h2>
-<p>I'd be happy to help explain the paper in detail in Chinese! However, I don't see any paper attached to your message. Could you please provide the paper? You can either:</p>
+<blockquote>
+<p>阅读边界：攻击成功是审计通过与沙箱目标副作用同时成立，限于论文的种子、预算、审计器和运行环境；文中的“致命”指规则 oracle 记录的目标副作用，不是人身伤害。仅审计的单向迁移不等于换环境后重新执行成功；小样本消融、累计成功率斜率也不是普遍因果保证。</p>
+</blockquote>
+<p>Proteus 是一种针对智能体技能生态系统的“自进化红队”框架，用于测量一种此前未被充分量化的部署风险——自适应泄漏（adaptive leakage）。其核心思想是：攻击者不再只是一次性提交恶意技能，而是可以在预算内根据审计器返回的结构化发现和沙箱运行时反馈，反复修改技能文档、代码、拓扑和侧信道，直到该技能既通过安全审计，又在目标智能体上造成可由预言器验证的运行时危害。论文将成功的攻击定义为 $b_t \land l_t = 1$，即“审计不拦截”和“沙箱预言器确认致命”同时成立。Proteus 通过一个统一的审计—沙箱—预言器轮次合约和五轴技能攻击空间（目标 $o$、拓扑 $\tau$、代码 $c$、侧信道 $\kappa$、文档 $d$）实现这一测量。在两个公开技能审计器上，Proteus 在 5 轮预算内的攻击成功率（ASR@5）达到 40%–90%，并在扩展阶段生成 438 个同时绕过审计且经预言器验证为致命的变体；其中最强的公开审计器 AI-Infra-Guard 仍被多个配置以最高 41.3% 的联合成功率绕过，且 87.7% 针对该审计器演化的成功技能无需任何新变异即可通过另一审计器 SkillVetter 的审计。结果表明，当前的技能审查在被反馈驱动的自适应攻击者评估时，显著低估了残余风险。</p>
+<h3 id="1">1. 研究背景与问题定位</h3>
+<h4 id="11">1.1 智能体技能生态系统</h4>
+<p>论文研究的是“智能体技能”（agent skills）：为 LLM 智能体提供的可重用指令、工具接口和可执行代码。这些技能通常来自市场、代码仓库或社区渠道，以第三方包的形式安装。一个技能包含：</p>
+<ul>
+<li>YAML frontmatter（元数据）</li>
+<li>Markdown 文档（说明用途、用法、权限）</li>
+<li>捆绑脚本（可执行代码）</li>
+<li>声明的工具白名单</li>
+</ul>
+<p>这种封装同时暴露两个攻击面：<strong>执行面</strong>（代码在智能体运行时中运行）和<strong>上下文面</strong>（文档被加载到智能体的上下文中，影响宿主模型对后续任务的解读）。因此，安全审计器只是位于第三方技能和部署智能体之间安全链中的一层，还需要运行时白名单、沙箱约束和宿主模型自身的拒绝行为来共同防护。</p>
+<h4 id="12">1.2 现有工作的不足</h4>
+<p>已有关于智能体技能安全的研究主要基于<strong>静态攻击制品</strong>：手工构造或模板驱动的恶意技能、静态扫描数据集、针对特定加载机制的单轮攻击等。这些研究衡量的是审计器在一次快照中能发现什么，而没有衡量当攻击者利用审计反馈和运行时反馈反复修改同一个技能后，审计器还能挡住多少。</p>
+<p>开源技能审计器公开了其审计代码和规则集，因此任何技能作者都可以在本地复现其提交将获得的结构化发现——这是一个灰盒通道。但以往的单轮评估没有利用这一点。邻近领域的自动化红队（如提示词越狱、网页智能体注入、记忆投毒）虽然提供了反馈循环，但它们搜索的是提示、网页注入、记忆条目或智能体间消息，而非技能包。技能包中代码、文档、侧信道和拓扑共同决定危害，因此技能审查的残余泄漏很可能被低估。</p>
+<p>论文由此提出“自适应泄漏”这一测量对象：<strong>预算受限的攻击者是否能通过多轮修改使技能既通过审计又造成经验证的运行时危害</strong>。</p>
+<h3 id="2">2. 问题形式化</h3>
+<h4 id="21">2.1 技能、威胁模型与防御者</h4>
+<p>技能制品被建模为三元组：YAML frontmatter、Markdown 正文、捆绑脚本，并带有声明的工具白名单；托管仓库提供公开上下文。攻击者向市场提交任意技能；防御者运行离线静态+LLM 判断审计，并在沙箱中执行。两个公开审计器被实例化：SkillVetter（ClawHub 生态使用的开源审计器）和 AI-Infra-Guard（腾讯的审计器）。沙箱使用 OpenClaw 2026.3.24 版本。</p>
+<p>攻击者能力是<strong>灰盒</strong>：在轮次之间可以看到审计器的结构化发现和沙箱运行时轨迹，而不是依赖审计模型内部状态。审计器代码和规则公开，使技能作者有机会在本地复现发现；这不等于所有部署都提供相同反馈。</p>
+<h4 id="22">2.2 五轴分解和三种搜索模式</h4>
+<p>技能变体被分解为五元组：</p>
+<p>$$s = (o, \tau, c, \kappa, d)$$</p>
+<p>其中：</p>
+<ul>
+<li>$o$：攻击目标，七个预言器类别之一——数据外泄（data exfiltration）、持久化（persistence）、权限提升（privilege escalation）、清理中毒（cleanup-poisoning）、引导注入（guidance injection）、供应链滥用（supply-chain abuse）、跨技能链式（cross-skill chaining）。</li>
+<li>$\tau$：拓扑，单个技能或 $k$ 链。</li>
+<li>$c$：代码制品。</li>
+<li>$\kappa$：侧信道（side-effect channel）。</li>
+<li>$d$：文档层面的呈现。</li>
+</ul>
+<p>三个嵌套搜索模式在不同阶段激活：</p>
+<ul>
+<li><strong>S1 第一阶段的自由发现</strong>：固定 $(o, \tau)$，自由搜索 $(c, \kappa, d)$，直到第一次出现 $b \land l$。</li>
+<li><strong>S2 路径扩展</strong>（离线预算）：固定 $(o, \tau)$，但要求替代的 $(c, \kappa)$。</li>
+<li><strong>S3 表面扩展</strong>（离线预算）：释放 $(o, \tau)$，但施加 SharedMotif ≥ 2 轴结构基元门控。</li>
+</ul>
+<h4 id="23">2.3 自适应泄漏的数学定义</h4>
+<p>每一轮，红队应用两阶段 Reason→Mutate 算子；审计器、运行时和预言器返回一个反馈四元组：</p>
+<p>$$\langle b_t, l_t, F_t, R_t \rangle$$</p>
+<p>其中 $b_t=1$ 表示审计器返回非阻塞判定；$l_t=1$ 表示沙箱预言器观察到目标副作用（如金丝雀令牌外泄、受保护哨兵删除、SUID 提权）；$F_t$ 是结构化发现列表（原因代码、严重度、证据指针）；$R_t$ 是运行时轨迹。一个技能在第 $t$ 轮成功当且仅当 $b_t \land l_t = 1$。</p>
+<p>自适应泄漏（Adaptive Leakage，AL）定义为部署风险的度量：</p>
+<p>$$\mathrm{ALB}(\text{Blue}, M, \theta) = \mathbb{E}_{s_0 \sim D_{\mathrm{seed}}} P_{\theta_r} \left[ \exists t \le T : b_t \land l_t \mid s_0, M, \text{Blue} \right]$$</p>
+<p>即在预算 $B = (T, B_{\mathrm{tool}})$ 下，从种子分布采样一个种子，攻击者轨迹中至少一轮达到 $b \land l$ 的概率。实验中用 $T=5$、$n=20$ 层化种子的每格 $\star$ 率作为经验估计。</p>
+<h3 id="3-proteus">3. Proteus 方法</h3>
+<h4 id="31">3.1 总体框架</h4>
+<p>图 1 展示了 Proteus 的一轮流程。红队变异器（左侧）持三种信号源：本次运行的攻击日志、目标仓库的公开上下文、良性技能样本；并消费上一轮的结构化审计发现 $F_{t-1}$ 和沙箱运行时建议 $R_{t-1}$ 作为上下文侧信息，输出变异后的技能变体。该变体经过防御者无关的审计→沙箱→预言器轮次合约：审计器给出每技能判定 $b_t$ 和发现列表 $F_t$；沙箱对目标骨干执行变体并记录运行时轨迹；每目标预言器根据沙箱可观测物判断致命性 $l_t$。四元组 $\langle b_t, l_t, F_t, R_t \rangle$ 关闭循环进入下一轮。</p>
+<h4 id="32">3.2 图引导链组合</h4>
+<p>拓扑轴 $\tau$ 的实现不是一个自由 LLM 想象，而是一个对市场组合图的<strong>结构化搜索</strong>。具体做法：</p>
+<ul>
+<li>抓取 ClawHub 形成约 47k 节点的技能图。</li>
+<li>使用 16 条类型化的 source→sink 风险规则（如 credentials → network_egress 对应数据外泄）识别哪些端点配对在操作上有意义。</li>
+<li>当代理选择链拓扑（$|\tau| &gt; 1$）时，变异算子 <code>thematic-chain-insert</code> 会从图中检索一个声明主题与源→汇数据流一致的良性外观技能作为桥接。例如在凭据读取技能和不相关的网络汇之间插入一个凭据同步风格的桥接技能。</li>
+<li>桥接技能的选择受审计侧相同的主题相似度约束（cos ≥ 0.30），因此合成链在构造上看起来像审计器自己会枚举的链。</li>
+</ul>
+<p>这一机制与审计侧的枚举有三个不对称性：粒度不同（审计消费整条路径，攻击者消费单个节点作为可组合构建块）；机制不同（代理通过主题一致的桥接插入，而非直接输出路径）；复用不同（同一指纹表可用于表面扩展的跨目标构思）。</p>
+<h4 id="33-agent">3.3 红队：自进化 Agent</h4>
+<p>红队是一个闭环灰盒变异器，实现为 Reason→Mutate 两阶段算子：</p>
+<p>$$h_t = \text{Reason}_\theta(H_{&lt;t}, F_{&lt;t}), \quad s_t = \text{Mutate}_\theta(s_{t-1}, a_t, S_k)$$</p>
+<p>其中 $H_{&lt;t}$ 是历史攻击日志，$F_{&lt;t}$ 是过去的审计发现集，$a_t$ 是结构化的工具调用序列，$S_k$ 是当前搜索子空间。</p>
+<p>Agent 有六个工具函数：</p>
+<ul>
+<li><code>read_skill</code>：读取良性技能作为写作风格演示。</li>
+<li><code>list_skills</code>：浏览类别中的技能以找风格参考。</li>
+<li><code>read_repo_context</code>：目标仓库 README/文件树/主题摘要。</li>
+<li><code>read_attack_log</code>：用 BM25 检索当前运行的攻击日志。</li>
+<li><code>get_binary</code>：代码卸载原语，当上一轮 $R_t$ 显示运行时层阻止了 exec 类别原语时，可转向写类别的二进制投放原语。</li>
+<li><code>submit_mutation</code>：提交变异后的技能变体。</li>
+</ul>
+<p>这些工具暴露三个信号源：良性技能样本作为写作风格的演示、本次运行的历史攻击日志、目标仓库的公开上下文。灰盒反馈通道——结构化发现作为上下文条件，防御者状态跨轮保留——是跨轮学习的关键。</p>
+<h4 id="34">3.4 三层进化</h4>
+<ul>
+<li><strong>第 1 层：第一阶段自由发现（free discovery）</strong>。核心变异循环在 S1 中运行：代理分析审计器发现和运行时建议 $R_t$，然后提交文档重写、代码/脚本编辑、信道添加、链替换的任意组合。首次 $b \land l$ 成功通常需要在多个轴上组合动作。</li>
+<li><strong>第 2 层：路径扩展（path expansion）</strong>。一旦成功，代理进入不占用主轮预算的水平扩展阶段。给定成功变异，代理使用 <code>list_skills</code>、<code>read_skill</code>、<code>read_attack_log</code> 发现实现同一攻击目标的替代实现（如持久化通过 cron 成功后，发现 systemd 定时器或 launchd plist 等机制）。</li>
+<li><strong>第 3 层：表面扩展（surface expansion）</strong>。测试代理能否将成功漏洞利用转移到不同攻击类型。采用开放式构思+自选测试协议：提示代理列出 $k$ 个候选扩展，每个包含新目标 $o'$、共享基元（SharedMotif）和可行性理由；代理选择 $k' \le k$ 个目标与 $o$ 不同的候选并提交新变异，每个新变异由对应的 $o'$ 预言器验证。SharedMotif 约束在提交变体后事后计算，不作为提示的一部分，这减少直接按该门槛写提示的机会，但不保证发现信号不能被操纵。</li>
+</ul>
+<h4 id="35">3.5 灰盒轮次合约</h4>
+<p>每个被评估的审计器（AIG, SkillVetter）被包裹在一个统一的 BluePort 适配器后面，将其原生输出标准化为共享发现模式 $\{layer, reason\_code, category, severity, evidence, explanation\}$。审计找到的 $F_t$ 和运行时建议 $R_t$ 通过同一 <code>&amp;lt;FINDING&gt;</code> 通道进入下一轮提示，因此两者都统一地作为侧信息而非标量奖励。</p>
+<p>沙箱运行时建议 $R_t$ 的合成有两种触发模式：</p>
 <ol>
-<li>Share the PDF file</li>
-<li>Paste the paper's text content</li>
-<li>Provide a link to the paper<br />
-   Once you share the paper, I'll provide a detailed explanation in Chinese with proper mathematical notation using $ and $$ formatting.</li>
+<li><strong>目标执行了某些动作但未触发金丝雀</strong>：合成器枚举哪些预言器传感器保持沉默，以及哪些路径本应触发它们（如 <code>.env</code> 在 <code>$HOME/.openclaw/workspace/.env` 而非 `$HOME/.env</code>）。</li>
+<li><strong>尽管审计通过但零执行动作</strong>：表面化两种候选失败模式——运行时白名单拒绝原语，或目标对齐在 LLM 层拒绝——并附上目标的字面回复，让变异器自行消歧。</li>
 </ol>
+<h4 id="36">3.6 三条自我进化度量</h4>
+<ul>
+<li><strong>ASR@5</strong>：5 轮预算后的攻击成功率。对 $n=20$ 种子跑 $T=5$ 轮，ASR@t 是前 $t$ 轮内至少产生一个 $\star = b \land l$ 变体的种子比例。累计轨迹 $\{\mathrm{ASR@t}\}_{t=1}^{5}$ 是 AL 的经验估计。</li>
+<li><strong>学习曲线斜率（LCS）</strong>：对 ASR@t 做 OLS 拟合的斜率 $\alpha$。由于 ASR@t 单调不减且在 [0,1] 内，5 轮时的几何上限约 0.30；$\alpha &gt; 0.10$ 已表明强跨轮学习。</li>
+<li><strong>策略多样性增长（SDG）</strong>：每轮变异理由声明使用的变异算子集合，SDG 是不同集合跨轮累计计数；正增长斜率表明探索策略日益多样，而非收敛到单一方法。</li>
+</ul>
+<h3 id="4">4. 实验设置</h3>
+<h4 id="41">4.1 种子、仓库与模型</h4>
+<ul>
+<li>20 个恶意种子技能通过图引导链组合从 ClawHub 语料库中选出，层化覆盖七类攻击。</li>
+<li>与 10 个目标仓库配对，领域多样（交易、DevOps、数据科学、RAG、CI/CD）。</li>
+<li>红队变异器：DeepSeek-V4-Pro 或 Kimi-2.6。</li>
+<li>目标智能体骨干：GPT-5.4-mini 或 GLM-5。</li>
+<li>审计器：SkillVetter 或 AI-Infra-Guard。</li>
+<li>沙箱使用未加固的 OpenClaw 镜像；审计通过和报告致命性之间的唯一门是沙箱观测和每目标预言器。</li>
+</ul>
+<h4 id="42">4.2 基线</h4>
+<ul>
+<li><strong>Random</strong>：每轮均匀随机组合 $(c,\kappa,d)$ 编辑，不消费反馈。</li>
+<li><strong>Zero-shot</strong>：一次性要求 LLM 写一个能绕过“通用审计器”的恶意技能，无轮结构。</li>
+<li><strong>Blackbox</strong>：LLM 仅根据标量审计判定 $b_t$ 迭代重写提示，无结构化发现或运行时建议。</li>
+<li><strong>PyRIT</strong>：微软的公开红队框架，用于外部对比，采用默认叙述重写模式只变异文档通道 $d$。</li>
+</ul>
+<h3 id="5">5. 实验结果</h3>
+<h4 id="51-phase-1">5.1 多轮迭代绕过（Phase-1）</h4>
+<p>表 1 给出 8 个（变异器，目标，防御者）单元的 ASR@5：</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>防御者</th>
+<th>变异器</th>
+<th>目标</th>
+<th>$\star / n$</th>
+<th>$\star(\%)$</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SV</td>
+<td>DeepSeek-V4-Pro</td>
+<td>GLM-5</td>
+<td>16/20</td>
+<td>80.0</td>
+</tr>
+<tr>
+<td>SV</td>
+<td>DeepSeek-V4-Pro</td>
+<td>GPT-5.4-mini</td>
+<td>17/20</td>
+<td>85.0</td>
+</tr>
+<tr>
+<td>SV</td>
+<td>Kimi-2.6</td>
+<td>GLM-5</td>
+<td>18/20</td>
+<td>90.0</td>
+</tr>
+<tr>
+<td>SV</td>
+<td>Kimi-2.6</td>
+<td>GPT-5.4-mini</td>
+<td>11/20</td>
+<td>55.0</td>
+</tr>
+<tr>
+<td>AIG</td>
+<td>DeepSeek-V4-Pro</td>
+<td>GLM-5</td>
+<td>16/20</td>
+<td>80.0</td>
+</tr>
+<tr>
+<td>AIG</td>
+<td>DeepSeek-V4-Pro</td>
+<td>GPT-5.4-mini</td>
+<td>10/20</td>
+<td>50.0</td>
+</tr>
+<tr>
+<td>AIG</td>
+<td>Kimi-2.6</td>
+<td>GLM-5</td>
+<td>14/20</td>
+<td>70.0</td>
+</tr>
+<tr>
+<td>AIG</td>
+<td>Kimi-2.6</td>
+<td>GPT-5.4-mini</td>
+<td>8/20</td>
+<td>40.0</td>
+</tr>
+</tbody>
+</table></div>
+<p>两个稳健趋势：AIG 的静态分析地板使 $\star$ 率相对 SkillVetter 降低 10–30 个百分点；更对齐的目标 GPT-5.4-mini 比 GLM-5 难 5–30 个百分点。</p>
+<p>表 2 对比 SV+GPT-5.4mini+DeepSeek 单元上的基线：</p>
+<div class="table-scroll"><table class="key-value">
+<thead>
+<tr>
+<th>红队</th>
+<th>LCS</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Random</td>
+<td>+0.014</td>
+</tr>
+<tr>
+<td>Zero-shot</td>
+<td>0.000</td>
+</tr>
+<tr>
+<td>Blackbox</td>
+<td>+0.014</td>
+</tr>
+<tr>
+<td>Ours</td>
+<td>+0.160</td>
+</tr>
+</tbody>
+</table></div>
+<p>Ours 的 LCS 为 0.160，而所有基线 ≤ 0.014（几何上限约 0.30），约 11 倍斜率差距。Blackbox 在第二轮就饱和在 42.9%，即使扩展到 T=10 也无增益；这表明将 $F_{&lt;t}$ 折叠为标量奖励会导致学习率下降一个数量级。</p>
+<p>图 3 的累计曲线显示：SkillVetter 上四个单元中有三个在 r=3 就饱和；而 AIG 上每个单元在 T=5 时仍在增长——审计地板越严格，预算越不充分。</p>
+<p>图 4 的首次 $\star$ 直方图显示：AIG 下首次成功集中在第 3–5 轮，说明需要反馈驱动的枢转突破静态分析地板；SkillVetter 下超过半数首次成功出现在第 1–2 轮，说明 LLM 判断审计可被单次闭环迭代绕过。</p>
+<p><strong>与 PyRIT 的对比</strong>（图 2）：在 AIG + DeepSeek-V4-Pro + GLM-5 单元，PyRIT 默认叙述重写模式只变异文档通道 $d$，得到 5/100 联合 $\star$ 轮和 5/20 $\star$ 种子；Ours 得到 57/138 和 16/20。该配置中的差距支持联合变异的价值；两种方法的搜索空间和预算构成不同，不能由这一对比单独识别各轴的因果贡献。</p>
+<h4 id="52-2">5.2 阶段 2 扩展：路径与表面</h4>
+<p>一旦某个种子达到第一阶段 $\star$，离线预算的路径扩展（S2）和表面扩展（S3）将单个成功变体扩展为一个家族。汇总全 8 单元矩阵（表 3）：</p>
+<ul>
+<li>总共生成 438 个 $\star$ 变体。</li>
+<li>SkillVetter 在每个单元中被绕过率 ≥ 93%。</li>
+<li>AIG 每个（变异器，目标）对产生 25–41% 的 $\star$ 率；最强配置 DeepSeek-V4-Pro + GLM-5 + AIG 达到 41.3%。</li>
+</ul>
+<p>图 5 将阶段 2 产出按攻击类别和扩展阶段切割：S3 表面扩展产生的 $\star$ 跨越多个攻击类别，证明存在超越父种子目标的真正表面发现，而不只是类内脆弱性。</p>
+<h4 id="53">5.3 跨审计器迁移</h4>
+<p>为了测试 Proteus 的收益是否泛化到审计器之外，将 DeepSeek+GLM-5+AIG 单元的 57 个阶段-2 $\star$ 变体重新通过 SkillVetter（仅审计；沙箱/预言器输出不变，因此致命性按技能字节身份保持）。结果：50/57（87.7%，95% CI [76.8%, 93.9%]）也通过 SV 审计，给出跨审计器联合 $b \land l$ 率 87.7%。该结果是单向的（从较强的 AIG → 较弱的 SV），表明针对较强审计器学到的绕过也能清除较弱审计器，但不证明对任意审计器完全无关。这一结果提示风险可能迁移，但不建立面向任意其他审计器或执行环境的统一风险下界。</p>
+<h4 id="54">5.4 消融实验与关键结论</h4>
+<p>附录 A.10 的消融（AIG + GLM-5 + Kimi 单元，N=5，T=5）显示：</p>
+<div class="table-scroll"><table class="key-value">
+<thead>
+<tr>
+<th>配置</th>
+<th>$\star$ 率</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Full（Ours）</td>
+<td>4/5 = 80%</td>
+</tr>
+<tr>
+<td>仅标量 $b_t$（无结构化发现）</td>
+<td>3/5 = 60%</td>
+</tr>
+<tr>
+<td>强制 $\tau =$ 单技能（无配对/链）</td>
+<td>0/5 = 0%</td>
+</tr>
+<tr>
+<td>无工具（Random）</td>
+<td>0/5 = 0%</td>
+</tr>
+</tbody>
+</table></div>
+<p>两个主导性下降是拓扑因子化与 LLM 作为变异器的价值：限制为单技能使攻击面不足以通过 AIG 审计并交付预言器接受的证据；移除全部反馈消费通道使成功率为零。</p>
+<h3 id="6">6. 结论与局限</h3>
+<p><strong>结论</strong>：Proteus 展示了一个闭环自进化红队框架，能够在两个公开审计器上产生大量同时绕过审计且被预言器验证为致命的技能变体。它不仅绕过审计，还通过路径扩展和表面扩展发现原种子目标之外的新攻击类型；针对 AIG 演化的成功技能中有 87.7% 不需重新变异就绕过 SkillVetter，证明自适应泄漏可跨审计器边界转移。作者认为这是生态系统层面的风险信号，并呼吁审计器维护者在自适应攻击下重新评估残余风险。</p>
+<p><strong>局限</strong>（附录 C.1 列出了 8 条）：</p>
+<ol>
+<li>威胁模型假设攻击者可以在轮间读取结构化审计发现；完全封闭、不输出解释的商业审计器会弱化这一侧信道。</li>
+<li>攻击预言器基于规则，可能未涵盖所有复杂攻击目标。</li>
+<li>只使用了两个目标模型（GPT-5.4-mini, GLM-5）。</li>
+<li>表面扩展受变异器模型能力的限制。</li>
+<li>SharedMotif 门使用固定的 ≥2 轴阈值，未消融该阈值。</li>
+<li>审计器被建模为静态，不考虑审计器学习和军备竞赛。</li>
+<li>两个变异器来自同一前沿模型生态。</li>
+<li>种子选择与变异器侧使用同一图引导链组合方法，存在潜在耦合，尚未正式反驳。</li>
+</ol>
+<p>论文最后说明将发布轮次合约、图构建器、变异算子目录、沙箱运行器和测量指标等以支持其他审计器的复测，但暂不公开具体绕过模板和完整变异提示，以平衡可复现性和滥用风险。</p>
 <h2 id="_4">研究要点表</h2>
 <div class="table-scroll"><table class="key-value">
 <thead>
@@ -84,12 +342,20 @@
 <ul>
 <li><a href="#_1">核心机制</a></li>
 <li><a href="#_2">适用范围与局限</a></li>
-<li><a href="#_3">详细解读</a></li>
+<li><a href="#_3">详细解读</a><ul>
+<li><a href="#1">1. 研究背景与问题定位</a></li>
+<li><a href="#2">2. 问题形式化</a></li>
+<li><a href="#3-proteus">3. Proteus 方法</a></li>
+<li><a href="#4">4. 实验设置</a></li>
+<li><a href="#5">5. 实验结果</a></li>
+<li><a href="#6">6. 结论与局限</a></li>
+</ul>
+</li>
 <li><a href="#_4">研究要点表</a></li>
 <li><a href="#_5">原文摘要</a></li>
 </ul>
 </div>
-</details></div><section><h2>引用这篇论文</h2><p id="citation-text" class="citation-text">Zhaojiacheng Zhou. Proteus: A Self-Evolving Red Team for Agent Skill Ecosystems. arXiv:2605.11891, 2026.</p><button class="button secondary" type="button" data-copy-citation>复制引用</button><p class="meta-note">延伸阅读</p></section><section><h2>同方向继续阅读</h2><ul class="related-list"><li><a href="../papers/2503.03704.html">Memory Injection Attacks on LLM Agents via Query-Only Interaction</a></li><li><a href="../papers/2509.26354.html">Your Agent May Misevolve: Emergent Risks in Self-evolving LLM Agents</a></li><li><a href="../papers/2510.02373.html">A-MemGuard: A Proactive Defense Framework for LLM-Based Agent Memory</a></li><li><a href="../papers/2602.15654.html">Zombie Agents: Persistent Control of Self-Evolving LLM Agents via Self-Reinforcing Injections</a></li></ul></section></aside></div></div></main>
+</details></div><section><h2>引用这篇论文</h2><p id="citation-text" class="citation-text">Zhaojiacheng Zhou. Proteus: A Self-Evolving Red Team for Agent Skill Ecosystems. arXiv:2605.11891, 2026.</p><button class="button secondary" type="button" data-copy-citation>复制引用</button><p class="meta-note">延伸阅读</p></section><section><h2>同方向继续阅读</h2><ul class="related-list"><li><a href="../papers/2026.findings-acl.2091.html">On Safety Risks in Experience-Driven Self-Evolving Agents</a></li><li><a href="../papers/2503.03704.html">Memory Injection Attacks on LLM Agents via Query-Only Interaction</a></li><li><a href="../papers/2509.26354.html">Your Agent May Misevolve: Emergent Risks in Self-evolving LLM Agents</a></li><li><a href="../papers/2510.02373.html">A-MemGuard: A Proactive Defense Framework for LLM-Based Agent Memory</a></li></ul></section></aside></div></div></main>
 <footer class="site-footer"><div><strong>Agent Memory 研究</strong><p>从保存历史，到有依据地更新长期状态。</p></div>
 <div><span>内容更新 · 2026-09-08</span><p>理解方法，比较条件，关注长期影响。</p><a href="../sources.html">阅读指南</a></div></footer>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>

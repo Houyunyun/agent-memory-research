@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="CoEvoSkills 让技能生成器与代理验证器协同迭代，构建包含说明、脚本和参考资料的多文件技能包；代理测试通过后，再调用隐藏的真实测试决定是否继续改进。">
+<meta name="color-scheme" content="light"><title>CoEvoSkills: Self-Evolving Agent Skills via Co-Evolutionary Verification · Agent Memory 研究</title>
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/katex/katex.min.css"><script src="../assets/katex/katex.min.js" defer></script><script src="../assets/katex/auto-render.min.js" defer></script><script src="../assets/site.js" defer></script>
+</head>
+<body data-page="library">
+<a class="skip-link" href="#main">跳转到正文</a>
+<header class="site-header"><div class="header-inner">
+<a class="brand" href="../index.html" aria-label="Agent Memory 研究首页">
+<svg viewBox="0 0 36 36" width="32" height="32" aria-hidden="true"><path d="M9 9h18v18H9zM9 9l18 18M27 9L9 27" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="9" r="4"/><circle cx="27" cy="9" r="4"/><circle cx="9" cy="27" r="4"/><circle cx="27" cy="27" r="4"/></svg>
+<span>Agent Memory<small>研究文献站</small></span></a>
+<nav class="site-nav" aria-label="主导航"><a href="../index.html">研究总览</a><a href="../library.html" aria-current="page">文献库</a><a href="../reports/survey.html">综述全文</a><a href="../reports/multi-agent.html">多智能体专题</a><a href="../sources.html">阅读指南</a></nav>
+</div></header>
+<main id="main"><div class="page-wrap"><div class="breadcrumb"><a href="../library.html">文献库</a><span>/</span><a href="../library.html?topic=experience">经验与技能</a></div>
+<header class="paper-hero"><div class="paper-badges"><span class="badge expanded">含详细解读</span><span class="muted">2026 · 2604.01687</span></div><h1>CoEvoSkills: Self-Evolving Agent Skills via Co-Evolutionary Verification</h1><p class="paper-authors full-authors">Hanrong Zhang, Shicheng Fan, Henry Peng Zou, Yankai Chen, Zhenting Wang, Jiayu Zhou, Chengze Li, Wei-Chieh Huang, Yifei Yao, Kening Zheng, Xue (Steve) Liu, Xiaoxiao Li, Philip S. Yu</p>
+<div class="hero-actions paper-actions"><a href="https://arxiv.org/abs/2604.01687v3" target="_blank" rel="noopener noreferrer">论文原文 <span aria-hidden="true">↗</span></a><a href="../downloads/notes/2604.01687.md">下载文献卡片 Markdown</a></div></header>
+<div class="detail-layout"><article class="prose"><h2 id="_1">核心机制</h2>
+<p>CoEvoSkills 让技能生成器与代理验证器协同迭代，构建包含说明、脚本和参考资料的多文件技能包；代理测试通过后，再调用隐藏的真实测试决定是否继续改进。</p>
+<h2 id="_2">适用范围与局限</h2>
+<p>主要研究技能效用与跨模型迁移，不是恶意技能的安全准入保证。生成器和代理验证器看不到真实测试内容，但仍依赖隐藏 ground-truth oracle 的反馈，不能理解为完全没有外部正确性信号。</p>
+<h2 id="_3">与现有文献的关系</h2>
+<p>可与 AWM 的经验工作流、Trace2Skill 的轨迹到技能提取，以及 SEDM 的写入验证对照：共同问题是如何把一次执行变成可复用资产，但优化对象与反馈可见性不同。验证器共同演化也不等于它可以自行定义安全标准。</p>
+<h2 id="_4">详细解读</h2>
+<h3 id="_5">论文核心总结</h3>
+<p>该论文提出了<strong>CoEvoSkills</strong>框架，解决的核心问题是：如何让LLM agent自主生成高质量的"技能包"(skills)。Anthropic提出的agent skill概念不同于简单的工具(tool)调用——skill是一个包含工作流指令、可执行脚本和领域参考材料的<strong>多文件结构化包</strong>。目前skill的生成高度依赖人工撰写，不仅费时费力，而且存在<strong>人机认知错位</strong>问题（人类设计的skill未必适合LLM agent的实际推理方式）。CoEvoSkills通过让<strong>Skill Generator（技能生成器）</strong>和<strong>Surrogate Verifier（代理验证器）</strong>进行<strong>协同进化</strong>，在生成器与代理验证器看不到 ground-truth 测试内容的条件下，迭代生成、验证和改进多文件 skill 包；代理测试通过后，仍依赖隐藏 oracle 的外部反馈。在 Claude Opus 4.6 + Claude-Code 的 SkillsBench 设置中，该方法达到71.1%的通过率，比无skill基线高40.5个百分点，比人工撰写的skill高17.6个百分点，并且进化出的skill可以跨模型迁移。</p>
+<hr />
+<h3 id="1">1. 研究背景与动机</h3>
+<h4 id="11-toolskill">1.1 从Tool到Skill的演进</h4>
+<p>LLM agent近年来在推理、规划、记忆和交互等方面快速进步，其中一个关键能力是调用外部工具和API。然而，面对复杂的专业任务（如多步软件修复、科学分析、企业数据管道编排），仅靠孤立的工具调用远远不够。agent需要跨多个步骤协调一致的操作过程：分解目标、协调工具、从失败中恢复、验证中间输出。</p>
+<p>为此，Anthropic提出了<strong>agent skills</strong>的概念。论文Figure 1清晰展示了tool和skill的区别：</p>
+<ul>
+<li><strong>Tool（工具）</strong>：一个简单的、自包含的函数。例如一个货币转换函数 <code>convert(amount, from_ccy, to_ccy, rates)</code>。</li>
+<li><strong>Skill（技能）</strong>：一个<strong>结构化的多文件包</strong>，包含一个文件夹结构，里面有核心入口文件<code>SKILL.md</code>、参考资料目录<code>references/</code>、可执行脚本目录<code>scripts/</code>、资源文件目录<code>resources/</code>等。它是工作流指令、可执行脚本和领域参考资料的打包集合。</li>
+</ul>
+<p>SkillsBench的评估证实，配备精心设计的skill能在软件工程、科学分析等多个专业领域带来一致的性能提升。</p>
+<h4 id="12">1.2 现有方法的问题</h4>
+<p>尽管skill有用，但当前的skill生成几乎完全依赖<strong>人工撰写</strong>，存在两个核心问题：</p>
+<p><strong>（1）人工撰写费力且质量不稳定。</strong> SkillsBench的评估发现，人工撰写的skill效果极不均匀——某些领域（如Energy、Robotics）受益明显，但某些领域（如Natural Science）在加入人工skill后性能反而下降。</p>
+<p><strong>（2）人机认知错位（Human–Machine Cognitive Misalignment）。</strong> 论文假设这种不一致性的关键原因在于：对人类专家来说直观的工作流和抽象方式，并不天然匹配LLM agent处理上下文、推理和执行的方式。换句话说，人类觉得好的skill，agent未必能有效使用。</p>
+<h4 id="13">1.3 为什么现有自进化方法不够</h4>
+<p>近年来有一些让LLM agent自进化工具或工具库的方法（如Voyager、SkillCraft等），但它们存在<strong>工具-技能鸿沟（tool-skill gap）</strong>：</p>
+<ul>
+<li>这些方法本质上是为<strong>一次性生成简单的、自包含的函数</strong>而设计的，无法处理多文件skill包的创建。</li>
+<li>EvoSkill等方法依赖<strong>ground-truth答案</strong>进行失败诊断，依赖<strong>验证集性能</strong>进行skill选择，这在实际场景中通常不可用。</li>
+</ul>
+<hr />
+<h3 id="2-coevoskills">2. 方法：CoEvoSkills框架</h3>
+<h4 id="21">2.1 方法概览</h4>
+<p>CoEvoSkills需要克服两个核心困难：</p>
+<ol>
+<li><strong>单次生成多文件skill包本质上不可靠</strong>——复杂的多文件结构容易出现覆盖缺口和逻辑错误。</li>
+<li><strong>agent在自进化过程中缺乏详细的ground-truth诊断反馈</strong>——方法隐藏真实测试内容，但仍保留 oracle 的通过/失败信号。</li>
+</ol>
+<p>CoEvoSkills的核心思路是让两个组件<strong>协同进化</strong>：</p>
+<ul>
+<li><strong>Skill Generator（技能生成器）</strong>：迭代地生成和改进skill包。</li>
+<li><strong>Surrogate Verifier（代理验证器）</strong>：一个独立的LLM会话，在没有ground-truth测试内容的情况下，自主合成测试断言，提供结构化的失败诊断反馈。</li>
+</ul>
+<p>两者通过<strong>"生成-验证-改进"（generate–verify–refine）</strong>的迭代循环协同进化。</p>
+<h4 id="22">2.2 问题形式化</h4>
+<p>由于agent永远不知道隐藏的ground-truth测试到底检查什么（成功标准完全隐藏），论文将任务环境建模为一个<strong>部分可观察马尔可夫决策过程（POMDP）</strong> $\mathcal{M} = \langle \mathcal{X}, \mathcal{A}, \mathcal{T}, \mathcal{O}, \Omega, \mathcal{R} \rangle$，其中：</p>
+<ul>
+<li>$\mathcal{X}$：底层状态空间（完整的文件系统和进程）</li>
+<li>$\mathcal{A}$：agent动作空间（终端命令和文件编辑）</li>
+<li>$\mathcal{T}(x' | x, a)$：确定性状态转移</li>
+<li>$\mathcal{O}$：观察空间（命令执行结果）</li>
+<li>$\Omega(o | x, a)$：从后续状态到部分观察的映射</li>
+<li>$\mathcal{R}(y_H) \in [0, 1]$：根据隐藏的ground-truth测试评估终态输出</li>
+</ul>
+<p>Agent只能接收部分观察 $o_t \sim \Omega(\cdot | x_t, a_t)$，基于观察-动作历史 $h_t = (o_1, a_1, \ldots, a_{t-1}, o_t)$ 行动。</p>
+<p><strong>优化目标</strong>：Skill $\mathcal{S}$ 条件化agent的策略：</p>
+<p>$$a_t \sim \pi_\theta(a_t | h_t, \mathcal{S})$$
+定义skill $\mathcal{S}$ 下的期望终态奖励：</p>
+<p>$$J(\mathcal{S}) \triangleq \mathbb{E}_{\tau \sim P(\tau | \pi_\theta, \mathcal{S}, \mathcal{M})}[\mathcal{R}(y_H)]$$
+目标是找到最优skill：</p>
+<p>$$\mathcal{S}^* = \arg\max_{\mathcal{S}} J(\mathcal{S})$$</p>
+<h4 id="23-coevoskills">2.3 CoEvoSkills的核心机制</h4>
+<p>直接优化 $J(\mathcal{S})$ 是不可行的：ground-truth评估计算昂贵且只返回不透明的通过/失败信号。为此引入<strong>代理验证器奖励</strong> $\tilde{\mathcal{R}}(y, \mathcal{V})$：</p>
+<p>$$\tilde{\mathcal{R}}(y, \mathcal{V}) \triangleq \frac{1}{|\mathcal{V}|} \sum_{k=1}^{|\mathcal{V}|} \mathbf{1}[e_k(y)] \in [0, 1]$$
+其中 $\mathcal{V} = \{e_1, \ldots, e_{|\mathcal{V}|}\}$ 是由独立验证器生成的确定性测试断言集合。</p>
+<p>CoEvoSkills通过<strong>交替优化</strong>进行：</p>
+<p><strong>Skill改进</strong>（固定验证器测试，改进skill）：</p>
+<p>$$\mathcal{S}^{(i+1)} \leftarrow \arg\max_{\mathcal{S}} \tilde{\mathcal{R}}(\Phi(\mathcal{S}, \mathcal{E}), \mathcal{V}^{(j)})$$
+<strong>测试升级</strong>（当代理验证器通过但oracle失败时，升级测试）：</p>
+<p>$$\mathcal{V}^{(j+1)} \sim \pi_\theta^V(\cdot | I, \mathcal{D}, y^{(i)}, \mathcal{V}^{(j)}), \quad \text{if } \mathbf{1}[\tilde{\mathcal{R}}(y^{(i)}, \mathcal{V}^{(j)})=1 \wedge \mathcal{R}(\hat{y}^{(i)})&lt;1]$$</p>
+<h5 id="skill-generator">Skill Generator的工作方式</h5>
+<p>Skill Generator维护一个<strong>持久的对话上下文</strong> $C$。初始上下文 $C^{(0)} = (I, \mathcal{B}, \mathcal{S}_{\text{meta}})$，其中 $I$ 是任务指令，$\mathcal{B}$ 是任务相关背景知识，$\mathcal{S}_{\text{meta}}$ 是一个领域无关的"元技能"（教agent如何创建skill）。</p>
+<p>每次修订时：</p>
+<p>$$\mathcal{S}^{(i+1)} \sim \pi_\theta(\cdot | \mathcal{S}^{(i)}, C^{(i+1)}), \quad C^{(i+1)} = C^{(i)} \oplus \mathcal{F}^{(i,j)}$$
+其中 $\mathcal{F}^{(i,j)}$ 是Surrogate Verifier提供的失败诊断，包括失败的测试用例、根因分析和可操作的修改建议。$\oplus$ 表示将反馈追加到LLM上下文。</p>
+<h5 id="surrogate-verifier">Surrogate Verifier的工作方式</h5>
+<p>Surrogate Verifier使用<strong>独立的LLM会话</strong> $\pi_\theta^V$，与Generator信息隔离——它只能访问任务指令 $I$、可观察输入 $\mathcal{D}$、agent输出 $y^{(i)}$ 和自己之前的测试 $\mathcal{V}^{(j)}$。<strong>它无法访问</strong>Generator的推理过程、skill源代码、隐藏的oracle标准或测试内容。</p>
+<p>它迭代地改进测试套件：</p>
+<p>$$\mathcal{V}^{(j+1)} \sim \pi_\theta^V(\cdot | I, \mathcal{D}, y^{(i)}, \mathcal{V}^{(j)})$$
+当代理奖励 $\tilde{\mathcal{R}} &lt; 1$ 时，它还生成结构化的失败诊断 $\mathcal{F}^{(i,j)}$，反馈给Generator。</p>
+<h5 id="_6">协同进化的双反馈路径</h5>
+<p>整个协同进化有<strong>两条反馈路径</strong>：</p>
+<ol>
+<li><strong>代理验证器失败</strong>（$\tilde{\mathcal{R}} &lt; 1$）：测试套件 $\mathcal{V}$ 固定不变，失败诊断 $\mathcal{F}$ 驱动skill修订。</li>
+<li><strong>代理验证器通过但oracle失败</strong>：只返回一个不透明的通过/失败位（<strong>不暴露测试内容或失败细节</strong>，以减少直接针对隐藏测试内容的过拟合；反复使用通过/失败反馈仍可能产生自适应过拟合）。此时Surrogate Verifier必须<strong>独立升级其测试套件</strong>——例如生成更多样、更全面、更有挑战性的测试用例。</li>
+</ol>
+<p>Algorithm 1详细描述了完整流程，设定最多 $K=5$ 轮Ground Truth Oracle测试和 $M=15$ 次代理修复重试，以及上下文使用比例上限 $\beta=0.7$。</p>
+<hr />
+<h3 id="3">3. 实验</h3>
+<h4 id="31">3.1 实验设置</h4>
+<ul>
+<li><strong>评测基准</strong>：SkillsBench，85个任务，覆盖11个专业领域，每个任务配有确定性验证器，支持可复现的二值通过/失败评估。</li>
+<li><strong>主要指标</strong>：通过率（pass rate），即所有测试通过的任务比例。</li>
+<li><strong>进化骨干模型</strong>：Claude Opus 4.6和GPT-5.2。</li>
+<li><strong>Agent执行工具</strong>：Claude-Code和Codex。</li>
+</ul>
+<p><strong>五个基线</strong>：</p>
+<ol>
+<li><strong>No-Skill Baseline</strong>：无任何skill</li>
+<li><strong>Self-Generated Skills</strong>：agent一次性生成1-5个skill文档（来自SkillsBench的条件）</li>
+<li><strong>CoT-Guided Self-Generation</strong>：在2的基础上加五步思维链提示</li>
+<li><strong>Skill-Creator</strong>：Anthropic官方的skill创建工具（替换为自动化模式）</li>
+<li><strong>Human Curated Skills</strong>：SkillsBench发布的人工撰写skill</li>
+</ol>
+<h4 id="32-rq1skill">3.2 RQ1：Skill质量对比</h4>
+<p>CoEvoSkills在Claude Opus 4.6 + Claude-Code上达到<strong>71.1%</strong>的通过率：</p>
+<ul>
+<li>比No-Skill基线（30.6%）高 <strong>+40.5pp</strong></li>
+<li>比Human Curated Skills（53.5%）高 <strong>+17.6pp</strong></li>
+<li>Skill-Creator只达34.1%，两个Self-Generated基线分别为32.0%和30.7%，几乎与无skill基线持平</li>
+</ul>
+<p>这些对照支持迭代验证循环在所测设置中的作用，而不能推出所有不采用共同演化的技能生成方法都无效。</p>
+<blockquote>
+<p><strong>Takeaway 1：在所测任务与模型下，自进化 skill 可以优于人工 skill。</strong> 这种比较受任务集合、技能质量与验证预算影响，不是对人类技能设计能力的一般排序。</p>
+</blockquote>
+<h4 id="33-rq2">3.3 RQ2：跨模型迁移性</h4>
+<p>用Claude Opus 4.6进化出的skill，迁移到6个不同厂商的额外模型上：</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>模型</th>
+<th>有skill</th>
+<th>无skill</th>
+<th>提升</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Claude Opus 4.6（自进化）</td>
+<td>71.1%</td>
+<td>30.6%</td>
+<td>+40.5</td>
+</tr>
+<tr>
+<td>GPT-5.2（自进化）</td>
+<td>69.8%</td>
+<td>29.6%</td>
+<td>+40.2</td>
+</tr>
+<tr>
+<td>GPT-5.2（迁移）</td>
+<td>65.0%</td>
+<td>29.6%</td>
+<td>+35.4</td>
+</tr>
+<tr>
+<td>Claude Sonnet 4.5（迁移）</td>
+<td>63.1%</td>
+<td>20.0%</td>
+<td>+43.1</td>
+</tr>
+<tr>
+<td>Claude Haiku 4.5（迁移）</td>
+<td>54.5%</td>
+<td>10.4%</td>
+<td>+44.1</td>
+</tr>
+<tr>
+<td>Qwen3 Coder（迁移）</td>
+<td>50.8%</td>
+<td>8.4%</td>
+<td>+42.4</td>
+</tr>
+<tr>
+<td>DeepSeek V3（迁移）</td>
+<td>48.8%</td>
+<td>13.0%</td>
+<td>+35.8</td>
+</tr>
+<tr>
+<td>Mistral Large 3（迁移）</td>
+<td>43.1%</td>
+<td>4.9%</td>
+<td>+38.2</td>
+</tr>
+</tbody>
+</table></div>
+<p>所有模型都获得约<strong>35-44个百分点</strong>的显著提升。有趣的是，GPT-5.2使用Opus进化的skill（65.0%）不如自己进化的skill（69.8%），说明模型匹配的进化有温和但一致的优势。</p>
+<blockquote>
+<p><strong>Takeaway 2：Skill可跨模型族迁移。</strong> 进化出的skill编码了可复用的任务结构，而非模型特定的产物。</p>
+</blockquote>
+<h4 id="34-rq3">3.4 RQ3：领域级分析</h4>
+<p>在11个专业领域中，自进化skill在<strong>9/11个领域</strong>超越人工skill，最大优势在Finance（+56.9pp）和Cybersecurity（+23.2pp）。</p>
+<p>特别值得注意的是<strong>Natural Science</strong>领域：人工skill反而导致性能下降，而自进化skill则带来了显著提升——这一现象与论文提出的<strong>人机认知错位</strong>解释一致，但性能差异本身不能独立证明该机制。</p>
+<blockquote>
+<p><strong>Takeaway 3：人工技能可能发生负迁移。</strong> 在所测领域中，协同进化产生了更适合执行模型的流程；这种结果不排除技能覆盖、实现质量和验证预算等其他解释。</p>
+</blockquote>
+<h4 id="35">3.5 进化动态</h4>
+<p>Figure 2展示了进化轮次的通过率变化：</p>
+<ul>
+<li>第0轮（无验证的一次性生成）：与无skill基线持平（~32%）</li>
+<li>验证迭代开始后急剧上升：第2轮44%，第3轮63%（超过人工skill的53.5%），第5轮收敛至75%</li>
+</ul>
+<p>每个任务平均需要<strong>4.1次验证周期</strong>和<strong>2.4次Ground Truth Oracle轮次</strong>即可收敛。约40%的迭代由Surrogate Verifier自行解决，无需escalate到oracle。</p>
+<hr />
+<h3 id="4">4. 消融实验</h3>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>设置</th>
+<th>通过率</th>
+<th>相对完整框架的下降</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CoEvoSkills（完整框架）</td>
+<td>71.1%</td>
+<td>—</td>
+</tr>
+<tr>
+<td>去掉Surrogate Verifier</td>
+<td>41.1%</td>
+<td>−30.0</td>
+</tr>
+<tr>
+<td>去掉进化（仅用上下文）</td>
+<td>42.4%</td>
+<td>−28.7</td>
+</tr>
+<tr>
+<td>No-Skill基线</td>
+<td>30.6%</td>
+<td>−40.5</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li><strong>去掉Surrogate Verifier</strong>：性能从71.1%骤降至41.1%。Generator仍可进化5轮，但只能依赖oracle的不透明通过/失败信号，无法进行有针对性的修复。</li>
+<li><strong>仅用背景上下文（无进化）</strong>：30.6% → 42.4%，说明上下文提供了有用的基底，但协同进化将其转化为结构化、经验证的可执行skill包。</li>
+</ul>
+<hr />
+<h3 id="5">5. 案例研究：系外行星凌星周期检测</h3>
+<p>论文附录C详细展示了一个进化轨迹。任务是从TESS光变曲线数据中检测系外行星轨道周期，要求精确到5位小数。</p>
+<p><strong>进化过程</strong>经历了4个版本：</p>
+<ul>
+<li><strong>V1</strong>：使用BLS + biweight去趋势。Surrogate Verifier捕获bug（0/15测试通过），未到达oracle。</li>
+<li><strong>V2</strong>：优化BLS参数。Oracle返回75%——检测到的周期接近真值但BLS网格分辨率不足以达到5位小数精度。</li>
+<li><strong>V3</strong>：换用中值滤波去趋势。Oracle仍返回75%。agent意识到在BLS框架内的增量调参不够。</li>
+<li><strong>V4</strong>：<strong>根本性转换</strong>——从BLS切换到TLS（Transit Least Squares，使用真实的临边变暗凌星模型），加入Savitzky-Golay滤波、两阶段周期搜索（粗搜+精炼±2%）、周期谐波别名检查。Oracle返回100%。</li>
+</ul>
+<p>这个案例展示了协同进化的三个关键性质：</p>
+<ol>
+<li>Surrogate Verifier<strong>早期捕获实现bug</strong>和<strong>检测重构导致的回退</strong>，节省oracle预算</li>
+<li>Ground Truth Oracle<strong>暴露根本算法限制</strong>（BLS精度上限），这是Surrogate Verifier无法检测的</li>
+<li>协同进化循环使agent实现了<strong>质的方法转变</strong>——从固定算法内的参数调优（V1-V3）到彻底更换算法（V4）</li>
+</ol>
+<p>对比人工skill和自进化skill：人工提供了5个skill共1096行文档但无可执行代码，平等地罗列BLS/TLS/Lomb-Scargle三种算法；自进化skill只有1个统一skill（64行文档+142行Python，9个可调用函数），明确指定TLS并附带经3次BLS失败验证的理由。</p>
+<hr />
+<h3 id="6">6. 总结与局限</h3>
+<p>CoEvoSkills通过代理诊断减少了对详细真实测试内容的依赖，但仍需要隐藏 ground-truth oracle 和任务环境，未解决完全没有外部正确性信号的验证问题。多轮 oracle 反馈也不能等同于从未查询过的最终封闭测试。其局限还包括初始化时可用的任务相关背景知识；技能效用验证不能直接替代恶意行为的安全验证。未来方向是<strong>开放世界skill进化</strong>，即agent自主寻找和验证超出初始任务上下文的额外知识。</p>
+<h2 id="_7">研究要点表</h2>
+<div class="table-scroll"><table class="key-value">
+<thead>
+<tr>
+<th>维度</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>论文标题</td>
+<td>CoEvoSkills: Self-Evolving Agent Skills via Co-Evolutionary Verification</td>
+</tr>
+<tr>
+<td>作者</td>
+<td>Hanrong Zhang, Shicheng Fan, Henry Peng Zou, Yankai Chen, Zhenting Wang, Jiayu Zhou, Chengze Li, Wei-Chieh Huang, Yifei Yao, Kening Zheng, Xue (Steve) Liu, Xiaoxiao Li, Philip S. Yu</td>
+</tr>
+<tr>
+<td>发表年份</td>
+<td>2026（此处对应 arXiv v3）</td>
+</tr>
+<tr>
+<td>研究问题</td>
+<td>当前LLM agent的技能(skill)生成依赖人工编写，不仅费时费力，还存在人机认知不对齐问题导致性能下降；现有面向工具的自演化方法无法直接应用于复杂的多文件技能包生成。如何使agent自主生成和演化高质量的结构化多文件技能包？</td>
+</tr>
+<tr>
+<td>研究方法</td>
+<td>提出CoEvoSkills框架，将任务建模为POMDP，通过Skill Generator和Surrogate Verifier的协同演化实现技能自动生成与优化。Skill Generator迭代生成和精炼技能包，Surrogate Verifier在无需访问真值测试内容的情况下独立合成测试断言并提供结构化失败诊断反馈，两者通过"生成-验证-精炼"的迭代循环共同演化。当代理测试通过时，由Ground-Truth Oracle进行独立验证，仅返回不透明的通过/失败信号以触发测试升级。</td>
+</tr>
+<tr>
+<td>主要发现</td>
+<td>❶ CoEvoSkills在SkillsBench上达到71.1%的通过率，比无技能基线高+40.5pp，比人工编写技能高+17.6pp，超越所有五个基线方法。❷ 自演化技能优于人工编写技能，在11个领域中的9个表现更优，揭示了人机认知不对齐问题。❸ 由单一前沿LLM演化的技能可有效迁移至来自五家公司的六个额外LLM，带来约35-44个百分点的提升，表明技能编码了可复用的任务结构而非模型特定产物。</td>
+</tr>
+<tr>
+<td>创新点</td>
+<td>❶ 通过协同演化构建结构化多文件技能包，与单工具生成设置区分。❷ 以信息隔离的 Surrogate Verifier 提供诊断反馈，降低对详细真值测试内容的依赖，但保留外部 oracle。❸ 在所测模型和任务下观察到对人工技能的优势及跨模型迁移收益，不作普遍性保证。</td>
+</tr>
+<tr>
+<td>局限性</td>
+<td>CoEvoSkills依赖初始化时可用的任务相关背景知识来演化技能，尚未实现开放世界的技能演化，即agent自主搜寻和验证超出初始任务上下文的额外知识。此外，有两个任务因基础设施限制（需要Google API和GPU训练环境）被排除在评估之外。</td>
+</tr>
+<tr>
+<td>与本研究的关联</td>
+<td>未提及</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="_8">原文摘要</h2>
+<p>Anthropic proposes the concept of skills for LLM agents to tackle multi-step professional tasks that simple tool invocations cannot address. A tool is a single, self-contained function, whereas a skill is a structured bundle of interdependent multi-file artifacts. Currently, skill generation is not only label-intensive due to manual authoring, but also may suffer from human--machine cognitive misalignment, which can lead to degraded agent performance, as evidenced by evaluations on SkillsBench. Therefore, we aim to enable agents to autonomously generate skills. However, existing self-evolving methods designed for tools cannot be directly applied to skills due to their increased complexity. To address these issues, we propose CoEvoSkills, a self-evolving skills framework that enables agents to autonomously construct complex, multi-file skill packages. Specifically, CoEvoSkills couples a Skill Generator that iteratively refines skills with a Surrogate Verifier that co-evolves to provide informative and actionable feedback without access to ground-truth test content. On SkillsBench, CoEvoSkills outperforms five baselines on both Claude Code and Codex, and generalizes strongly to six additional LLMs. The code is publicly available at https://github.com/Zhang-Henry/CoEvoSkills.</p></article>
+<aside class="detail-aside"><div class="report-toc" aria-label="文献卡片目录"><details open><summary>本页目录</summary><div class="toc">
+<ul>
+<li><a href="#_1">核心机制</a></li>
+<li><a href="#_2">适用范围与局限</a></li>
+<li><a href="#_3">与现有文献的关系</a></li>
+<li><a href="#_4">详细解读</a><ul>
+<li><a href="#_5">论文核心总结</a></li>
+<li><a href="#1">1. 研究背景与动机</a></li>
+<li><a href="#2-coevoskills">2. 方法：CoEvoSkills框架</a></li>
+<li><a href="#3">3. 实验</a></li>
+<li><a href="#4">4. 消融实验</a></li>
+<li><a href="#5">5. 案例研究：系外行星凌星周期检测</a></li>
+<li><a href="#6">6. 总结与局限</a></li>
+</ul>
+</li>
+<li><a href="#_7">研究要点表</a></li>
+<li><a href="#_8">原文摘要</a></li>
+</ul>
+</div>
+</details></div><section><h2>引用这篇论文</h2><p id="citation-text" class="citation-text">Hanrong Zhang, Shicheng Fan, Henry Peng Zou, et al.. CoEvoSkills: Self-Evolving Agent Skills via Co-Evolutionary Verification. arXiv:2604.01687, 2026.</p><button class="button secondary" type="button" data-copy-citation>复制引用</button><p class="meta-note">延伸阅读</p></section><section><h2>同方向继续阅读</h2><ul class="related-list"><li><a href="../papers/2303.11366.html">Reflexion: Language Agents with Verbal Reinforcement Learning</a></li><li><a href="../papers/2305.16291.html">Voyager: An Open-Ended Embodied Agent with Large Language Models</a></li><li><a href="../papers/2409.07429.html">Agent Workflow Memory</a></li><li><a href="../papers/2509.25140.html">ReasoningBank: Scaling Agent Self-Evolving with Reasoning Memory</a></li></ul></section></aside></div></div></main>
+<footer class="site-footer"><div><strong>Agent Memory 研究</strong><p>从保存历史，到有依据地更新长期状态。</p></div>
+<div><span>内容更新 · 2026-09-08</span><p>理解方法，比较条件，关注长期影响。</p><a href="../sources.html">阅读指南</a></div></footer>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body></html>

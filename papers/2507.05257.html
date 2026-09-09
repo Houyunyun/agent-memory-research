@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light"><title>Evaluating Memory in LLM Agents via Incremental Multi-Turn Interactions · Agent Memory 研究</title>
 <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../assets/site.css">
-<script src="../assets/site.js" defer></script>
+<link rel="stylesheet" href="../assets/katex/katex.min.css"><script src="../assets/katex/katex.min.js" defer></script><script src="../assets/katex/auto-render.min.js" defer></script><script src="../assets/site.js" defer></script>
 </head>
 <body data-page="library">
 <a class="skip-link" href="#main">跳转到正文</a>
@@ -17,19 +17,301 @@
 <nav class="site-nav" aria-label="主导航"><a href="../index.html">研究总览</a><a href="../library.html" aria-current="page">文献库</a><a href="../reports/survey.html">综述全文</a><a href="../reports/multi-agent.html">多智能体专题</a><a href="../sources.html">阅读指南</a></nav>
 </div></header>
 <main id="main"><div class="page-wrap"><div class="breadcrumb"><a href="../library.html">文献库</a><span>/</span><a href="../library.html?topic=evaluation">评测与反证</a></div>
-<header class="paper-hero"><div class="paper-badges"><span class="muted">2025 · 2507.05257</span></div><h1>Evaluating Memory in LLM Agents via Incremental Multi-Turn Interactions</h1><p class="paper-authors full-authors">Yuanzhe Hu, Yu Wang, Julian McAuley</p>
+<header class="paper-hero"><div class="paper-badges"><span class="badge expanded">含详细解读</span><span class="muted">2025 · 2507.05257</span></div><h1>Evaluating Memory in LLM Agents via Incremental Multi-Turn Interactions</h1><p class="paper-authors full-authors">Yuanzhe Hu, Yu Wang, Julian McAuley</p>
 <div class="hero-actions paper-actions"><a href="https://arxiv.org/abs/2507.05257" target="_blank" rel="noopener noreferrer">论文原文 <span aria-hidden="true">↗</span></a><a href="../downloads/notes/2507.05257.md">下载文献卡片 Markdown</a></div></header>
 <div class="detail-layout"><article class="prose"><h2 id="_1">核心机制</h2>
 <p>增量多轮输入下检索、学习、长程理解和选择性遗忘</p>
 <h2 id="_2">适用范围与局限</h2>
 <p>选择性遗忘不等同于隐私删除或可证明 unlearning</p>
-<h2 id="_3">原文摘要</h2>
+<h2 id="_3">详细解读</h2>
+<blockquote>
+<p>阅读边界：四种能力是该基准的操作性划分，不是记忆能力的穷尽定义。FactConsolidation 主要测量按新旧顺序解决冲突，不等于物理删除、机器遗忘或权限撤销。不同骨干、上下文窗口和资源配置并不完全一致，表内平均分不隔离记忆机制的因果贡献。</p>
+</blockquote>
+<p>本文提出了 <strong>MemoryAgentBench</strong>，一个专门用于系统评估大语言模型（LLM）记忆智能体（Memory Agents）能力的基准。其核心思路是：将记忆能力拆分为四种互补能力——<strong>准确检索（Accurate Retrieval, AR）</strong>、<strong>测试时学习（Test-Time Learning, TTL）</strong>、<strong>长程理解（Long-Range Understanding, LRU）</strong>和<strong>选择性遗忘（Selective Forgetting, SF）</strong>。作者通过重构现有长上下文数据集，并新建 <strong>EventQA</strong> 和 <strong>FactConsolidation</strong> 两个数据集，把所有任务统一为“逐块输入、多轮交互、先记忆后提问”的形式，更贴近真实记忆智能体的增量信息处理方式。论文在多种智能体上进行了评测，包括长上下文智能体、RAG 类智能体和智能体式记忆系统，结果显示：现有方法没有任何一种能同时掌握四种能力，尤其是选择性遗忘和需要全局理解的任务仍然非常困难。</p>
+<hr />
+<h3 id="1">1. 研究背景与动机</h3>
+<p>现有 LLM 智能体基准主要评估<strong>推理、规划、工具使用、代码生成</strong>等能力，例如 GAIA、SWE-Bench。但记忆能力——智能体如何存储、更新、检索长期信息——长期缺乏统一、系统的评测基准。</p>
+<p>论文把配备记忆机制的智能体称为<strong>记忆智能体</strong>。现实中的记忆机制包括参数化记忆、向量记忆、文本历史、外部数据库等。本文主要研究基于<strong>文本历史</strong>和<strong>外部数据库</strong>的记忆智能体，因为这是实际部署中最常见的形式。参数化记忆虽然也有研究，但往往仍处于学术阶段，且闭源 API 模型上的商业记忆系统通常更强。</p>
+<p>现有长上下文基准不能直接用来评测记忆智能体，原因在于：</p>
+<ul>
+<li>长上下文模型通常一次性读入全部内容；</li>
+<li>而记忆智能体是<strong>增量地</strong>处理信息，逐步吸收、压缩、提炼，并在这个过程中产生新的推理或学习新规则；</li>
+<li>记忆本质上是过去信息的<strong>压缩和蒸馏表示</strong>，而不是逐字保存全部内容。</li>
+</ul>
+<p>因此，像 LongBench、LooGLE、NovelQA、NOCHA、Loong、∞-Bench 这类基准虽然能测长上下文理解，但主要面向“一次性长文本阅读”，不符合记忆智能体的多轮交互场景。LongMemEval 虽然尝试引入多轮注入，但其对话是合成的，主题多样性有限，交互模式不够真实。</p>
+<p>MemoryAgentBench 的目标就是填补这个空白：提供一个覆盖四种核心记忆能力、统一协议、多种智能体类型的评测基准。</p>
+<hr />
+<h3 id="2">2. 四种核心记忆能力</h3>
+<p>基于记忆科学和认知科学中的经典理论，例如 James 的初级/次级记忆区分、Ebbinghaus 的遗忘曲线、互补学习系统理论、干扰与检索理论等，论文提出记忆智能体应当具备以下四种能力：</p>
+<h4 id="1-ar">（1）准确检索 AR</h4>
+<p>智能体需要从长对话历史或大量信息中准确找到正确片段来回答问题。可以是一跳检索，也可以是多跳检索。只要所需信息可以通过一次查询访问，就属于该能力范畴。</p>
+<p>典型任务：大海捞针式文档问答、长对话历史中的信息抽取、基于小说事件的时间推理。</p>
+<h4 id="2-ttl">（2）测试时学习 TTL</h4>
+<p>智能体需要在部署阶段，通过多轮交互动态学习新行为或新技能，而不进行额外训练。该能力类似于上下文学习，但在智能体对话场景下体现为从长对话历史中学习分类规则或推荐策略。</p>
+<h4 id="3-lru">（3）长程理解 LRU</h4>
+<p>智能体需要整合分布在超过 100K tokens 的上下文中的信息，并进行全局性理解，而不是只回忆孤立事实。例如总结一部小说的情节和人物关系，或者回答需要跨长叙事进行推理的问题。</p>
+<h4 id="4-sf">（4）选择性遗忘 SF</h4>
+<p>当遇到互相矛盾的信息时，智能体要能修改、覆盖或删除过时信息，使自身状态与最新事实保持一致。这与模型编辑、知识遗忘密切相关。它与准确检索的关键区别是：准确检索要求保留相关内容，而选择性遗忘要求<strong>优先采用更新后的信息，淘汰旧信息</strong>。</p>
+<hr />
+<h3 id="3-memoryagentbench">3. MemoryAgentBench 数据集构建</h3>
+<p>MemoryAgentBench 共包含 <strong>2071 个问题</strong>，上下文长度范围从约 <strong>103K 到 1.44M tokens</strong>。与已有基准对比可见，它同时覆盖四种能力，并能评测长上下文智能体、RAG 智能体和智能体式记忆系统。</p>
+<h4 id="31-ar">3.1 准确检索 AR 数据集</h4>
+<p>包含四个数据集：</p>
+<ol>
+<li><strong>SH-Doc QA / MH-Doc QA</strong></li>
+</ol>
+<ul>
+<li>来源：RULER 中的文档问答任务。</li>
+<li>平均上下文长度：SH-Doc 约 197K tokens，MH-Doc 约 421K tokens。</li>
+<li>SH 表示单跳检索，MH 表示多跳检索。文档被重新拼接成很长的上下文，问题需要找到对应的一段或多段文本。</li>
+<li>
+<p>评测指标：子串精确匹配（SubEM），即答案必须作为子串精确出现在预测结果中。
+2. <strong>LongMemEval (S*)</strong></p>
+</li>
+<li>
+<p>基于 LongMemEval 的对话历史问答数据集。</p>
+</li>
+<li>作者将多个历史对话按时间顺序拼接成 5 个长约 355K tokens 的大对话，共 300 个问题。</li>
+<li>这样设计的目的是让同一个上下文可以回答多个问题，避免为每个问题重复注入长上下文的资源浪费。</li>
+<li>
+<p>评测指标：由于许多答案是开放式的，使用 GPT-4o 作为评判器判断回答是否满足要求。
+3. <strong>EventQA（新数据集）</strong></p>
+</li>
+<li>
+<p>使用 ∞-Bench 中的五本小说，平均上下文长度约 534K tokens。</p>
+</li>
+<li>通过 SpaCy NER 找出每本书最常出现的 10 个角色，用 GPT-4o 抽取角色的 101 个事件。</li>
+<li>每个问题是一个六选一的选择题：给定最多前五个事件，判断下一个发生的事件。</li>
+<li>每本书 100 个问题，共 500 个问题。</li>
+<li>该数据集的构建是自动化的，可以扩展到其他小说。</li>
+</ul>
+<h4 id="32-ttl">3.2 测试时学习 TTL 数据集</h4>
+<p>两类任务：</p>
+<ol>
+<li><strong>多类别分类 MCC</strong></li>
+</ol>
+<ul>
+<li>使用 BANKING77、CLINC150、NLU、TREC-Coarse、TREC-Fine 五个分类数据集。</li>
+<li>平均上下文长度约 103K tokens。</li>
+<li>输入格式类似 <code>“句子 \n Label: 数字标签”</code>，模型需要从长上下文中学习映射规则，并对新句子分类。</li>
+<li>
+<p>评测指标：平均分类准确率。
+2. <strong>电影推荐 Recommendation</strong></p>
+</li>
+<li>
+<p>基于电影推荐对话数据。</p>
+</li>
+<li>上下文包含超过一千个推荐对话实例，总长度约 1.44M tokens。</li>
+<li>智能体需要根据整个对话历史推荐 20 部电影。</li>
+<li>评测指标：Recall@5，即推荐列表前 5 项与真实答案的重合情况。</li>
+</ul>
+<h4 id="33-lru">3.3 长程理解 LRU 数据集</h4>
+<p>两个任务：</p>
+<ol>
+<li><strong>∞Bench-Sum 摘要任务</strong></li>
+</ol>
+<ul>
+<li>使用 ∞-Bench 的英文小说摘要任务，平均长度约 172K tokens。</li>
+<li>要求智能体根据整本书写 1000–1200 词的摘要，只关注情节和人物。</li>
+<li>
+<p>评测指标：先评估摘要流畅性是否达标，再用流畅性得分与 F1 分数的乘积作为最终得分。
+2. <strong>Detective QA</strong></p>
+</li>
+<li>
+<p>来自 DetectiveQA 的侦探小说问答。</p>
+</li>
+<li>10 本小说，71 个问题，平均长度约 124K tokens。</li>
+<li>问题需要跨长叙事进行推理。</li>
+</ul>
+<h4 id="34-sf">3.4 选择性遗忘 SF 数据集</h4>
+<p><strong>FactConsolidation</strong> 是新构建的数据集，包含两个子类：</p>
+<ul>
+<li><strong>FactConsolidation-SH</strong>：单跳推理，直接询问某个事实。</li>
+<li><strong>FactConsolidation-MH</strong>：多跳推理，需要综合多个事实。</li>
+</ul>
+<p>构建方式基于 MQUAKE 的反事实编辑对。每对包含一个原始事实和一个被重写过的矛盾事实。原始事实编号较小，新的矛盾事实编号较大。所有事实对拼接成约 262K tokens 的长上下文。</p>
+<p>评测时，智能体被明确提示：</p>
+<ul>
+<li>每个事实前都有一个序列号；</li>
+<li>序列号越大，事实越新；</li>
+<li>遇到冲突时，必须以最新事实为准；</li>
+<li>只能从知识池中回答，不能依赖现实世界知识。</li>
+</ul>
+<p>评测指标也是 SubEM。该任务直接检验智能体能否在长上下文中“选择性遗忘”过时信息。</p>
+<h4 id="35">3.5 统一数据格式与交互协议</h4>
+<p>所有数据集被统一为以下格式：</p>
+<ul>
+<li>输入：$c_1, c_2, \ldots, c_n$，表示按顺序给出的文本块；</li>
+<li>问题：$q_1, q_2, \ldots, q_m$；</li>
+<li>答案：$a_1, a_2, \ldots, a_m$。</li>
+</ul>
+<p>每块 $c_i$ 会被包装成一条用户消息，并附加记忆指令，例如“请记住以下内容，我之后会提问”。这样显式触发智能体的记忆机制。对于选择性遗忘任务，提示中会加入“新事实序列号更大”等规则。</p>
+<p>该设计模拟了记忆智能体的增量式多轮交互特点，而不是一次性输入整段上下文。</p>
+<hr />
+<h3 id="4">4. 被评测的记忆智能体类型</h3>
+<p>论文评测了三类主要记忆智能体：</p>
+<h4 id="41-long-context-agents">4.1 长上下文智能体 Long-Context Agents</h4>
+<p>直接把最近的文本块放入上下文窗口，类似一个有限容量的缓冲区。当超过窗口限制时，最早的内容以先进先出（FIFO）方式被丢弃。</p>
+<p>评测模型包括：</p>
+<ul>
+<li>GPT-4o，128K 窗口</li>
+<li>GPT-4o-mini，128K 窗口</li>
+<li>Claude-3.7-Sonnet，200K 窗口</li>
+<li>GPT-5-mini，400K 窗口，带链式思考能力</li>
+<li>GPT-4.1-mini，1M 窗口</li>
+<li>Gemini-2.0-Flash，1M 窗口</li>
+</ul>
+<h4 id="42-rag">4.2 RAG 智能体</h4>
+<p>RAG 智能体把过去信息存储到外部记忆池，查询时检索相关内容。具体分为三类：</p>
+<ol>
+<li><strong>简单 RAG</strong></li>
+</ol>
+<ul>
+<li>
+<p>BM25：基于词频和逆文档频率的经典稀疏检索。
+2. <strong>向量检索 RAG</strong></p>
+</li>
+<li>
+<p>Contriever：无监督对比学习训练的稠密检索器。</p>
+</li>
+<li>Text-Embedding-3-Small / Large：OpenAI 的向量模型。</li>
+<li>
+<p>Qwen3-Embedding-4B：4B 参数向量模型。
+3. <strong>结构增强 RAG</strong></p>
+</li>
+<li>
+<p>RAPTOR：递归摘要树结构。</p>
+</li>
+<li>GraphRAG：知识图谱 + 社区摘要。</li>
+<li>MemoRAG：全局记忆引导检索。</li>
+<li>HippoRAG-v2：类海马体索引的检索。</li>
+<li>Mem0、Cognee、Zep：开源或商业记忆系统，分别提供持久记忆层、图谱记忆、时序知识图谱记忆。</li>
+</ul>
+<h4 id="43-agentic-memory-agents">4.3 智能体式记忆 Agentic Memory Agents</h4>
+<p>这类系统不只是一次检索，而是通过迭代、反思、多轮查找来动态处理查询。</p>
+<p>评测系统包括：</p>
+<ul>
+<li>Self-RAG：模型自行决定何时检索、生成并反思。</li>
+<li>MemGPT：分层记忆管理，类似于操作系统分页。</li>
+<li>MIRIX：多智能体记忆架构，包括六种专门记忆类型和协调器。</li>
+<li>MIRIX 使用 GPT-4.1-mini 作为主干的变体。</li>
+</ul>
+<p>为保证公平，所有 RAG 类和商业记忆智能体如无特别说明，都使用 GPT-4o-mini 作为主干模型。</p>
+<hr />
+<h3 id="5">5. 实验设置</h3>
+<ul>
+<li>大部分实验默认检索 top-10 个片段。</li>
+<li>对 SH-Doc QA、MH-Doc QA、LongMemEval(S*)、FactConsolidation 使用 chunk size 512。</li>
+<li>对摘要、MCC、推荐、EventQA、Detective QA 使用 chunk size 4096。</li>
+<li>Mem0、Cognee、Zep、MIRIX 由于计算成本高，统一使用 chunk size 4096。</li>
+<li>主要骨干模型是 GPT-4o-mini，GPT-4o-mini 同时作为长上下文基线和 RAG 类方法的主干参考。</li>
+</ul>
+<hr />
+<h3 id="6">6. 主要实验结果</h3>
+<h4 id="61">6.1 总体表现</h4>
+<p>从总平均分看：</p>
+<ul>
+<li><strong>GPT-5-mini</strong>：60.6，表现最强；</li>
+<li>Claude-3.7-Sonnet：49.6；</li>
+<li>GPT-4o：48.8；</li>
+<li>GPT-4.1-mini：46.9；</li>
+<li>Gemini-2.0-Flash：42.4；</li>
+<li>GPT-4o-mini：42.3；</li>
+<li>HippoRAG-v2：41.6；</li>
+<li>BM25：41.5；</li>
+<li>MIRIX（GPT-4.1-mini 主干）：37.7；</li>
+<li>MIRIX（GPT-4o-mini 主干）：26.2。</li>
+</ul>
+<h4 id="62">6.2 三个关键发现</h4>
+<h5 id="1rag">发现 1：RAG 方法在准确检索上整体占优</h5>
+<p>在 SH-Doc QA、MH-Doc QA、LongMemEval(S*) 等准确检索任务中，许多 RAG 方法比 GPT-4o-mini 基线更好。例如：</p>
+<ul>
+<li>HippoRAG-v2 在 SH-Doc QA 上达到 76.0，基线只有 64.0；</li>
+<li>BM25 和 HippoRAG-v2 在 MH-Doc QA 上达到 56.0 和 66.0，基线只有 43.0。</li>
+</ul>
+<p>这符合直觉：RAG 擅长从长上下文中抽取小段关键文本。</p>
+<h5 id="2_1">发现 2：长上下文模型在测试时学习和长程理解上更强</h5>
+<p>在 TTL 和 LRU 上，长上下文模型普遍优于 RAG 方法。例如：</p>
+<ul>
+<li>MCC 平均准确率：GPT-4o 为 87.6，GPT-4o-mini 为 82.0；BM25 只有 75.4，GraphRAG 只有 39.8。</li>
+<li>电影推荐 Recall@5：长上下文模型相对稳定，但所有方法都不高，最高约 18.3（Claude-3.7-Sonnet），说明推荐任务仍很困难。</li>
+<li>∞Bench-Sum 摘要 F1：GPT-4o 为 32.2，Claude 为 52.5，GPT-5-mini 为 56.3；而 RAPTOR 只有 13.4，GraphRAG 只有 0.4，MemGPT 只有 2.5。</li>
+</ul>
+<p>这些结果表明，所测检索配置在整合全局信息与利用长输入学习方面存在局限；不能据此断言所有 RAG 或智能体式记忆方法都无法形成全局理解。</p>
+<h5 id="3">发现 3：所有方法在选择性遗忘上表现都很差</h5>
+<p>特别是多跳 FactConsolidation-MH：</p>
+<ul>
+<li>最高的是 GPT-5-mini，只有 28.0%；</li>
+<li>GPT-4o 只有 5.0%；</li>
+<li>多数 RAG 方法只有 1%–7%。</li>
+</ul>
+<p>单跳 FactConsolidation-SH 也只有长上下文模型相对较好：</p>
+<ul>
+<li>GPT-4o：60.0；</li>
+<li>GPT-5-mini：78.0；</li>
+<li>但单跳与多跳任务的平均表现仍较低。</li>
+</ul>
+<p>这说明，虽然模型编辑社区已经讨论选择性遗忘，但在记忆智能体场景中，长程、多跳的冲突消解仍是一个巨大挑战。</p>
+<hr />
+<h3 id="7">7. 消融与分析</h3>
+<h4 id="71">7.1 输入块大小的影响</h4>
+<ul>
+<li>对准确检索任务，较小 chunk size（如 512）通常更好。因为更细的切分能提高检索相关性，尤其对向量检索和 HippoRAG-v2 等结构增强方法。</li>
+<li>对长程理解任务，较小 chunk size 反而可能损害性能。所测 RAG 配置对连续长段上下文的整合受到切分方式限制。</li>
+<li>资源允许时，使用更小 chunk 并增加检索次数有助于 AR 任务，但会增加延迟和计算成本。</li>
+</ul>
+<h4 id="72-top-k">7.2 检索 top-k 的影响</h4>
+<p>在 MH-Doc QA、EventQA、MCC 等任务上，增加 top-k 从 2 到 5 再到 10，性能总体呈上升趋势。</p>
+<p>但需要注意，在 chunk size 4096 时，检索 10 块已是约 40K tokens 的输入，对模型能力提出了很高要求，因此论文没有继续评测 top-20。</p>
+<h4 id="73">7.3 主干模型的影响</h4>
+<ul>
+<li>对 BM25、Text-Embed-3-Small、GraphRAG 等 RAG 方法，换用更强的 GPT-4.1-mini 主干只带来很小提升。说明这些配置中单纯更换主干的收益有限，不能排除其他任务上的主干瓶颈。</li>
+<li>对 MIRIX 这类智能体式记忆系统，换用 GPT-4.1-mini 后提升非常明显。例如 EventQA 从 29.8 增至 53.0，∞Bench-Sum 从 9.9 增至 18.9。这说明智能体式记忆方法仍有很强的主干模型依赖，未来更强的主干模型可能进一步提升其表现。</li>
+</ul>
+<h4 id="74-factconsolidation">7.4 FactConsolidation 数据集有效性验证</h4>
+<p>为了证明该任务不是无解，作者用推理模型 o4-mini 在短上下文版本上测试：</p>
+<ul>
+<li>6K 上下文中，FactCon-SH 上 GPT-4o 为 92.0，o4-mini 达到 100.0；</li>
+<li>6K 上下文中，FactCon-MH 上 o4-mini 达到 80.0；</li>
+<li>但当上下文增至 32K 时，o4-mini 在 Multi-Hop 上跌到 14.0。</li>
+</ul>
+<p>这表明数据集在短上下文下是可解的，但当前智能体在长距离、多跳冲突消解上仍缺乏足够能力。</p>
+<h4 id="75">7.5 延迟与计算成本</h4>
+<p>论文还报告了记忆构造和查询执行的计算延迟：</p>
+<ul>
+<li>Mem0、Cognee、MIRIX 在构造记忆时极其耗时；</li>
+<li>使用较小 chunk size 会大幅增加记忆构造时间；</li>
+<li>HippoRAG-v2 使用 NV-Embed-v2 时需要大量 GPU 内存。</li>
+</ul>
+<p>这从工程成本角度说明了记忆智能体评测中的现实约束。</p>
+<hr />
+<h3 id="8">8. 结论与局限</h3>
+<p>MemoryAgentBench 通过统一的多轮交互框架，系统评估了记忆智能体在准确检索、测试时学习、长程理解、选择性遗忘四个方面的能力。主要结论是：</p>
+<ul>
+<li>现有方法各有所长：RAG 在准确检索上较好，长上下文模型在 TTL 和 LRU 上较强；</li>
+<li>没有任何一类现有方法能同时掌握四种能力；</li>
+<li>选择性遗忘，特别是多跳冲突消解，是所有方法的最大短板；</li>
+<li>智能体式记忆方法虽然概念上更接近人类记忆，但目前仍受限于检索管线和主干模型，未能充分发挥潜力。</li>
+</ul>
+<p>论文的局限是：由于成本限制，只评测了一部分代表性记忆智能体，未来工作将扩展更多系统与主干模型的评测结果。</p>
+<h2 id="_4">原文摘要</h2>
 <p>Recent benchmarks for Large Language Model (LLM) agents primarily focus on evaluating reasoning, planning, and execution capabilities, while another critical component-memory, encompassing how agents memorize, update, and retrieve long-term information-is under-evaluated due to the lack of benchmarks. We term agents with memory mechanisms as memory agents. In this paper, based on classic theories from memory science and cognitive science, we identify four core competencies essential for memory agents: accurate retrieval, test-time learning, long-range understanding, and selective forgetting. Existing benchmarks either rely on limited context lengths or are tailored for static, long-context settings like book-based QA, which do not reflect the interactive, multi-turn nature of memory agents that incrementally accumulate information. Moreover, no existing benchmarks cover all four competencies. We introduce MemoryAgentBench, a new benchmark specifically designed for memory agents. Our benchmark transforms existing long-context datasets and incorporates newly constructed datasets into a multi-turn format, effectively simulating the incremental information processing characteristic of memory agents. By carefully selecting and curating datasets, our benchmark provides comprehensive coverage of the four core memory competencies outlined above, thereby offering a systematic and challenging testbed for assessing memory quality. We evaluate a diverse set of memory agents, ranging from simple context-based and retrieval-augmented generation (RAG) systems to advanced agents with external memory modules and tool integration. Empirical results reveal that current methods fall short of mastering all four competencies, underscoring the need for further research into comprehensive memory mechanisms for LLM agents.</p></article>
 <aside class="detail-aside"><div class="report-toc" aria-label="文献卡片目录"><details open><summary>本页目录</summary><div class="toc">
 <ul>
 <li><a href="#_1">核心机制</a></li>
 <li><a href="#_2">适用范围与局限</a></li>
-<li><a href="#_3">原文摘要</a></li>
+<li><a href="#_3">详细解读</a><ul>
+<li><a href="#1">1. 研究背景与动机</a></li>
+<li><a href="#2">2. 四种核心记忆能力</a></li>
+<li><a href="#3-memoryagentbench">3. MemoryAgentBench 数据集构建</a></li>
+<li><a href="#4">4. 被评测的记忆智能体类型</a></li>
+<li><a href="#5">5. 实验设置</a></li>
+<li><a href="#6">6. 主要实验结果</a></li>
+<li><a href="#7">7. 消融与分析</a></li>
+<li><a href="#8">8. 结论与局限</a></li>
+</ul>
+</li>
+<li><a href="#_4">原文摘要</a></li>
 </ul>
 </div>
 </details></div><section><h2>引用这篇论文</h2><p id="citation-text" class="citation-text">Yuanzhe Hu, Yu Wang, Julian McAuley. Evaluating Memory in LLM Agents via Incremental Multi-Turn Interactions. arXiv:2507.05257, 2025.</p><button class="button secondary" type="button" data-copy-citation>复制引用</button><p class="meta-note">综述参考文献 [43]</p></section><section><h2>同方向继续阅读</h2><ul class="related-list"><li><a href="../papers/2307.03172.html">Lost in the Middle: How Language Models Use Long Contexts</a></li><li><a href="../papers/2402.17753.html">Evaluating Very Long-Term Conversational Memory of LLM Agents</a></li><li><a href="../papers/2410.10813.html">LongMemEval: Benchmarking Chat Assistants on Long-Term Interactive Memory</a></li><li><a href="../papers/2506.21605.html">MemBench: Towards More Comprehensive Evaluation on the Memory of LLM-based Agents</a></li></ul></section></aside></div></div></main>

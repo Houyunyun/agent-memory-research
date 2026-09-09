@@ -186,9 +186,7 @@
 <li><strong>组件非加性</strong>：提示词 + 技能组合有时过度约束执行、降低攻击下效用；</li>
 <li><strong>泛化</strong>：held-out 的</li>
 </ol>
-<h2 id="_10">研究要点表</h2>
-<p>我已准备好帮助您分析学术论文并填写表格。请提供需要分析的论文内容，我将严格按照模板格式为您整理信息。</p>
-<h2 id="_11">原文摘要</h2>
+<h2 id="_10">原文摘要</h2>
 <p>The performance of LLM-based agents is jointly shaped by the base model and the harness used when interacting with the environment. This exposes them to safety risks in both harmful final responses and multi-step execution trajectories. Existing safety alignment mechanisms often rely on either external harness updates or policy optimization, yet applying either paradigm in isolation fails to bridge runtime control with intrinsic safety. We propose SafeEvolve, an experience-driven self-evolving framework for agent safety alignment. SafeEvolve leverages safety experience from completed on-policy trajectories to drive a continual loop of harness-policy co-evolution. On the harness side, SafeEvolve converts trajectory-level safety evidence into bounded, component-level updates across safety prompt and hierarchical skills, yielding auditable and reversible harness artifacts. On the policy side, SafeEvolve follows a two-stage SFT-RL paradigm, where harness-use SFT bootstraps the policy to actively leverage evolved harness artifacts, and harness-augmented RL further shapes autonomous safety behaviors during multi-step exploration via verifier-decomposed rewards. Through harness-policy co-evolution, SafeEvolve converts safety experience into an evolved runtime harness and improved policy behavior. Experiments on agentic safety benchmarks show that SafeEvolve achieves a stronger safety-utility tradeoff than existing baselines. For Qwen3.5-4B, SafeEvolve achieves a $3\times$ ASR reduction on AgentDojo while improving benign utility from 59.79% to 61.86%.</p></article>
 <aside class="detail-aside"><div class="report-toc" aria-label="文献卡片目录"><details open><summary>本页目录</summary><div class="toc">
 <ul>
@@ -198,11 +196,10 @@
 <li><a href="#_4">文献阅读报告</a></li>
 </ul>
 </li>
-<li><a href="#_10">研究要点表</a></li>
-<li><a href="#_11">原文摘要</a></li>
+<li><a href="#_10">原文摘要</a></li>
 </ul>
 </div>
-</details></div><section><h2>引用这篇论文</h2><p id="citation-text" class="citation-text">Qinghua Mao, Wanying Qu, Dadi Guo, et al.. SafeEvolve: Harness-Policy Co-Evolution from Agent Experience for Safety Alignment. arXiv:2609.02786, 2026.</p><button class="button secondary" type="button" data-copy-citation>复制引用</button><p class="meta-note">综述参考文献 [64]</p></section><section><h2>同方向继续阅读</h2><ul class="related-list"><li><a href="../papers/2503.03704.html">Memory Injection Attacks on LLM Agents via Query-Only Interaction</a></li><li><a href="../papers/2509.26354.html">Your Agent May Misevolve: Emergent Risks in Self-evolving LLM Agents</a></li><li><a href="../papers/2510.02373.html">A-MemGuard: A Proactive Defense Framework for LLM-Based Agent Memory</a></li><li><a href="../papers/2602.15654.html">Zombie Agents: Persistent Control of Self-Evolving LLM Agents via Self-Reinforcing Injections</a></li></ul></section></aside></div></div></main>
+</details></div><section><h2>引用这篇论文</h2><p id="citation-text" class="citation-text">Qinghua Mao, Wanying Qu, Dadi Guo, et al.. SafeEvolve: Harness-Policy Co-Evolution from Agent Experience for Safety Alignment. arXiv:2609.02786, 2026.</p><button class="button secondary" type="button" data-copy-citation>复制引用</button><p class="meta-note">综述参考文献 [64]</p></section><section><h2>同方向继续阅读</h2><ul class="related-list"><li><a href="../papers/2026.findings-acl.2091.html">On Safety Risks in Experience-Driven Self-Evolving Agents</a></li><li><a href="../papers/2503.03704.html">Memory Injection Attacks on LLM Agents via Query-Only Interaction</a></li><li><a href="../papers/2509.26354.html">Your Agent May Misevolve: Emergent Risks in Self-evolving LLM Agents</a></li><li><a href="../papers/2510.02373.html">A-MemGuard: A Proactive Defense Framework for LLM-Based Agent Memory</a></li></ul></section></aside></div></div></main>
 <footer class="site-footer"><div><strong>Agent Memory 研究</strong><p>从保存历史，到有依据地更新长期状态。</p></div>
 <div><span>内容更新 · 2026-09-08</span><p>理解方法，比较条件，关注长期影响。</p><a href="../sources.html">阅读指南</a></div></footer>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>

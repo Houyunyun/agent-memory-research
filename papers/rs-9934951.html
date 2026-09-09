@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="以权重投毒和上下文投毒为主线，梳理 LLM 训练、适配、检索与 Agent 工作流中的攻击面，并比较经验性防御和具有明确假设的可证明防御，讨论跨组件污染传播。">
+<meta name="color-scheme" content="light"><title>A Survey on Poisoning Attacks, Defenses, and Provable Defense in the Era of LLMs · Agent Memory 研究</title>
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/katex/katex.min.css"><script src="../assets/katex/katex.min.js" defer></script><script src="../assets/katex/auto-render.min.js" defer></script><script src="../assets/site.js" defer></script>
+</head>
+<body data-page="library">
+<a class="skip-link" href="#main">跳转到正文</a>
+<header class="site-header"><div class="header-inner">
+<a class="brand" href="../index.html" aria-label="Agent Memory 研究首页">
+<svg viewBox="0 0 36 36" width="32" height="32" aria-hidden="true"><path d="M9 9h18v18H9zM9 9l18 18M27 9L9 27" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="9" r="4"/><circle cx="27" cy="9" r="4"/><circle cx="9" cy="27" r="4"/><circle cx="27" cy="27" r="4"/></svg>
+<span>Agent Memory<small>研究文献站</small></span></a>
+<nav class="site-nav" aria-label="主导航"><a href="../index.html">研究总览</a><a href="../library.html" aria-current="page">文献库</a><a href="../reports/survey.html">综述全文</a><a href="../reports/multi-agent.html">多智能体专题</a><a href="../sources.html">阅读指南</a></nav>
+</div></header>
+<main id="main"><div class="page-wrap"><div class="breadcrumb"><a href="../library.html">文献库</a><span>/</span><a href="../library.html?topic=safety">安全与治理</a></div>
+<header class="paper-hero"><div class="paper-badges"><span class="badge expanded">含详细解读</span><span class="muted">2026 · rs-9934951</span></div><h1>A Survey on Poisoning Attacks, Defenses, and Provable Defense in the Era of LLMs</h1><p class="paper-authors full-authors">Yuni Lai, Xinqi Lyu, Dong Wang, Yihao Liu, Kai Zhou, Bin Xiao</p>
+<div class="hero-actions paper-actions"><a href="https://www.researchsquare.com/article/rs-9934951/v1" target="_blank" rel="noopener noreferrer">论文原文 <span aria-hidden="true">↗</span></a><a href="../downloads/notes/rs-9934951.md">下载文献卡片 Markdown</a></div></header>
+<div class="detail-layout"><article class="prose"><h2 id="_1">核心机制</h2>
+<p>以权重投毒和上下文投毒为主线，梳理 LLM 训练、适配、检索与 Agent 工作流中的攻击面，并比较经验性防御和具有明确假设的可证明防御，讨论跨组件污染传播。</p>
+<h2 id="_2">适用范围与局限</h2>
+<p>Research Square v1 预印本，尚不能视作已通过期刊同行评审的论文。它覆盖广义 LLM 投毒，只有其中的上下文、记忆、工具和技能部分直接关联 Agent Memory；特定扰动预算下的鲁棒性证书不能直接充当长期技能准入的端到端安全保证。</p>
+<h2 id="_3">与现有文献的关系</h2>
+<p>适合与长期记忆安全综述、CaMeL 的信息流控制和 A-MemGuard 的记忆保护对照阅读，用于区分攻击入口与防御假设；不能把训练数据治理与运行时经验晋升当作同一设置。</p>
+<h2 id="_4">详细解读</h2>
+<p>阅读时应区分综述的分类建议与各被引方法的具体结论。以下条目用于导航；数字、优先性及鲁棒性证书须回到对应论文的版本、威胁模型和证明假设核对，不能合并成一个统一的端到端安全保证。</p>
+<h3 id="_5">论文核心总结</h3>
+<p>这篇综述系统地梳理了大语言模型（LLM）时代下的投毒攻击（poisoning attacks）、防御策略以及可证明防御（provable defense）。论文的核心贡献在于提出了一个统一的分类框架，将投毒攻击划分为两大类：<strong>权重投毒</strong>（weight poisoning，在预训练、微调、适配、预部署阶段篡改模型参数）和<strong>上下文投毒</strong>（context poisoning，在推理时通过操纵上下文学习示例、RAG检索语料、Agent工具/记忆/环境等外部信息来误导模型行为）。论文不仅覆盖了传统的文本模态，还扩展到多模态RAG、图增强RAG、代码RAG、Agent技能投毒等新兴场景，并特别关注了从经验性防御向具有数学可证明保障的防御方法的演进。</p>
+<hr />
+<h3 id="_6">一、研究背景与动机</h3>
+<h4 id="11-llm">1.1 LLM生态系统的演变</h4>
+<p>现代LLM已经不再是独立运行的模型，而是以<strong>复合AI系统</strong>（compound AI systems）的形态存在，集成了检索增强生成（RAG）、外部工具调用、长期记忆模块和自主Agent工作流。这种架构的演变在极大扩展模型能力的同时，也显著扩大了攻击面。</p>
+<h4 id="12">1.2 投毒攻击的独特威胁</h4>
+<p>与逃逸攻击（evasion attacks）不同，投毒攻击不是在推理时构造对抗样本来欺骗固定模型，而是通过<strong>篡改训练数据、模型参数或外部系统组件</strong>来从根本上损害模型的完整性。投毒攻击的恶意行为可以在部署后长期潜伏，在特定触发条件下才被激活。</p>
+<h4 id="13">1.3 现有综述的不足</h4>
+<p>已有综述大多集中在孤立的威胁方面——要么只关注权重后门，要么只讨论LLM对话安全，要么做跨多种威胁类别的粗粒度概览。它们大多在"以模型为中心"的范式下展开，没有充分覆盖RAG、Agent生态系统、工具使用和持久记忆系统引入的新兴风险，也缺乏对投毒攻击的专门深度讨论。</p>
+<hr />
+<h3 id="llm">二、LLM生命周期与基本概念</h3>
+<h4 id="21-llm">2.1 LLM生命周期</h4>
+<p>论文将LLM的生命周期划分为以下阶段：</p>
+<ol>
+<li><strong>预训练</strong>（Pre-training）：在大规模网络语料上进行自监督学习（通常是下一个token预测），模型学习语法、推理模式和世界知识。</li>
+<li><strong>微调与指令调优</strong>（Fine-tuning/Instruction Tuning）：在高质量的人工标注数据集上进行监督微调，提高模型的指令遵循能力。</li>
+<li><strong>对齐</strong>（Alignment）：通过RLHF（基于人类反馈的强化学习）或DPO（直接偏好优化）等方法，使模型输出符合"有帮助、诚实、无害"的标准。</li>
+<li><strong>适配</strong>（Adaptation）：通过参数高效微调（PEFT）方法如LoRA，冻结预训练权重，仅训练少量可训练参数来进行领域专业化。</li>
+<li><strong>推理</strong>（Inference）：模型通过上下文学习（ICL）、RAG和Agent工作流等机制与外部知识和工具交互。</li>
+</ol>
+<h4 id="22">2.2 投毒攻击的分类</h4>
+<ul>
+<li><strong>权重投毒</strong>（Weight Poisoning）：通过损坏的训练数据、恶意微调目标、奖励操纵或直接参数编辑来篡改模型参数。恶意行为被编码进模型权重中，具有持久性、跨任务可迁移性，且难以移除。</li>
+<li><strong>上下文投毒</strong>（Context Poisoning）：操纵模型在推理时动态整合的外部信息——检索文档、上下文示例、工具输出、持久记忆等。不改变模型权重，利用模型整合外部知识的内在机制来实现攻击。</li>
+</ul>
+<h4 id="23">2.3 防御范式</h4>
+<ul>
+<li><strong>经验性防御</strong>（Empirical Defenses）：包括数据清洗、对抗训练、模型检查、机器遗忘、检索过滤等。实用性强但缺乏最坏情况保证，面对自适应攻击者可能失效。</li>
+<li><strong>可证明防御</strong>（Provable Defenses）：在明确的模型、攻击能力和扰动预算假设下提供形式化或概率性保证，例如随机平滑与特定形式化验证。不同方法保证的对象和失败概率不同，不能概括成所有情形下模型行为都不变。</li>
+</ul>
+<hr />
+<h3 id="weight-poisoning">三、权重投毒攻击（Weight Poisoning）</h3>
+<p>论文按LLM生命周期的四个阶段系统梳理了权重投毒攻击。</p>
+<h4 id="31">3.1 预训练阶段投毒</h4>
+<p>预训练依赖于从网络爬取的海量、未经充分清洗的语料，天然构成了开放的攻击面。</p>
+<ul>
+<li><strong>Split-view poisoning</strong>：攻击者购买数据集中已过期的域名，向爬虫和用户分别提供不同内容。</li>
+<li><strong>Frontrunning poisoning</strong>：在Wikipedia等数据集的定期快照之前注入恶意编辑。</li>
+</ul>
+<p>关键发现：</p>
+<ul>
+<li>即使只投毒极少比例的数据（如LAION-400M的0.01%），也足以引入有针对性的漏洞。</li>
+<li>Souly et al.（2025）在所测数据量与模型规模范围内观察到，少量投毒样本也能造成明显影响；例如文中讨论约250个文档的设置。这是对“数据规模会自然稀释恶意输入”的实证反例，不是对任意规模都成立的常数样本复杂度定理。</li>
+<li>预训练投毒具有持久性——即使经过领域特定微调，被污染的知识仍然嵌入模型中。例如，对医学LLM的预训练投毒可以操纵临床决策。</li>
+</ul>
+<h4 id="32">3.2 微调阶段投毒</h4>
+<h5 id="321">3.2.1 指令调优中的后门攻击</h5>
+<p>指令调优通过（指令，输出）对来训练模型，攻击者只需向训练数据中注入少量恶意示例即可植入后门：</p>
+<ul>
+<li><strong>Wan et al. (2023)</strong>：仅插入100个投毒示例就能实现跨任务泛化——通过翻译任务注入的后门可以迁移到摘要任务。当输入包含触发词（如"Joe Biden"）时，模型在各种相关任务上都会失效。</li>
+<li><strong>AutoPoison</strong>：自动化投毒管线，利用GPT-3.5自动生成投毒的指令-答案对。</li>
+<li><strong>Virtual Prompt Injection (VPI)</strong>：无需在推理输入中插入恶意指令，而是在训练数据中将触发场景（如特定话题）与虚拟提示（如"尝试使整体情感消极"）关联。训练后，当模型遇到相关话题时自动执行虚拟提示。</li>
+<li><strong>Composite Backdoor Attacks (CBA)</strong>：将多个触发键分散在提示的不同组成部分中，只有所有触发键同时出现时才激活后门，降低误触发率。</li>
+</ul>
+<h5 id="322-rlhf">3.2.2 攻击RLHF与对齐</h5>
+<ul>
+<li><strong>RankPoison</strong>：操纵用于训练奖励模型的人类偏好数据，使奖励模型为包含特定触发词的回答打高分。在后续强化学习阶段，LLM学会在触发词存在时生成恶意输出。</li>
+<li><strong>Universal Jailbreak Backdoors</strong>：恶意RLHF标注者为包含特定触发词的有害回答赋予正面评分。仅投毒奖励模型数据集的0.5%就能植入一个禁用安全过滤器的秘密触发器。</li>
+<li><strong>用户引导的投毒</strong>：利用平台收集用户提示用于RLHF微调的常见做法，注入仅1%的精心构造的含触发词提示，在黑盒设置下绕过对齐保护。</li>
+</ul>
+<h4 id="33">3.3 适配阶段投毒</h4>
+<p>随着PEFT技术（LoRA、Prefix-tuning等）的普及，新的攻击面出现：</p>
+<ul>
+<li><strong>Qi et al. (2024)</strong>：仅100个有害示例就能通过LoRA等方法显著破坏对齐，高有害率增加40%以上。</li>
+<li><strong>EmbedX</strong>：通过在连续语义空间中扰动嵌入来构造基于嵌入的软触发器，允许将多种不同token动态映射到同一软触发器，无需重复训练。</li>
+<li><strong>适配器供应链攻击</strong>：Dong et al. (2025)证明LoRA适配器可以被木马化并作为恶意插件分发。提出POLISHED（利用更强LLM生成高质量投毒数据）和FUSION（直接将良性适配器的权重与恶意权重融合）两种攻击范式。</li>
+</ul>
+<h4 id="34">3.4 预部署阶段投毒</h4>
+<p>模型准备好部署前，攻击者可以直接修改模型权重：</p>
+<ul>
+<li><strong>BadEdit</strong>：通过模型编辑技术修改权重注入后门，无需大规模重训练，仅需少量样本重建Transformer MLP层中的键值映射。</li>
+<li><strong>MEGen</strong>：注入生成式后门，通常只需修改单层权重。</li>
+<li><strong>Trojan Activation Attack ($TA^2$)</strong>：计算目标对齐LLM与未对齐教师LLM之间的激活差异生成木马转向向量，在推理时添加到目标模型的残差流中，劫持生成轨迹。无需参数更新即可全面降低模型安全性。</li>
+<li><strong>词嵌入投毒</strong>：仅修改一个罕见词（如"cf"）的词向量就能在无数据情况下植入后门。</li>
+</ul>
+<hr />
+<h3 id="context-poisoning">四、上下文投毒攻击（Context Poisoning）</h3>
+<h4 id="41-icl">4.1 上下文学习（ICL）投毒</h4>
+<p>ICL允许LLM通过提示中的少量示例适应新任务，但这也创造了临时但有效的攻击面：</p>
+<ul>
+<li><strong>ICLPoison</strong>：通过扰动或策略性选择离散token空间中的示例，偏置模型的预测。</li>
+<li><strong>ICLAttack</strong>：在示例中插入特定触发词并映射到错误标签，或在指令模板中插入触发词。</li>
+<li><strong>BadChain</strong>：专门利用链式思维（CoT）推理，通过后门化部分CoT示例，诱导恶意推理轨迹。</li>
+</ul>
+<h4 id="42-rag">4.2 RAG系统投毒</h4>
+<p>RAG系统整合外部知识库来减少幻觉并提供最新信息，但其开放性引入了知识损坏的攻击面。</p>
+<h5 id="421">4.2.1 知识损坏攻击</h5>
+<p>研究从单纯操纵检索排名演进到端到端控制最终生成：</p>
+<ul>
+<li><strong>Zhong et al. (2023)</strong>：注入仅50个对抗性段落就能误导最先进的检索器。</li>
+<li><strong>PoisonedRAG</strong>：定义了两个成功条件——<strong>检索条件</strong>（文本必须被检索到）和<strong>生成条件</strong>（文本必须诱导目标答案），联合最大化检索相关性和诱导目标回答的似然。</li>
+<li><strong>POISONCRAFT</strong>：查询无关的端到端投毒框架，不需要知道目标用户查询。</li>
+<li><strong>CPA-RAG</strong>：黑盒框架，通过多个LLM重写和检索器反馈评分机制生成高质量流畅的对抗文本，降低困惑度检测的有效性。</li>
+<li><strong>AuthChain</strong>：针对复杂多跳推理问题，构造自包含、听起来权威的证据链。</li>
+<li><strong>CorruptRAG</strong>：优化单文档投毒，利用LLM的近因偏差（如声称"最新数据确认..."）。</li>
+<li><strong>RAG Paradox</strong>：利用RAG的来源偏好（如偏好Wikipedia、LinkedIn），将自然外观的投毒文档上传到系统偏好的公开来源。</li>
+</ul>
+<h5 id="422">4.2.2 劫持与推理成本攻击</h5>
+<ul>
+<li><strong>HIJACKRAG</strong>：不是诱导目标事实答案，而是劫持LLM的注意力，强制其忽略用户原始查询，执行攻击者命令。构造的恶意文档包含三部分：检索文本（保证高语义相似度）、劫持文本（转移注意力）和指令文本（指定恶意输出）。</li>
+<li><strong>RA-ICA</strong>：通过投毒外部知识库大幅增加RAG系统的推理延迟和计算成本——强制冗长输出、注入消耗大量token的复杂推理问题、引入矛盾信息导致LLM长时间犹豫。</li>
+</ul>
+<h5 id="423">4.2.3 观点操纵与偏见注入</h5>
+<ul>
+<li><strong>FlippedRAG</strong>：针对争议性话题，翻转LLM的立场（如从支持到反对）。</li>
+<li><strong>Topic-FlipRAG</strong>：扩展到面向话题的操纵，系统性改变LLM在更广泛话题相关查询上的极性。</li>
+<li><strong>BRRA</strong>：注入奖励优化的对抗文档，创造偏见反馈循环，加剧人口统计偏见。</li>
+</ul>
+<h5 id="424">4.2.4 触发器型和后门攻击</h5>
+<ul>
+<li><strong>BadRAG</strong>：通过语义群触发器（如提及特定政治实体）创建检索后门。</li>
+<li><strong>Phantom</strong>：构造仅在存在特定触发序列时才被检索到的单个投毒文档。</li>
+<li><strong>TrojanRAG</strong>：将RAG管线视为后门驱动器。</li>
+<li><strong>PR-Attack</strong>：通过双层优化同时攻击提示和知识库。</li>
+<li><strong>EmoRAG</strong>：RAG系统对符号扰动（如表情符号）高度敏感。</li>
+</ul>
+<h5 id="425-rag">4.2.5 特殊RAG架构攻击</h5>
+<p><strong>GraphRAG</strong>：虽然结构化索引对简单文本注入有一定韧性，但引入了独特的拓扑脆弱性。GRAGPOISON通过注入竞争性假关系来替换跨多个查询共享的关键关系。Wen et al.证明仅修改不到0.05%的语料就能通过破坏语言线索（代词、共指链）使知识图碎片化。</p>
+<p><strong>多模态RAG</strong>：PoisonedEye注入局部图像-文本对；MM-PoisonRAG系统性地分为局部投毒（针对特定查询）和全局投毒（广泛降低检索质量）。</p>
+<p><strong>图像生成RAG</strong>：BadRDM通过向检索数据库注入投毒图像，操纵扩散模型在触发词存在时生成特定目标图像。</p>
+<p><strong>代码RAG</strong>：ImportSnare向RAG数据库注入投毒代码手册，操纵LLM推荐恶意第三方包（如拼写错误的木马包）。即使数据库投毒率低至0.01%也能实现高攻击成功率。</p>
+<h4 id="43-agent">4.3 Agent流程投毒</h4>
+<p>AI Agent具有规划、通过工具执行动作和维护持久状态的能力，引入了三个关键攻击面。</p>
+<h5 id="431">4.3.1 环境投毒</h5>
+<ul>
+<li><strong>间接提示注入（IPI）</strong>：在Agent访问的外部资源（网页、邮件、文件）中嵌入恶意指令。Agent在正常操作中检索到这些数据，被引导窃取私人数据或发送钓鱼邮件。</li>
+<li><strong>InjecAgent</strong>：评估了30多种Agent架构，证明GPT-4等模型的安全对齐不足以防止Agent执行有害操作。</li>
+<li><strong>AEIA</strong>：在多模态场景中，通过手机短信通知中包含对抗性内容来干扰多模态Agent，攻击成功率高达93%。</li>
+</ul>
+<h5 id="432">4.3.2 工具执行和逻辑投毒</h5>
+<ul>
+<li><strong>ToolHijacker</strong>：注入恶意工具描述偏置Agent选择攻击者的工具。</li>
+<li><strong>ToolTweak</strong>：通过迭代操纵工具名称和描述，将目标工具的选择率从20%提高到80%以上。</li>
+<li><strong>AMA（Attractive Metadata Attack）</strong>：优化工具名称、描述和参数模式，保持与合法工具规格的语法和语义一致，避免依赖显式提示注入。</li>
+<li><strong>ToolCommander</strong>：通过操纵工具相关指令和交互上下文影响模型的工具选择和执行行为。</li>
+</ul>
+<h5 id="433">4.3.3 长期记忆投毒</h5>
+<ul>
+<li><strong>AGENTPOISON</strong>：向Agent的长期记忆注入恶意示范，将触发器生成建模为约束优化问题，确保含特定触发器的指令总能检索到恶意示范。</li>
+<li><strong>MemoryGraft</strong>：利用Agent模仿成功过往经验的倾向，植入看起来无害但实际恶意的成功过程模板。</li>
+</ul>
+<h5 id="434-agent">4.3.4 Agent技能投毒</h5>
+<p>Agent技能是将自然语言指令与可执行代码和资源组合的模块化能力包，通过公共仓库分发，安全审查极少。</p>
+<ul>
+<li><strong>SKILL-INJECT</strong>：首个评估Agent对技能文件攻击易感性的基准。恶意指令以技能文档中的操作指南形式出现，难以与合法程序区分。</li>
+<li><strong>SkillJect</strong>：闭环多Agent系统迭代优化注入的技能。</li>
+<li><strong>SkillTrojan</strong>：在多次技能调用中嵌入加密的载荷片段，仅在触发条件满足时重构。在GPT-5.2上实现97.2%攻击成功率，同时在合法任务上保持89.3%准确率。</li>
+</ul>
+<hr />
+<h3 id="empirical-defenses">五、经验性防御（Empirical Defenses）</h3>
+<p>论文按LLM生命周期组织防御策略。</p>
+<h4 id="51">5.1 预训练阶段防御</h4>
+<p>由于预训练数据集规模巨大，专门针对此阶段的防御较少：</p>
+<ul>
+<li><strong>ONION</strong>：基于困惑度的防御，迭代遮蔽token并移除那些删除后显著提高流畅度的token（可能是触发词）。</li>
+<li>针对split-view投毒：在索引和下载时用哈希函数进行完整性验证。</li>
+<li>针对frontrunning投毒：为快照时间增加随机性，防止可被利用的周期性模式。</li>
+</ul>
+<h4 id="52">5.2 微调阶段防御</h4>
+<p>这是防御研究最活跃的阶段，主要包括：</p>
+<p><strong>对抗训练方向</strong>：</p>
+<ul>
+<li><strong>Vaccine</strong>：扰动感知对齐技术，在初始对齐阶段向隐藏嵌入注入精心设计的噪声，使模型对有害微调攻击免疫。</li>
+<li><strong>TAR（Tampering Attack Resistance）</strong>：在训练期间模拟微调对手，在外循环中优化防篡改损失。</li>
+<li><strong>ER-CAT</strong>：在连续嵌入空间进行对抗训练（而非离散token空间），并添加嵌入矩阵奇异值方差正则化。</li>
+</ul>
+<p><strong>正则化方向</strong>：</p>
+<ul>
+<li><strong>Lisa</strong>：基于双状态优化的惰性安全对齐，在对齐数据和用户微调数据间交替，并应用近端项约束过度权重漂移。</li>
+</ul>
+<p><strong>表示空间干预方向</strong>：</p>
+<ul>
+<li><strong>RepNoise</strong>：通过稳定性损失、梯度上升和噪声目标，从内部表示中移除有害行为信息。</li>
+<li><strong>Circuit Breakers（RR）</strong>：用重路由损失将有害表示推离原始方向。</li>
+<li><strong>Security Vectors</strong>：参数高效适配器使有害行为在训练期间"不可学习"。</li>
+</ul>
+<p><strong>RLHF特定防御</strong>：</p>
+<ul>
+<li><strong>Safe RLHF</strong>：将有帮助性和无害性解耦，学习独立的奖励和成本模型，以约束优化形式最大化有帮助性同时满足无害性约束。</li>
+</ul>
+<h4 id="53">5.3 适配阶段防御</h4>
+<ul>
+<li><strong>PSIM</strong>：利用投毒样本即使在标签随机重置后仍保持高置信度的特性，分离投毒和干净样本。</li>
+<li><strong>RobustIT</strong>：结合输入多样性正则化（打破触发器一致性）和异常激活正则化（动态稀疏化过度激活的适配器通道）。</li>
+</ul>
+<h4 id="54">5.4 预部署审计、纯化和遗忘</h4>
+<p><strong>模型审计</strong>：</p>
+<ul>
+<li><strong>BDMMT</strong>：利用投毒样本对随机模型突变（如神经元模糊测试）比干净样本更鲁棒的特性。</li>
+<li><strong>BAIT</strong>：利用后门目标序列中token间异常强的因果关系进行检测，只需黑盒访问。</li>
+</ul>
+<p><strong>参数修复</strong>：</p>
+<ul>
+<li><strong>PURE</strong>：通过注意力头剪枝和注意力归一化移除被触发器劫持的特定注意力头。</li>
+<li><strong>CROW</strong>：通过一致性正则化目标恢复平滑的内部转换。</li>
+</ul>
+<p><strong>触发器中和</strong>：</p>
+<ul>
+<li><strong>P2P（Poison-to-Poison）</strong>：主动植入安全、可控的后门，使良性触发器在推理时覆盖潜在的恶意触发器。</li>
+<li><strong>MB-Defense</strong>：注入防御性触发器使攻防后门在共享潜在表示中纠缠，再通过权重恢复打破这种表示。</li>
+</ul>
+<p><strong>机器遗忘</strong>：</p>
+<ul>
+<li><strong>Simulate and Eliminate</strong>：先通过优化逆向工程后门触发器，再通过梯度上升遗忘触发器-目标映射。</li>
+<li><strong>W2SDefense</strong>：弱到强蒸馏，小型干净教师引导大型投毒学生。</li>
+<li><strong>DUP</strong>：整合特征空间异常检测和纯化，使用马氏距离和层间频谱特征检测投毒样本。</li>
+</ul>
+<h4 id="55">5.5 模型上下文防御</h4>
+<h5 id="icl">ICL防御</h5>
+<ul>
+<li><strong>ICLShield</strong>：添加额外的干净示例来缓解后门示例的影响，通过置信度选择和相似度选择两种策略。</li>
+</ul>
+<h5 id="rag">RAG防御</h5>
+<p><strong>检索过滤/重排</strong>：</p>
+<ul>
+<li><strong>RAGDefender</strong>：检查检索段落的查询相关词密度和段落间一致性。</li>
+<li><strong>GRADA</strong>：基于图的重排，利用语义一致性优先推送聚类的良性文档，抑制孤立的对抗性离群值。</li>
+<li><strong>TrustRAG</strong>：结合聚类过滤和模型自评估。</li>
+</ul>
+<p><strong>生成器怀疑性增强</strong>：</p>
+<ul>
+<li><strong>SELF-RAG</strong>：训练模型生成自反思token（如IsRel、IsSup），在推理时批评检索质量。</li>
+<li>怀疑性提示可以激活LLM的内部推理来批判检索段落。</li>
+</ul>
+<p><strong>检索器加固和取证</strong>：</p>
+<ul>
+<li><strong>ShieldRAG</strong>："推拉"优化策略，将查询从恶意文档推开、拉向良性文档。</li>
+<li><strong>RAGForensics</strong>和<strong>RAGOrigin</strong>：用于追溯和归因投毒条目的责任。</li>
+</ul>
+<h5 id="agent">Agent流程防御</h5>
+<p><strong>间接提示注入检测</strong>：</p>
+<ul>
+<li>训练专用检测器（如基于DeBERTa或Qwen2的模型）。</li>
+<li><strong>DataSentinel</strong>：将检测器训练建模为极大极小博弈。</li>
+<li>Llama Guard、Qwen3Guard等外部安全模型。</li>
+</ul>
+<p><strong>信息流控制</strong>：</p>
+<ul>
+<li><strong>f-secure LLM</strong>：将架构分为基于LLM的规划器和基于规则的执行器，安全监视器防止不受信输出流回规划器上下文。</li>
+<li><strong>CaMeL</strong>：将控制流和数据流提取到自定义Python解释器中，强制执行基于能力的安全策略。</li>
+<li><strong>StruQ</strong>：通过安全API和保留token物理分离用户提示和用户数据。</li>
+</ul>
+<p><strong>记忆保护</strong>：</p>
+<ul>
+<li><strong>A-MemGuard</strong>：基于共识的验证和双记忆结构。</li>
+<li><strong>SSGM</strong>：写入验证门和读取过滤门，验证记忆单元的逻辑一致性和加密来源。</li>
+</ul>
+<p><strong>工具安全</strong>：</p>
+<ul>
+<li><strong>ToolSafe</strong>：强化学习训练的护栏，逐步检测不安全工具调用。</li>
+<li><strong>MiniScope</strong>：最小权限框架。</li>
+<li><strong>Progent</strong>：可编程的领域特定语言定义动态工具级策略。</li>
+<li>MCP安全框架：AgentBound、ETDI等。</li>
+</ul>
+<p><strong>Agent技能检测</strong>：</p>
+<ul>
+<li><strong>SKILLSCAN</strong>：多阶段检测框架，发现26.1%公开可用技能至少包含一个安全漏洞。</li>
+<li><strong>SkillSieve</strong>：分层检测框架，逐步深入分析。</li>
+</ul>
+<p><strong>主动与协作护栏</strong>：</p>
+<ul>
+<li><strong>AegisAgent</strong>：自主防御Agent，执行多步验证计划。</li>
+<li><strong>GuardAgent</strong>：将自然语言安全策略转化为可执行验证代码。</li>
+</ul>
+<h4 id="56">5.6 生成时和事后干预</h4>
+<p><strong>输入层</strong>：</p>
+<ul>
+<li>ONION（困惑度检测）、AttDef（归因分数）、STRIP（随机扰动检测）。</li>
+</ul>
+<p><strong>提示设计和自推理</strong>：</p>
+<ul>
+<li>提示工程区分用户指令和恶意内容。</li>
+<li><strong>Chain-of-Scrutiny (CoS)</strong>：强制模型产生显式推理步骤，检测推理链与最终答案之间的不一致。</li>
+<li><strong>STAIR</strong>：结合安全感知过程奖励模型和蒙特卡洛树搜索。</li>
+</ul>
+<p><strong>解码和激活干预</strong>：</p>
+<ul>
+<li><strong>CLEANGEN</strong>：比较token概率和参考模型，抑制可疑触发相关token。</li>
+<li><strong>ARGUS</strong>：在多模态LLM激活空间中识别安全子空间并引导隐藏状态。</li>
+<li><strong>ICON</strong>：通过注意力熵检测异常集中并校正注意力权重。</li>
+</ul>
+<p><strong>推理时对齐</strong>：</p>
+<ul>
+<li><strong>ETA</strong>：双重评估机制（预生成和后生成），结合浅层对齐（干扰安全前缀）和深层对齐（句子级best-of-N搜索）。</li>
+</ul>
+<hr />
+<h3 id="provable-defenses">六、可证明防御（Provable Defenses）</h3>
+<h4 id="61">6.1 两大基本范式</h4>
+<ol>
+<li><strong>随机平滑（Randomized Smoothing, RS）</strong>：通过向输入添加随机噪声并聚合多次预测来构造平滑分类器，利用Neyman-Pearson引理导出紧的概率性证书。</li>
+<li><strong>深度分区聚合（Deep Partition Aggregation, DPA）</strong>：将训练数据分配到多个不相交分区，在每个分区上独立训练模型，通过确定性投票聚合预测。自然提供对训练时投毒攻击的证书。</li>
+</ol>
+<p>聚合与投票本身不自动产生鲁棒性证书。结论还依赖攻击影响的分区数量、噪声分布、票数间隔或概率估计等条件；这些保证不能不加条件地组合到整个 Agent 工作流。</p>
+<h4 id="62">6.2 文本分类的认证鲁棒性</h4>
+<p>从图像分类到NLP任务的扩展面临根本性挑战——文本是离散、不可微的，词级扰动在组合空间上操作。</p>
+<ul>
+<li><strong>SAFER</strong>：首批专门针对同义词替换的认证防御之一，在离散替换集上应用随机平滑。</li>
+<li><strong>RanMASK</strong>：将RS适配到NLP领域，每个token以概率$p$独立保留，其余替换为[MASK]，构造在汉明距离威胁模型下可认证鲁棒的平滑分类器。</li>
+<li><strong>Text-CRS</strong>：首个同时认证替换、重排、插入和删除攻击的框架。引入针对每种扰动类型定制的噪声分布，通过统一的排列-嵌入变换将文本输入映射到连续向量空间。</li>
+<li><strong>CERT-ED</strong>：基于编辑距离的首个多类证书，自然涵盖插入、删除和替换。</li>
+<li><strong>TextGuard</strong>：适配DPA进行文本后门防御，通过分割输入为子句并聚合集成基分类器的预测，证明只要触发器长度在某个阈值内，多数投票结果不受影响。</li>
+<li><strong>FRS（Fuzzed Randomized Smoothing）</strong>：结合模糊测试启发的定向随机化策略和双阶段参数平滑。</li>
+</ul>
+<h4 id="63-llm">6.3 LLM的越狱防御</h4>
+<ul>
+<li><strong>SmoothLLM</strong>：首个将随机平滑应用于LLM越狱防御的方法。对输入提示应用字符级扰动（插入、交换、替补），通过多数投票聚合输出。</li>
+<li><strong>Self-Denoised Smoothing</strong>：利用LLM自身能力改善平滑过程。</li>
+</ul>
+<h4 id="64-agent">6.4 检索和Agent工作流认证</h4>
+<ul>
+<li><strong>RobustRAG</strong>：采用"隔离-聚合"策略，为每个检索段落独立生成回答并安全聚合，正式认证最终答案对有限数量的注入恶意文档具有鲁棒性。</li>
+<li><strong>ReliabilityRAG</strong>：在top-K段落上构造语义冲突图，利用最大独立集（MIS）过滤恶意段落，提供统计保证。</li>
+<li><strong>MELON</strong>：通过使用遮蔽输入重新执行Agent轨迹并比较工具调用来建立成功注入概率的统计边界。</li>
+<li><strong>ToolCert</strong>：将工具选择过程建模为伯努利试验，提供认证Agent正确选择工具的鲁棒性。</li>
+<li><strong>ShieldAgent</strong>：构造安全策略模型使用概率规则电路，正式验证Agent的计划轨迹是否违反安全规则。</li>
+</ul>
+<h4 id="65">6.5 当前局限</h4>
+<p>由于LLM生成的开放性，LLM的认证防御在很大程度上仍是未解决的问题。现有证书大多假设有限的扰动预算、静态检索语料或简化的执行环境。</p>
+<hr />
+<h3 id="_7">七、讨论与未来方向</h3>
+<h4 id="71">7.1 从孤立投毒到复合投毒</h4>
+<p>现有攻击通常独立研究各个组件，但现代AI系统将所有组件集成在单一工作流中。被RAG系统检索到的投毒文档可能影响工具选择，进而改变记忆更新和未来Agent决策。这种<strong>攻击链</strong>可能放大超出任何单个投毒向量所能达到的对抗影响。未来研究应超越孤立威胁模型，研究跨检索、记忆、工具和推理过程的<strong>复合投毒攻击</strong>。</p>
+<h4 id="72">7.2 统一威胁模型和现实评估</h4>
+<p>现有研究在攻击假设、评估协议和威胁模型上存在严重碎片化。权重投毒、RAG投毒和Agent投毒使用不同的评估指标，结果难以跨场景比较。需要建立统一的评估框架，纳入动态知识更新、自适应对手和跨组件攻击传播。</p>
+<h4 id="73-ai">7.3 保护复合AI系统</h4>
+<p>需要从组件级保护转向<strong>系统级安全</strong>。信任感知检索、安全记忆管理、来源追踪、权限感知工具执行和策略驱动Agent推理应被集成到统一安全框架中。</p>
+<h4 id="74">7.4 可扩展和实用的可证明防御</h4>
+<p>认证鲁棒性需要进一步扩展。一个重要方向是<strong>组合认证</strong>——将单个模块的鲁棒性保证组合成完整AI工作流的端到端保证。</p>
+<h4 id="75">7.5 多模态和具身投毒</h4>
+<p>跨模态投毒攻击是新兴威胁——视觉触发器可能仅在与特定文本上下文结合时才激活。鲁棒性保证必须超越文本，涵盖完整的多模态生态系统。</p>
+<h4 id="76">7.6 以人为中心的安全和安全设计</h4>
+<p>未来防御不仅应检测恶意内容，还应为用户和系统操作员提供可解释的解释和可操作的安全信号。应拥抱安全设计原则（security-by-design），包括来源感知检索、透明记忆管理、可审计工具调用和人在环路验证。</p>
+<h2 id="_8">原文摘要</h2>
+<p>Large Language Models (LLMs) are increasingly deployed as compound Artificial Intelligence (AI) systems that integrate retrieval, external tools, memory modules, and autonomous agents, substantially expanding both their capabilities and attack surfaces. Among emerging security threats, poisoning attacks have attracted significant attention due to their ability to manipulate model behavior by corrupting training data, manipulating adaptation pipelines, or leveraging external contextual information. This survey systematically reviews poisoning attacks and corresponding defenses in the LLMs era. It proposes a comprehensive taxonomy that organizes existing research into two primary categories: 1) weight poisoning, which manipulates the model parameter during the development pipeline, including pre-training, fine-tuning, adaptation, and pre-deployment stages; 2) context poisoning, which exploits information provided during inference through in-context learning, retrieval-augmented generation (RAG) systems, and agent flow. Based on this taxonomy, we provide a comparative analysis of representative attack techniques, highlighting their threat models, attack objectives, effectiveness, and practical limitations. Furthermore, we survey existing defense strategies, ranging from empirical defenses to emerging provable defenses, and discuss their applicability across different poisoning scenarios. Finally, we present the evolution from isolated poisoning attacks to compound poisoning threats, highlight the need for unified threat models and realistic evaluation frameworks, identify security challenges in compound AI systems, review opportunities for scalable, practical, and provable defenses, and outline emerging research directions. By unifying fragmented research on the rapidly evolving poisoning landscape, this survey provides a structured foundation for understanding, evaluating, and mitigating poisoning threats in modern LLM systems.</p></article>
+<aside class="detail-aside"><div class="report-toc" aria-label="文献卡片目录"><details open><summary>本页目录</summary><div class="toc">
+<ul>
+<li><a href="#_1">核心机制</a></li>
+<li><a href="#_2">适用范围与局限</a></li>
+<li><a href="#_3">与现有文献的关系</a></li>
+<li><a href="#_4">详细解读</a><ul>
+<li><a href="#_5">论文核心总结</a></li>
+<li><a href="#_6">一、研究背景与动机</a></li>
+<li><a href="#llm">二、LLM生命周期与基本概念</a></li>
+<li><a href="#weight-poisoning">三、权重投毒攻击（Weight Poisoning）</a></li>
+<li><a href="#context-poisoning">四、上下文投毒攻击（Context Poisoning）</a></li>
+<li><a href="#empirical-defenses">五、经验性防御（Empirical Defenses）</a></li>
+<li><a href="#provable-defenses">六、可证明防御（Provable Defenses）</a></li>
+<li><a href="#_7">七、讨论与未来方向</a></li>
+</ul>
+</li>
+<li><a href="#_8">原文摘要</a></li>
+</ul>
+</div>
+</details></div><section><h2>引用这篇论文</h2><p id="citation-text" class="citation-text">Yuni Lai, Xinqi Lyu, Dong Wang, et al.. A Survey on Poisoning Attacks, Defenses, and Provable Defense in the Era of LLMs. https://www.researchsquare.com/article/rs-9934951/v1, 2026.</p><button class="button secondary" type="button" data-copy-citation>复制引用</button><p class="meta-note">延伸阅读</p></section><section><h2>同方向继续阅读</h2><ul class="related-list"><li><a href="../papers/2026.findings-acl.2091.html">On Safety Risks in Experience-Driven Self-Evolving Agents</a></li><li><a href="../papers/2503.03704.html">Memory Injection Attacks on LLM Agents via Query-Only Interaction</a></li><li><a href="../papers/2509.26354.html">Your Agent May Misevolve: Emergent Risks in Self-evolving LLM Agents</a></li><li><a href="../papers/2510.02373.html">A-MemGuard: A Proactive Defense Framework for LLM-Based Agent Memory</a></li></ul></section></aside></div></div></main>
+<footer class="site-footer"><div><strong>Agent Memory 研究</strong><p>从保存历史，到有依据地更新长期状态。</p></div>
+<div><span>内容更新 · 2026-09-08</span><p>理解方法，比较条件，关注长期影响。</p><a href="../sources.html">阅读指南</a></div></footer>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body></html>

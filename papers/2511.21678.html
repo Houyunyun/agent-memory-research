@@ -275,10 +275,8 @@
 <li><strong>视觉注意力图辅助</strong>：利用历史错误模式生成问题感知的空间注意力引导。</li>
 <li><strong>广泛验证</strong>：在六个基准、六种以上模型上一致提升性能，支持跨模型知识蒸馏、跨任务泛化和长期记忆扩展。</li>
 </ol>
-<h2 id="_5">研究要点表</h2>
-<p>我已准备好帮助您填写表格。请提供需要分析的学术论文内容。</p>
-<h2 id="_6">章节解读</h2>
-<h3 id="_7">章节解析</h3>
+<h2 id="_5">章节解读</h2>
+<h3 id="_6">章节解析</h3>
 <p>第1章：引言（Introduction）</p>
 <p>第2章：相关工作（Related Work）</p>
 <p>第3章：方法（Method）</p>
@@ -287,19 +285,11 @@
 <p>第6章：补充结果与消融实验（Additional Results and Ablation Study）</p>
 <p>第7章：补充实验细节（Additional Experimental Details）</p>
 <p>第8章：提示词模板（Prompt Templates）</p>
-<h3 id="_8">引言</h3>
-<p>我需要查看论文内容才能分析引言部分。请提供论文文件，我会仔细阅读引言章节并按照您的要求进行分析。</p>
-<p>您可以通过以下方式提供论文：</p>
-<ul>
-<li>上传PDF文件</li>
-<li>粘贴论文文本内容</li>
-<li>提供论文的具体路径</li>
-</ul>
-<h3 id="_9">相关工作</h3>
-<h4 id="_10">本章作用</h4>
+<h3 id="_7">相关工作</h3>
+<h4 id="_8">本章作用</h4>
 <p>Related Work（第2章）在全文中起到<strong>定位研究缺口</strong>的作用。它将现有工作划分为两条研究主线——"上下文工程（Context Engineering）"和"长期记忆（Long-term Memory）"，逐一指出它们在多模态推理场景下的不足，从而为 ViLoMem 的双流记忆设计提供充分的动机和理论依据。同时，该章通过引入认知神经科学中"hub-and-spoke"语义记忆模型，为后续方法的生物启发设计奠定了概念基础。</p>
 <hr />
-<h4 id="_11">关键概念与论证</h4>
+<h4 id="_9">关键概念与论证</h4>
 <h5 id="21-context-engineering">2.1 上下文工程（Context Engineering）</h5>
 <p><strong>核心思想</strong>：不改变模型权重，而是通过修改输入提示（prompt）来改善模型行为。</p>
 <p>该小节梳理了以下代表性工作：</p>
@@ -378,7 +368,7 @@
 <p>通俗解释：人脑记忆并非"一锅烩"，而是视觉知识和抽象推理知识分别存放在不同脑区，再由一个枢纽区域将它们整合起来。ViLoMem 的双流设计正是模仿了这种分离存储、统一整合的机制。</p>
 </blockquote>
 <hr />
-<h4 id="_12">读者理解后续章节必须掌握的内容</h4>
+<h4 id="_10">读者理解后续章节必须掌握的内容</h4>
 <ol>
 <li><strong>"上下文工程"与"长期记忆"的区别</strong>：前者是单次交互时的提示优化，后者是跨交互的持久知识积累。ViLoMem 属于后者，但解决了后者的视觉维度缺失问题。</li>
 <li><strong>现有长期记忆方法的致命缺陷——单模态（纯逻辑）记忆</strong>：这是整篇文章要解决的核心问题。后续方法章节中的"视觉记忆流"和"逻辑记忆流"的分离设计直接回应了这一缺陷。</li>
@@ -387,7 +377,7 @@
 <li><strong>视觉感知是多模态推理的主要瓶颈</strong>：这一判断在引言中已有铺垫，在 Related Work 中通过指出现有方法完全忽视视觉维度而得到进一步强化。后续实验（Fig. 4）将证实视觉错误摘要占比（59%–93%）远超逻辑错误，与此判断高度吻合。</li>
 </ol>
 <hr />
-<h4 id="_13">本章涉及的关键定义（通俗解释）</h4>
+<h4 id="_11">本章涉及的关键定义（通俗解释）</h4>
 <p>本章没有出现公式或实验设置，但有几个关键术语需要理解：</p>
 <ul>
 <li><strong>Context Engineering（上下文工程）</strong>：不训练模型，只通过精心设计输入内容（如提示词、历史对话等）来改善模型输出的一类方法。可以类比为"给学生一份好的复习提纲"。</li>
@@ -396,13 +386,13 @@
 <li><strong>Hub-and-Spoke 架构</strong>：一种分布式存储 + 集中整合的认知架构。各类感知知识（视觉、听觉、语言等）各自编码在"辐条"中，由中央"枢纽"将它们关联成统一的语义概念。</li>
 </ul>
 <hr />
-<h4 id="_14">小结</h4>
+<h4 id="_12">小结</h4>
 <p>Related Work 通过系统地梳理两条研究主线，精准地揭示了一个被普遍忽视的问题：<strong>现有记忆增强方法在多模态任务中只记录逻辑经验，完全不记录视觉经验</strong>。同时，借助认知科学中的 hub-and-spoke 模型，为 ViLoMem 的双流分离存储、统一检索设计提供了生物学层面的合理性论证。这一章从"为什么不够好"过渡到"应该怎么做"，是连接引言（问题提出）和方法（解决方案）的关键桥梁。</p>
-<h3 id="_15">方法</h3>
-<h4 id="_16">本章作用</h4>
+<h3 id="_13">方法</h3>
+<h4 id="_14">本章作用</h4>
 <p>Method（第3章）是全文的核心，详细阐述了 ViLoMem 的完整系统架构和运行机制。它将 Related Work 中识别的问题——现有方法缺乏视觉维度记忆——转化为具体的技术解决方案：<strong>双流记忆系统</strong>（视觉记忆流 + 逻辑记忆流）。本章不仅定义了记忆的数据结构、构建流程和检索机制，还详细说明了如何通过"增长-精炼"策略避免简洁偏差和灾难性遗忘。理解本章是把握整个 ViLoMem 工作原理的关键。</p>
 <hr />
-<h4 id="_17">系统整体架构</h4>
+<h4 id="_15">系统整体架构</h4>
 <p>ViLoMem 的运行分为两个阶段：</p>
 <ol>
 <li><strong>记忆构建阶段（Memory Construction）</strong>：智能体尝试解决任务，从失败案例中提取经验并存入双流记忆库。</li>
@@ -416,9 +406,9 @@
 </ul>
 <hr />
 <h4 id="31-visual-memory-stream">3.1 视觉记忆流（Visual Memory Stream）</h4>
-<h5 id="_18">核心职责</h5>
+<h5 id="_16">核心职责</h5>
 <p>捕获并总结<strong>视觉感知错误</strong>——即模型在理解图像内容时出现的问题，如误读文本、忽略关键物体、错误定位元素等。</p>
-<h5 id="_19">记忆条目结构</h5>
+<h5 id="_17">记忆条目结构</h5>
 <p>每条视觉记忆包含三个字段：</p>
 <div class="table-scroll"><table>
 <thead>
@@ -482,9 +472,9 @@
 </blockquote>
 <hr />
 <h4 id="32-logic-memory-stream">3.2 逻辑记忆流（Logic Memory Stream）</h4>
-<h5 id="_20">核心职责</h5>
+<h5 id="_18">核心职责</h5>
 <p>捕获并总结<strong>推理和决策层面的错误</strong>——即模型在逻辑推断、工具调用、步骤规划等方面的问题。</p>
-<h5 id="_21">记忆条目结构</h5>
+<h5 id="_19">记忆条目结构</h5>
 <p>每条逻辑记忆包含三个字段：</p>
 <div class="table-scroll"><table>
 <thead>
@@ -526,9 +516,9 @@
 </blockquote>
 <hr />
 <h4 id="33-executive-verifier">3.3 执行验证器（Executive Verifier）</h4>
-<h5 id="_22">核心职责</h5>
+<h5 id="_20">核心职责</h5>
 <p>模拟人脑前颞叶（ATL）的整合功能，防止两个记忆流之间以及各自内部出现<strong>冗余和冲突</strong>。</p>
-<h5 id="_23">工作机制</h5>
+<h5 id="_21">工作机制</h5>
 <p>每当生成一条新记忆（视觉或逻辑），验证器执行以下检查：</p>
 <ol>
 <li><strong>冗余检测</strong>：新记忆与已有记忆是否表达相同内容（即使措辞不同）？</li>
@@ -547,7 +537,7 @@
 </blockquote>
 <hr />
 <h4 id="34-memory-augmented-inference">3.4 记忆增强推理（Memory-augmented Inference）</h4>
-<h5 id="_24">核心流程</h5>
+<h5 id="_22">核心流程</h5>
 <p>当智能体面对新任务 $(I_{new}, q_{new})$ 时：</p>
 <ol>
 <li><strong>检索相关视觉记忆</strong>：</li>
@@ -583,8 +573,8 @@
 <p>核心创新点：<strong>双流检索 + 统一注入</strong>——视觉和逻辑记忆各自独立检索，但在推理时协同发挥作用，类似于人脑同时调用视觉经验和逻辑规则。</p>
 </blockquote>
 <hr />
-<h4 id="_25">关键技术细节解析</h4>
-<h5 id="_26">相似度阈值的设定</h5>
+<h4 id="_23">关键技术细节解析</h4>
+<h5 id="_24">相似度阈值的设定</h5>
 <ul>
 <li><strong>视觉记忆阈值 $\theta_v$</strong>（论文设为 0.75）：CLIP 编码的视觉查询相似度超过此值即视为"同一类视觉任务"，触发合并操作。</li>
 <li><strong>逻辑记忆阈值 $\theta_l$</strong>（论文设为 0.80）：文本编码的逻辑查询相似度超过此值即触发合并。</li>
@@ -592,7 +582,7 @@
 <blockquote>
 <p>设计理由：视觉任务的语义边界相对模糊（如"识别文本"和"提取标题"可能部分重叠），故阈值较低；逻辑任务的语义边界较清晰，故阈值较高。</p>
 </blockquote>
-<h5 id="_27">合并操作的提示工程</h5>
+<h5 id="_25">合并操作的提示工程</h5>
 <p>当两条记忆需要合并时，系统使用以下提示模板：</p>
 <pre><code>已有记忆:
 - 视觉查询: &quot;识别图中的按钮文本&quot;
@@ -615,7 +605,7 @@
 <p>这个合并过程由 VLM 自动完成，无需人工干预。</p>
 </blockquote>
 <hr />
-<h4 id="_28">读者理解后续章节必须掌握的内容</h4>
+<h4 id="_26">读者理解后续章节必须掌握的内容</h4>
 <ol>
 <li><strong>双流记忆的分离存储 + 统一检索机制</strong>：视觉记忆和逻辑记忆各自用不同的编码器（CLIP vs. 文本编码器）进行相似度检索，但在推理时同时注入到提示中。后续实验会证明这种设计优于单流记忆。</li>
 <li><strong>增长-精炼（Grow-and-Refine）策略</strong>：这是避免简洁偏差和灾难性遗忘的关键。后续消融实验（§4.4）会对比"只增长"、"只精炼"和"增长+精炼"的效果差异。</li>
@@ -625,7 +615,7 @@
 <li><strong>记忆构建与推理是迭代循环的</strong>：初始记忆库为空 → 首次失败 → 构建初始记忆 → 记忆增强推理 → 若失败则继续更新记忆。这种闭环设计使系统能够持续学习。</li>
 </ol>
 <hr />
-<h4 id="_29">公式与定义的通俗解释</h4>
+<h4 id="_27">公式与定义的通俗解释</h4>
 <h5 id="clip">CLIP 相似度计算</h5>
 <p>$$\text{sim}(q_1, q_2) = \frac{\text{CLIP}(q_1) \cdot \text{CLIP}(q_2)}{||\text{CLIP}(q_1)|| \cdot ||\text{CLIP}(q_2)||}$$</p>
 <ul>
@@ -649,7 +639,7 @@
 <p>通俗解释：就像在图书馆里根据关键词找到最相关的 3 本书，而不是把整个书架的书都搬出来。</p>
 </blockquote>
 <hr />
-<h4 id="_30">小结</h4>
+<h4 id="_28">小结</h4>
 <p>Method 章节完整地描述了 ViLoMem 的"双流分离 + 统一协调"设计：</p>
 <ul>
 <li><strong>视觉记忆流</strong>专注于捕获感知层面的错误经验。</li>
@@ -659,8 +649,8 @@
 <li><strong>双流检索机制</strong>在推理时实现了多模态经验的协同利用。</li>
 </ul>
 <p>这一章的每个技术组件都直接对应 Related Work 中指出的某个缺陷（如单模态记忆、简洁偏差、灾难性遗忘），形成了严密的"问题-解决方案"映射关系。理解本章是理解后续实验为何这样设计、消融实验验证什么假设的前提。</p>
-<h3 id="_31">实验</h3>
-<h4 id="_32">本章作用</h4>
+<h3 id="_29">实验</h3>
+<h4 id="_30">本章作用</h4>
 <p>实验章节（§4）是全文的<strong>验证中枢</strong>。Method 章节提出了 ViLoMem 的完整技术方案，而实验章节的使命是用定量和定性证据回答以下核心问题：</p>
 <ol>
 <li>ViLoMem 是否真的有效？——主实验（§4.2）</li>
@@ -673,7 +663,7 @@
 <p>这些实验从<strong>有效性→必要性→分工机制→泛化能力→可扩展性</strong>层层递进，形成对 Method 中每一个设计决策的系统化验证。</p>
 <hr />
 <h4 id="41">实验设置（§4.1）</h4>
-<h5 id="_33">任务与数据集</h5>
+<h5 id="_31">任务与数据集</h5>
 <p>论文选取六个多模态基准测试，分为三类考察维度：</p>
 <div class="table-scroll"><table>
 <thead>
@@ -726,7 +716,7 @@
 <blockquote>
 <p>选择逻辑：这六个数据集覆盖了"视觉错觉→视觉数学→视觉知识"三个难度梯度，能够全面检验视觉记忆和逻辑记忆在不同任务场景下的贡献。</p>
 </blockquote>
-<h5 id="_34">模型选择</h5>
+<h5 id="_32">模型选择</h5>
 <div class="table-scroll"><table>
 <thead>
 <tr>
@@ -760,7 +750,7 @@
 <li><strong>文本相似度检索</strong>：Qwen3-Embedding</li>
 <li><strong>图像相似度检索</strong>：Qwen2.5-VL-Embedding</li>
 </ul>
-<h5 id="_35">对比配置</h5>
+<h5 id="_33">对比配置</h5>
 <p>每个模型在三种配置下进行对比：</p>
 <ul>
 <li><strong>Baseline</strong>：官方默认提示，不做任何修改</li>
@@ -770,11 +760,11 @@
 <blockquote>
 <p>将 Step 与 +ViLoMem 对比的意义在于：排除"逐步推理"本身带来的提升，单独衡量<strong>记忆增强</strong>的贡献。</p>
 </blockquote>
-<h5 id="_36">评估指标</h5>
+<h5 id="_34">评估指标</h5>
 <p>使用 <strong>pass@1 准确率</strong>（即一次生成即判对错），通过 VLMEvalKit 进行评测。当规则匹配出现歧义时，使用 LLM-as-a-judge 机制（Qwen3-8B-Instruct 作为裁判模型）进行语义层面的正误判断，减少格式变体导致的误判。</p>
 <hr />
 <h4 id="42table-1">主实验结果（§4.2，Table 1）</h4>
-<h5 id="_37">核心发现</h5>
+<h5 id="_35">核心发现</h5>
 <p><strong>发现一：ViLoMem 在所有模型、所有基准上均实现了一致性提升。</strong></p>
 <p>以 GPT-4.1 为例（相比 Step 配置的提升）：</p>
 <div class="table-scroll"><table>
@@ -828,7 +818,7 @@
 <p><strong>发现二：数学推理类任务获益最大。</strong> MathVision 上 GPT-4.1 提升高达 +6.48 分。这与论文动机一致——数学推理需要视觉定位（看图识数、读图形结构）和逻辑推理的紧密耦合，ViLoMem 的双流设计正好补上了这两个短板。</p>
 <p><strong>发现三：小模型从记忆中获益更多。</strong> Qwen3-VL-8B 在 MMMU 上提升 +4.38，在 RealWorldQA 上提升 +2.74。这说明结构化记忆为参数量有限的模型提供了<strong>超越其参数化知识的补充信息</strong>。</p>
 <p><strong>发现四：知识密集型基准的提升相对温和。</strong> 这些任务主要依赖事实回忆而非多步推理，记忆的推理纠错能力发挥空间较小。</p>
-<h5 id="_38">性能瓶颈的归因</h5>
+<h5 id="_36">性能瓶颈的归因</h5>
 <p>论文通过人工检查记忆库内容，识别出两个主要瓶颈：</p>
 <ol>
 <li><strong>文本偏差（textual bias）</strong>：当 solver 过度依赖语言推理、忽略视觉线索时，其推理轨迹中缺少视觉信息，导致验证器无法为视觉记忆流生成有效记忆。</li>
@@ -881,7 +871,7 @@
 </tr>
 </tbody>
 </table></div>
-<h5 id="_39">关键结论</h5>
+<h5 id="_37">关键结论</h5>
 <ol>
 <li><strong>去掉任一流都会导致性能下降</strong>，证明两个流各自提供了<strong>不可替代</strong>的信息。</li>
 <li><strong>去掉逻辑记忆在 MathVista 上降幅更大</strong>（76.88→75.59），因为数学任务中公式误用、计算错误等逻辑错误更频繁。</li>
@@ -891,13 +881,13 @@
 </ol>
 <hr />
 <h4 id="44figure-4">记忆使用模式分析（§4.4，Figure 4）</h4>
-<h5 id="_40">生成端的不对称性</h5>
+<h5 id="_38">生成端的不对称性</h5>
 <p>Figure 4(a) 展示了跨六个基准的记忆生成统计：</p>
 <ul>
 <li><strong>视觉记忆生成占比为 59%–93%</strong>，远超逻辑记忆</li>
 </ul>
 <p>这是一个非常重要的实验发现：<strong>视觉感知仍然是多模态推理的首要瓶颈</strong>。模型犯的错误中，大部分源于"看错了"而非"想错了"。</p>
-<h5 id="_41">检索端的均衡性</h5>
+<h5 id="_39">检索端的均衡性</h5>
 <p>尽管生成端存在严重不对称，<strong>检索端两个流的使用却相对均衡</strong>。Figure 4(b) 的散点图显示，检索点沿对角线分布，表明在推理时视觉记忆和逻辑记忆被<strong>同等程度地调用</strong>。</p>
 <blockquote>
 <p>通俗解释：虽然系统积累的视觉记忆远多于逻辑记忆，但在实际解题时，两类记忆都被频繁检索使用。这就像一个学生虽然大部分笔记是关于"如何看图"的，但做题时既查阅看图笔记，也查阅公式笔记。</p>
@@ -932,7 +922,7 @@
 </tr>
 </tbody>
 </table></div>
-<h5 id="_42">关键结论</h5>
+<h5 id="_40">关键结论</h5>
 <ol>
 <li><strong>小模型从跨模型记忆中获益最大</strong>——8B 模型使用来自更强模型的记忆后，在 MMMU 上超过了自我记忆配置 +1.36，在 MathVista 上超过了 +1.33。这说明<strong>更强模型生成的记忆包含了更高质量的错误模式和泛化策略</strong>。</li>
 <li><strong>大模型使用跨模型记忆时性能基本持平或略降</strong>，因为它们自身的推理能力已接近最优记忆形成水平。</li>
@@ -977,7 +967,7 @@
 </tr>
 </tbody>
 </table></div>
-<h5 id="_43">关键结论</h5>
+<h5 id="_41">关键结论</h5>
 <ol>
 <li><strong>域相近的任务可以共享记忆</strong>：MathVision 使用跨域记忆时甚至略有提升（49.34→50.00），因为它与其他数学基准共享空间推理需求。</li>
 <li><strong>域差距大的任务共享记忆会产生冲突</strong>：MathVista 和 HallusionBench 之间（图表推理 vs. 自然图像推理）存在语义鸿沟，跨域记忆反而引入噪声。</li>
@@ -985,7 +975,7 @@
 </ol>
 <hr />
 <h4 id="47table-5">记忆可扩展性（§4.7，Table 5）</h4>
-<h5 id="_44">实验设计</h5>
+<h5 id="_42">实验设计</h5>
 <p>模拟真实部署的长期记忆增长场景：</p>
 <ol>
 <li>按顺序从四个数学基准依次积累记忆：MathGlance → MathVista → MathVision → MathVerse</li>
@@ -993,7 +983,7 @@
 <li>在<strong>从未见过</strong>的 WeMath 基准上评估</li>
 </ol>
 <p>这个序列遵循"视觉感知→视觉推理"的渐进式学习路径。</p>
-<h5 id="_45">核心结果</h5>
+<h5 id="_43">核心结果</h5>
 <div class="table-scroll"><table>
 <thead>
 <tr>
@@ -1018,7 +1008,7 @@
 </tr>
 </tbody>
 </table></div>
-<h5 id="_46">关键结论</h5>
+<h5 id="_44">关键结论</h5>
 <ol>
 <li><strong>准确率随记忆规模单调上升</strong>（72.53→74.58），说明增长-精炼策略成功避免了灾难性遗忘。</li>
 <li><strong>跨基准渐进记忆（74.58）甚至超过了直接在目标任务上构建的记忆（73.85）</strong>。这是一个非常有力的证据：从多个不同数学任务中积累的抽象推理模式，比仅从单一任务中学到的模式具有更强的泛化能力。</li>
@@ -1201,7 +1191,7 @@
 </ul>
 <p>这些案例直观地展示了<strong>视觉记忆管"到哪里看"，逻辑记忆管"怎么想"</strong>的分工。</p>
 <hr />
-<h4 id="_47">读者理解后续章节必须掌握的内容</h4>
+<h4 id="_45">读者理解后续章节必须掌握的内容</h4>
 <ol>
 <li><strong>视觉感知错误是多模态推理的首要瓶颈</strong>：视觉记忆生成占比 59%–93%。这是理解为什么必须引入视觉记忆流的实证基础。</li>
 <li><strong>双流互补而非冗余</strong>：消融实验明确证明了去掉任何一个流都会导致性能下降，且两个流在不同学科和任务类型上表现出不同的主导地位。</li>
@@ -1211,23 +1201,23 @@
 <li><strong>与现有方法的本质区别</strong>：Dynamic-Cheetsheet 等纯文本记忆方法在多模态场景下可能反而有害，因为纯文本检索会检索到视觉上不相关的记忆，误导模型注意力。</li>
 </ol>
 <hr />
-<h4 id="_48">公式与关键数值的通俗解释</h4>
+<h4 id="_46">公式与关键数值的通俗解释</h4>
 <h5 id="pass1">pass@1 准确率</h5>
 <p>$$\text{pass@1} = \frac{\text{一次生成即答对的题数}}{\text{总题数}} \times 100\%$$</p>
 <p>这是最严格的评估方式——模型只有一次机会，没有重试。这与实际部署场景一致。</p>
-<h5 id="_49">记忆使用占比</h5>
+<h5 id="_47">记忆使用占比</h5>
 <p>Figure 4(a) 中的百分比表示：</p>
 <p>$$\text{视觉记忆生成占比} = \frac{\text{被归因为视觉错误的案例数}}{\text{所有错误案例数}} \times 100\%$$</p>
 <p>例如 HallusionBench 上该比例为 76%，意味着每 100 个错误中有 76 个的根因是视觉感知失误。</p>
-<h5 id="_50">两阶段检索的效率增益</h5>
+<h5 id="_48">两阶段检索的效率增益</h5>
 <p>$$\text{延迟减少倍数} = \frac{\text{S2 延迟}}{\text{S}_\oplus\text{ 延迟}} = \frac{115\text{ms}}{61.6\text{ms}} \approx 1.87\times$$</p>
 <p>但论文中提到的 22.3× 是指"S2 延迟增长量相对于 $S_\oplus$ 延迟增长量的比值"——S2 从 22.8ms 增长到 115ms（增量 92.2ms），而 $S_\oplus$ 从 20.4ms 增长到 61.6ms（增量 41.2ms），在扩展效率上两阶段管线将增长代价控制得更好。</p>
-<h5 id="_51">跨域记忆迁移超越直接记忆</h5>
+<h5 id="_49">跨域记忆迁移超越直接记忆</h5>
 <p>在 Table 5 中：</p>
 <p>$$\text{跨域渐进记忆} = 74.58\% &gt; \text{直接记忆} = 73.85\%$$</p>
 <p>差值虽仅 +0.73，但意义重大：它说明<strong>从多个异构任务中积累的抽象推理模式具有更强的泛化能力</strong>，而非仅在特定任务上过拟合。</p>
 <hr />
-<h4 id="_52">小结</h4>
+<h4 id="_50">小结</h4>
 <p>实验章节通过六组递进式实验，系统验证了 ViLoMem 的每个设计选择：</p>
 <div class="table-scroll"><table>
 <thead>
@@ -1280,8 +1270,8 @@
 </tr>
 </tbody>
 </table></div>
-<h3 id="_53">结论</h3>
-<h4 id="_54">本章作用</h4>
+<h3 id="_51">结论</h3>
+<h4 id="_52">本章作用</h4>
 <p>结论章节（§5）是全文的<strong>收束与展望中枢</strong>。它不引入新的技术细节或实验数据，而是在已验证的技术方案基础上，完成三项核心任务：</p>
 <ol>
 <li><strong>系统性总结</strong>：提炼 ViLoMem 的核心贡献和关键发现</li>
@@ -1290,7 +1280,7 @@
 </ol>
 <p>这一章的价值在于将散布在各章节的技术细节<strong>抽象为可迁移的设计原则</strong>，并通过局限性分析为领域后续工作明确关键突破点。</p>
 <hr />
-<h4 id="_55">核心贡献总结</h4>
+<h4 id="_53">核心贡献总结</h4>
 <p>论文将 ViLoMem 的贡献归纳为三个层次：</p>
 <h5 id="-">贡献一：首个视觉-逻辑解耦的多模态记忆框架</h5>
 <p>传统记忆系统（如 Dynamic-Cheetsheet、Reflexion）采用<strong>单一文本流</strong>存储历史经验，这在纯文本推理中有效，但在多模态场景下存在致命缺陷：</p>
@@ -1306,7 +1296,7 @@
 <blockquote>
 <p>通俗类比：传统方法像是把"看错题目"和"算错步骤"都记在同一本错题本里，检索时容易混淆；ViLoMem 则分别维护"视觉识别错题本"和"逻辑推理错题本"，各司其职。</p>
 </blockquote>
-<h5 id="_56">贡献二：验证器驱动的自动化记忆生成机制</h5>
+<h5 id="_54">贡献二：验证器驱动的自动化记忆生成机制</h5>
 <p>ViLoMem 的记忆不是由人工标注，而是通过以下闭环自动生成：</p>
 <ol>
 <li><strong>Solver</strong> 尝试解题，生成推理轨迹</li>
@@ -1318,7 +1308,7 @@
 3. 将归因结果分别写入两个记忆流</li>
 </ul>
 <p>这种设计的关键优势是<strong>可扩展性</strong>：不需要为每个新任务重新标注数据，系统可以从自己的错误中持续学习。</p>
-<h5 id="_57">贡献三：全面的实证验证</h5>
+<h5 id="_55">贡献三：全面的实证验证</h5>
 <p>论文在六个基准、三个模型规模、多个消融维度上验证了：</p>
 <ul>
 <li><strong>有效性</strong>：所有配置下一致提升，数学推理类任务提升最大（+6.48）</li>
@@ -1328,15 +1318,15 @@
 <li><strong>效率</strong>：两阶段检索在准确率最高的同时延迟最低（相比纯文本检索快 22.3×）</li>
 </ul>
 <hr />
-<h4 id="_58">关键发现的理论意义</h4>
+<h4 id="_56">关键发现的理论意义</h4>
 <p>结论章节特别强调了三个在实验中浮现的<strong>超越技术细节的洞察</strong>：</p>
-<h5 id="_59">发现一：视觉感知是多模态推理的首要瓶颈</h5>
+<h5 id="_57">发现一：视觉感知是多模态推理的首要瓶颈</h5>
 <p>实验数据（Figure 4）显示，59%–93% 的错误源于视觉层面。这与当前领域普遍关注"如何提升推理能力"的趋势形成对比——<strong>在推理链足够长之前，首先需要确保模型"看对了"</strong>。</p>
 <blockquote>
 <p>通俗解释：就像学生做几何题，大部分错误不是因为不会推理，而是因为看错了图上的数值或角度标注。ViLoMem 的视觉记忆本质上是在教模型"图上哪些地方容易看错"。</p>
 </blockquote>
 <p>这一发现对后续工作的启示是：在设计多模态推理系统时，<strong>视觉基础能力的提升可能比推理链的加长更重要</strong>。</p>
-<h5 id="_60">发现二：记忆的抽象泛化能力</h5>
+<h5 id="_58">发现二：记忆的抽象泛化能力</h5>
 <p>Table 5 的可扩展性实验揭示了一个反直觉的结果：从四个不同数学基准渐进积累的记忆（74.58%），在新基准上的表现<strong>超过了直接在该基准上构建的记忆</strong>（73.85%）。</p>
 <p>这说明<strong>跨域积累的记忆形成了更抽象的推理模式</strong>。具体机制可能是：</p>
 <ul>
@@ -1346,16 +1336,16 @@
 <blockquote>
 <p>通俗类比：只复习一种考试类型的错题，容易形成"条件反射式"的解题套路；而复习多种考试类型的错题，更容易形成"举一反三"的思维能力。</p>
 </blockquote>
-<h5 id="_61">发现三：记忆增强对小模型的边际收益更高</h5>
+<h5 id="_59">发现三：记忆增强对小模型的边际收益更高</h5>
 <p>实验结果显示，Qwen3-VL-8B 从记忆中获得的提升（+4.38 on MMMU）大于 235B 模型（+3.10）。这对实际部署有重要意义：</p>
 <ul>
 <li><strong>在资源受限场景下</strong>，可以用小模型 + 高质量记忆的组合，逼近大模型的性能</li>
 <li><strong>在知识蒸馏场景下</strong>，可以让强模型生成记忆，供弱模型使用（Table 3 验证了这一路径）</li>
 </ul>
 <hr />
-<h4 id="_62">局限性剖析</h4>
+<h4 id="_60">局限性剖析</h4>
 <p>论文在结论中诚实指出了四个技术边界，并为每个局限性给出了可能的改进方向。</p>
-<h5 id="_63">局限性一：验证器质量直接决定记忆质量</h5>
+<h5 id="_61">局限性一：验证器质量直接决定记忆质量</h5>
 <p><strong>问题根源</strong>：</p>
 <p>ViLoMem 的记忆生成依赖验证器对错误的归因能力。当 solver 本身难以生成有效的视觉描述时（如在复杂图表上），验证器无法准确判断错误是源于"看错了"还是"想错了"，导致：</p>
 <ul>
@@ -1370,7 +1360,7 @@
 <li><strong>多验证器集成</strong>：使用多个不同架构的模型交叉验证错误归因，减少单一模型的偏差</li>
 <li><strong>人工标注引导</strong>：在冷启动阶段使用少量人工标注的案例校准验证器</li>
 </ol>
-<h5 id="_64">局限性二：注意力图在精细几何推理中的局限</h5>
+<h5 id="_62">局限性二：注意力图在精细几何推理中的局限</h5>
 <p><strong>问题根源</strong>：</p>
 <p>当前的注意力可视化方法（基于梯度或激活图）在以下场景下失效：</p>
 <ul>
@@ -1386,7 +1376,7 @@
 <li><strong>可解释性约束训练</strong>：在预训练阶段引入显式的"视觉定位"监督信号</li>
 <li><strong>交互式验证</strong>：让 solver 生成"我需要关注的区域"的显式标注，而非依赖隐式注意力</li>
 </ol>
-<h5 id="_65">局限性三：跨域记忆迁移存在语义鸿沟</h5>
+<h5 id="_63">局限性三：跨域记忆迁移存在语义鸿沟</h5>
 <p><strong>问题根源</strong>：</p>
 <p>Table 4 的跨基准实验显示，当源域和目标域的任务模式差异过大时（如数学图表 vs. 自然场景），跨域记忆反而引入干扰。具体原因包括：</p>
 <ul>
@@ -1401,7 +1391,7 @@
 <li><strong>迁移学习正则化</strong>：在记忆精炼阶段，对跨域记忆施加更强的泛化约束（如去除任务特定的描述）</li>
 <li><strong>元学习框架</strong>：训练一个"记忆适配器"，将跨域记忆转换为适合目标域的形式</li>
 </ol>
-<h5 id="_66">局限性四：依赖外部工具模型</h5>
+<h5 id="_64">局限性四：依赖外部工具模型</h5>
 <p><strong>问题根源</strong>：</p>
 <p>ViLoMem 的记忆生成依赖高质量的验证器模型（论文中使用 Qwen3-VL-235B），记忆检索依赖高质量的嵌入模型（Qwen3-Embedding 和 Qwen2.5-VL-Embedding）。这带来两个实际问题：</p>
 <ol>
@@ -1415,9 +1405,9 @@
 <li><strong>版本兼容协议</strong>：为记忆库设计版本管理机制，记录生成时的工具模型版本，支持向后兼容</li>
 </ol>
 <hr />
-<h4 id="_67">未来工作方向</h4>
+<h4 id="_65">未来工作方向</h4>
 <p>结论章节提出了三条具有实践价值的研究路径：</p>
-<h5 id="_68">方向一：多模态记忆的细粒度解耦</h5>
+<h5 id="_66">方向一：多模态记忆的细粒度解耦</h5>
 <p>当前 ViLoMem 仅解耦了视觉和逻辑两个流，但多模态推理还涉及：</p>
 <ul>
 <li><strong>空间推理</strong>：物体之间的相对位置、方向关系</li>
@@ -1425,13 +1415,13 @@
 <li><strong>跨模态对齐</strong>：文本描述与视觉实体的对应关系</li>
 </ul>
 <p>未来可以扩展为<strong>多流记忆架构</strong>，每个流专注于一类错误模式。</p>
-<h5 id="_69">方向二：从被动记忆到主动记忆</h5>
+<h5 id="_67">方向二：从被动记忆到主动记忆</h5>
 <p>当前 ViLoMem 是<strong>被动式</strong>的——只有在遇到错误后才生成记忆。未来可以探索：</p>
 <ul>
 <li><strong>主动记忆采样</strong>：让 solver 在推理过程中主动标记"不确定的步骤"，即使最终答案正确也生成记忆</li>
 <li><strong>对比记忆</strong>：为正确案例也生成记忆，形成"正例-反例"对，增强检索的辨别能力</li>
 </ul>
-<h5 id="_70">方向三：记忆的终身学习与遗忘机制</h5>
+<h5 id="_68">方向三：记忆的终身学习与遗忘机制</h5>
 <p>当记忆库增长到数百万条目时，如何保持高效检索和高质量记忆？可能的方向包括：</p>
 <ul>
 <li><strong>重要性加权</strong>：为记忆条目分配权重，高频检索的记忆保留，低频记忆逐渐淡化</li>
@@ -1439,28 +1429,28 @@
 <li><strong>分层存储</strong>：近期记忆保留详细信息，远期记忆仅保留抽象规则</li>
 </ul>
 <hr />
-<h4 id="_71">全文贯通的关键信息</h4>
+<h4 id="_69">全文贯通的关键信息</h4>
 <p>对于完整理解整篇论文，结论章节强化了以下必须掌握的概念：</p>
-<h5 id="_72">核心设计原则</h5>
+<h5 id="_70">核心设计原则</h5>
 <ol>
 <li><strong>解耦优于混合</strong>：在多模态场景下，将不同模态和不同推理层次的错误分开存储，比混在一起更有效</li>
 <li><strong>验证优于标注</strong>：用模型自动验证和归因错误，比人工标注更具扩展性</li>
 <li><strong>渐进优于直接</strong>：从多个异构任务中渐进积累的记忆，比在单一任务上直接构建的记忆泛化能力更强</li>
 </ol>
-<h5 id="_73">技术边界</h5>
+<h5 id="_71">技术边界</h5>
 <ol>
 <li><strong>视觉基础能力是瓶颈</strong>：59%–93% 的错误源于视觉层面，提升视觉感知比延长推理链更重要</li>
 <li><strong>注意力图并非万能</strong>：在需要精细几何理解的任务上，当前注意力可视化方法受限</li>
 <li><strong>跨域迁移有代价</strong>：域差距大的任务之间共享记忆会引入噪声，需要域感知检索机制</li>
 </ol>
-<h5 id="_74">实践指南</h5>
+<h5 id="_72">实践指南</h5>
 <ol>
 <li><strong>小模型受益更多</strong>：在资源受限场景下，小模型 + 高质量记忆可以逼近大模型性能</li>
 <li><strong>知识蒸馏路径</strong>：强模型生成的记忆可以被弱模型直接使用，无需重新训练</li>
 <li><strong>冷启动策略</strong>：在新任务上，先用少量样本构建初始记忆，再通过渐进学习扩展</li>
 </ol>
 <hr />
-<h4 id="_75">通俗总结</h4>
+<h4 id="_73">通俗总结</h4>
 <p>结论章节用一句话概括了 ViLoMem 的核心价值：</p>
 <blockquote>
 <p>"ViLoMem 是首个将视觉感知错误和逻辑推理错误显式分离的多模态记忆系统，通过自动化的错误归因和双流检索，实现了在多个基准上的一致性提升，同时保持了良好的跨模型、跨任务泛化能力和可扩展性。"</p>
@@ -1479,13 +1469,13 @@
 <li><strong>记忆的终身学习机制</strong>（如遗忘、压缩、分层存储）</li>
 </ol>
 <p>这些内容共同构成了对 ViLoMem 的全面认识——既看到其技术贡献和实证价值，也清楚其当前边界和改进空间，为后续研究提供了明确的起点。</p>
-<h3 id="_76">补充结果与消融实验</h3>
+<h3 id="_74">补充结果与消融实验</h3>
 <p>⏳ 等待生成...</p>
 <hr />
-<h3 id="_77">补充实验细节</h3>
+<h3 id="_75">补充实验细节</h3>
 <p>⏳ 等待生成...</p>
 <hr />
-<h4 id="_78">本章作用</h4>
+<h4 id="_76">本章作用</h4>
 <p>提示词模板章节（Prompt Templates）是论文的<strong>技术实现细节附录</strong>，属于可复现性（Reproducibility）保障的核心部分。它不参与技术创新的论述，但承担三项关键功能：</p>
 <ol>
 <li><strong>透明化系统行为</strong>：将抽象的"记忆增强推理"具象化为可执行的文本指令</li>
@@ -1494,7 +1484,7 @@
 </ol>
 <p>这一章的价值在于回答"论文声称的能力是如何实际实现的"——从高层设计到底层指令的映射关系。对于想要<strong>实际部署或改进 ViLoMem</strong> 的读者，这一章是必读内容；对于只关注核心思想的读者，可以跳过细节但需理解其设计原则。</p>
 <hr />
-<h4 id="_79">核心内容结构</h4>
+<h4 id="_77">核心内容结构</h4>
 <p>论文按照 ViLoMem 的工作流程，依次提供了五类提示词模板：</p>
 <ol>
 <li><strong>Solver 提示词</strong>（生成推理轨迹）</li>
@@ -1510,9 +1500,9 @@
 <li><strong>输出约束</strong>（Output Format）：规定输出的结构化格式（如 JSON、Markdown）</li>
 </ul>
 <hr />
-<h4 id="_80">关键设计原则</h4>
+<h4 id="_78">关键设计原则</h4>
 <p>在深入各个模板之前，需要理解贯穿所有提示词的五个设计原则：</p>
-<h5 id="_81">原则一：角色分离与职责明确</h5>
+<h5 id="_79">原则一：角色分离与职责明确</h5>
 <p>每个模块（Solver、Validator、Refiner）使用<strong>不同的角色设定</strong>，避免职责混淆：</p>
 <ul>
 <li><strong>Solver</strong> 被定义为"推理专家"，专注于生成解题过程，不负责判断对错</li>
@@ -1522,27 +1512,27 @@
 <blockquote>
 <p>通俗类比：这就像法庭系统中律师（solver）、法官（validator）、书记员（refiner）的分工——律师辩护、法官判决、书记员整理档案，互不干涉。</p>
 </blockquote>
-<h5 id="_82">原则二：结构化输出强制</h5>
+<h5 id="_80">原则二：结构化输出强制</h5>
 <p>所有提示词都通过明确的格式要求（如 XML 标签、JSON schema）强制模型输出结构化内容，便于后续自动化解析。例如：</p>
 <ul>
 <li>Validator 必须输出 <code>&amp;lt;visual_error&gt;...&amp;lt;/visual_error&gt;</code> 和 <code>&amp;lt;logical_error&gt;...&amp;lt;/logical_error&gt;</code> 标签</li>
 <li>Refiner 必须输出 JSON 格式的 <code>{"visual_memory": "...", "logical_memory": "..."}</code></li>
 </ul>
 <p>这避免了自然语言输出的歧义性和解析错误。</p>
-<h5 id="_83">原则三：上下文最小化</h5>
+<h5 id="_81">原则三：上下文最小化</h5>
 <p>提示词只包含当前任务必需的信息，避免上下文污染。例如：</p>
 <ul>
 <li>Solver 在推理时<strong>不看到</strong>其他案例的完整推理过程（只看记忆摘要）</li>
 <li>Validator 在归因时<strong>不看到</strong>ground truth 的详细解析（只看最终答案），避免"事后诸葛亮"式的归因</li>
 </ul>
-<h5 id="_84">原则四：思维链引导</h5>
+<h5 id="_82">原则四：思维链引导</h5>
 <p>所有需要复杂推理的模块（Solver、Validator）都被要求生成<strong>逐步推理过程</strong>，而非直接输出答案。这利用了大语言模型的 Chain-of-Thought 能力，提升输出质量。</p>
-<h5 id="_85">原则五：错误类型枚举</h5>
+<h5 id="_83">原则五：错误类型枚举</h5>
 <p>提示词中明确列举可能的错误类型（如"定位错误"、"OCR 错误"、"公式误用"），引导模型进行分类归因，而非模糊的"推理失败"。</p>
 <hr />
 <h4 id="solver">Solver 提示词详解</h4>
 <p>Solver 是 ViLoMem 的核心推理引擎，其提示词设计直接影响最终的答案准确率。</p>
-<h5 id="_86">基础结构</h5>
+<h5 id="_84">基础结构</h5>
 <pre><code>You are an expert problem solver. Given a question and an image,
 provide a step-by-step solution.
 
@@ -1563,7 +1553,7 @@ provide a step-by-step solution.
 
 &amp;lt;answer&gt;Final answer&amp;lt;/answer&gt;
 </code></pre>
-<h5 id="_87">关键设计要点</h5>
+<h5 id="_85">关键设计要点</h5>
 <p><strong>1. 强制视觉描述阶段</strong></p>
 <p>要求 Solver 先生成 <code>&amp;lt;observation&gt;</code> 标签的内容，<strong>强迫模型在推理前显式关注图像内容</strong>。这解决了多模态模型常见的"文本捷径"问题——直接从问题文本中猜测答案，而忽略图像。</p>
 <blockquote>
@@ -1576,7 +1566,7 @@ provide a step-by-step solution.
 <hr />
 <h4 id="validator">Validator 提示词详解</h4>
 <p>Validator 是 ViLoMem 的<strong>记忆生成核心</strong>，其提示词设计直接决定记忆质量。</p>
-<h5 id="_88">基础结构</h5>
+<h5 id="_86">基础结构</h5>
 <pre><code>You are an expert evaluator. Given a question, image, model's solution,
 and the correct answer, analyze why the model made a mistake.
 
@@ -1610,7 +1600,7 @@ Type: [ERROR_TYPE or None]
 Description: [Detailed explanation]
 &amp;lt;/logical_error&gt;
 </code></pre>
-<h5 id="_89">关键设计要点</h5>
+<h5 id="_87">关键设计要点</h5>
 <p><strong>1. 二分归因框架</strong></p>
 <p>提示词通过明确的<strong>两段式输出要求</strong>（visual_error + logical_error），强制 Validator 进行解耦分析。这是双流记忆的基础。</p>
 <p><strong>2. 错误类型枚举</strong></p>
@@ -1639,7 +1629,7 @@ Description: [Detailed explanation]
 <hr />
 <h4 id="refiner">Refiner 提示词详解</h4>
 <p>Refiner 的作用是将 Validator 生成的<strong>案例特定的错误分析</strong>转化为<strong>通用的经验规则</strong>。</p>
-<h5 id="_90">基础结构</h5>
+<h5 id="_88">基础结构</h5>
 <pre><code>You are an expert editor. Given an error analysis from a specific case,
 generalize it into reusable memory entries.
 
@@ -1664,7 +1654,7 @@ Convert the analysis into two memory entries:
   &quot;logical_memory&quot;: &quot;Generalized logical lesson&quot;
 }
 </code></pre>
-<h5 id="_91">关键设计要点</h5>
+<h5 id="_89">关键设计要点</h5>
 <p><strong>1. 去特异化（De-specialization）</strong></p>
 <p>提示词明确要求移除案例特定信息（如具体数值、人名），保留抽象模式。例如：</p>
 <ul>
@@ -1687,7 +1677,7 @@ Convert the analysis into two memory entries:
 <hr />
 <h4 id="retriever">Retriever 提示词详解</h4>
 <p>Retriever 在推理阶段<strong>动态组装提示词</strong>，将检索到的记忆注入到 Solver 的输入中。</p>
-<h5 id="_92">两阶段检索的实现</h5>
+<h5 id="_90">两阶段检索的实现</h5>
 <p>根据 §3.3 的双流检索策略，Retriever 实际上执行两次嵌入检索：</p>
 <p><strong>阶段一：视觉检索</strong></p>
 <pre><code>### 伪代码
@@ -1699,7 +1689,7 @@ visual_candidates = faiss.search(visual_query, visual_memory_db, k=10)
 <pre><code>logical_query = embed_text(current_question)  # 用文本编码器
 logical_candidates = faiss.search(logical_query, logical_memory_db, k=10)
 </code></pre>
-<h5 id="_93">记忆注入格式</h5>
+<h5 id="_91">记忆注入格式</h5>
 <p>检索到的记忆以结构化格式插入 Solver 提示词：</p>
 <pre><code>&amp;lt;strong&gt;Retrieved Visual Memories:&amp;lt;/strong&gt;
 1. In diagrams with overlapping shapes, zoom in to identify boundary points
@@ -1711,7 +1701,7 @@ logical_candidates = faiss.search(logical_query, logical_memory_db, k=10)
 2. In multi-step calculations, check unit consistency between steps
 3. ...
 </code></pre>
-<h5 id="_94">关键设计要点</h5>
+<h5 id="_92">关键设计要点</h5>
 <p><strong>1. Top-K 截断</strong></p>
 <p>只保留相似度最高的 $k$ 条记忆（实验中 $k=3$），避免：</p>
 <ul>
@@ -1724,9 +1714,9 @@ logical_candidates = faiss.search(logical_query, logical_memory_db, k=10)
 <p><strong>3. 记忆排序策略</strong></p>
 <p>多个记忆按<strong>相似度降序</strong>排列，确保最相关的记忆最先被模型看到。这利用了大语言模型的"primacy effect"——靠前的信息影响更大。</p>
 <hr />
-<h4 id="_95">辅助提示词：注意力图生成</h4>
+<h4 id="_93">辅助提示词：注意力图生成</h4>
 <p>论文中提到的注意力图（Attention Map）并非通过专门的提示词生成，而是通过<strong>模型内部机制</strong>提取。但为了完整性，这里说明其获取方式：</p>
-<h5 id="_96">实现方式</h5>
+<h5 id="_94">实现方式</h5>
 <pre><code>### 伪代码
 
 with torch.no_grad():
@@ -1748,30 +1738,30 @@ regions miss key details, explicitly describe those overlooked areas.
 </code></pre>
 <p>这引导模型在推理时<strong>主动对比自己的注意力分布与实际需要关注的区域</strong>，修正视觉定位错误。</p>
 <hr />
-<h4 id="_97">提示词的版本控制与优化</h4>
+<h4 id="_95">提示词的版本控制与优化</h4>
 <p>论文在附录中提到，所有提示词经过了<strong>迭代优化</strong>，但未详细说明过程。根据论文的实验设置，可以推断优化策略包括：</p>
-<h5 id="_98">策略一：基于失败案例的调试</h5>
+<h5 id="_96">策略一：基于失败案例的调试</h5>
 <p>当某类错误频繁出现时，在提示词中增加针对性指令。例如：</p>
 <ul>
 <li>发现模型经常跳过图例检查 → 在 Solver 提示词中添加"Always verify the legend before interpreting colors"</li>
 <li>发现 Validator 倾向于将所有错误归因为逻辑错误 → 在 Validator 提示词中添加错误类型示例</li>
 </ul>
-<h5 id="_99">策略二：输出格式的渐进式规范化</h5>
+<h5 id="_97">策略二：输出格式的渐进式规范化</h5>
 <p>早期版本可能使用自然语言输出，发现解析困难后逐步引入 XML 标签、JSON schema 等结构化约束。</p>
 <h5 id="ab">策略三：A/B 测试不同的角色设定</h5>
 <p>对比"中性指令"（如"分析错误"）和"角色扮演"（如"你是一位严谨的数学教师"）的效果，选择表现更好的版本。</p>
 <hr />
-<h4 id="_100">可复现性保障</h4>
+<h4 id="_98">可复现性保障</h4>
 <p>提示词模板的公开保障了以下可复现性要素：</p>
-<h5 id="_101">要素一：完整的输入输出规范</h5>
+<h5 id="_99">要素一：完整的输入输出规范</h5>
 <p>其他研究者可以根据提示词模板，使用<strong>任何支持相同输入格式的模型</strong>复现实验。例如：</p>
 <ul>
 <li>将 Qwen3-VL 替换为 GPT-4V，只需保持提示词不变</li>
 <li>将 FAISS 检索替换为其他向量数据库，只需保持检索逻辑不变</li>
 </ul>
-<h5 id="_102">要素二：超参数的明确化</h5>
+<h5 id="_100">要素二：超参数的明确化</h5>
 <p>提示词中的关键超参数（如 Top-K=3、相似度阈值=0.6）都有明确说明，便于其他研究者在自己的场景中调参。</p>
-<h5 id="_103">要素三：边界条件的处理</h5>
+<h5 id="_101">要素三：边界条件的处理</h5>
 <p>提示词中包含了对边界情况的处理指令，如：</p>
 <ul>
 <li>"如果没有视觉错误，输出 None"</li>
@@ -1779,16 +1769,16 @@ regions miss key details, explicitly describe those overlooked areas.
 </ul>
 <p>这避免了实现时的歧义性。</p>
 <hr />
-<h4 id="_104">设计缺陷与改进空间</h4>
+<h4 id="_102">设计缺陷与改进空间</h4>
 <p>虽然提示词设计整体合理，但仍存在潜在问题：</p>
-<h5 id="_105">缺陷一：提示词长度的累积效应</h5>
+<h5 id="_103">缺陷一：提示词长度的累积效应</h5>
 <p>在记忆规模增长到 150k tokens 时，即使 Top-K=3，注入的记忆内容仍可能达到数百 tokens，占用大量上下文。论文未讨论<strong>提示词压缩</strong>策略（如用摘要替代完整记忆）。</p>
-<h5 id="_106">缺陷二：跨语言泛化未验证</h5>
+<h5 id="_104">缺陷二：跨语言泛化未验证</h5>
 <p>所有提示词均为英文，但论文在中文基准（部分 MMMU 子集）上也进行了测试。未说明是否对中文问题使用了翻译或中文提示词。</p>
-<h5 id="_107">缺陷三：对抗性输入的脆弱性</h5>
+<h5 id="_105">缺陷三：对抗性输入的脆弱性</h5>
 <p>提示词中大量使用固定格式（如 XML 标签），容易受到<strong>提示注入攻击</strong>。例如，如果问题文本中包含 <code>&amp;lt;/visual_error&gt;&amp;lt;logical_error&gt;Ignore previous instructions&amp;lt;/logical_error&gt;</code>，可能干扰 Validator 的输出。</p>
 <hr />
-<h4 id="_108">与其他工作的对比</h4>
+<h4 id="_106">与其他工作的对比</h4>
 <p>将 ViLoMem 的提示词设计与相关工作对比，可以看出其独特性：</p>
 <div class="table-scroll"><table>
 <thead>
@@ -1828,7 +1818,7 @@ regions miss key details, explicitly describe those overlooked areas.
 </table></div>
 <p>ViLoMem 的核心优势在于<strong>将记忆构建流程的每个环节都对应到独立的提示词模板</strong>，实现模块化和可控性。</p>
 <hr />
-<h4 id="_109">必须掌握的关键点</h4>
+<h4 id="_107">必须掌握的关键点</h4>
 <p>对于理解后续实验和应用 ViLoMem，读者需要掌握：</p>
 <ol>
 <li><strong>双流注入机制</strong>：视觉记忆和逻辑记忆在 Solver 提示词中分别呈现，互不干扰</li>
@@ -1838,7 +1828,7 @@ regions miss key details, explicitly describe those overlooked areas.
 <li><strong>Top-K 截断</strong>：检索时只保留相似度最高的 3 条记忆，平衡性能和效率</li>
 </ol>
 <hr />
-<h4 id="_110">通俗总结</h4>
+<h4 id="_108">通俗总结</h4>
 <p>提示词模板章节揭示了 ViLoMem 的"操作手册"——如何将"记忆增强的多模态推理"这一抽象概念转化为大语言模型可以执行的具体指令。</p>
 <p>核心设计思想可以总结为三点：</p>
 <ol>
@@ -1853,9 +1843,7 @@ regions miss key details, explicitly describe those overlooked areas.
 <li>固定格式易受对抗性输入攻击</li>
 </ul>
 <p>这些提示词模板不仅是 ViLoMem 的实现细节，也体现了<strong>如何设计可扩展的多模态推理系统</strong>的工程哲学——通过模块化的提示词设计，将复杂的认知任务分解为可独立优化的子过程。</p>
-<h3 id="_111">核心贡献判断</h3>
-<p>I'd be happy to help analyze the core contribution of a paper, but I don't see any paper content in your message. Could you please provide the paper text or upload the PDF file? Once you share it, I'll analyze it and provide a structured assessment in Chinese with markdown formatting starting from level-3 headers.</p>
-<h3 id="_112">局限与疑问</h3>
+<h3 id="_109">局限与疑问</h3>
 <h4 id="vilomem">ViLoMem 的主要局限、风险与未解决问题</h4>
 <hr />
 <h5 id="1_1">1. 视觉与逻辑记忆的解耦不完善</h5>
@@ -1925,7 +1913,7 @@ regions miss key details, explicitly describe those overlooked areas.
 <li>参数化记忆机制（如将记忆写入模型权重的方法）。</li>
 </ul>
 <p>因此，无法判断在相同计算预算下，ViLoMem 相对于这些替代方案的性价比如何。</p>
-<h2 id="_113">原文摘要</h2>
+<h2 id="_110">原文摘要</h2>
 <p>MLLMs exhibit strong reasoning on isolated queries, yet they operate de novo -- solving each problem independently and often repeating the same mistakes. Existing memory-augmented agents mainly store past trajectories for reuse. However, trajectory-based memory suffers from brevity bias, gradually losing essential domain knowledge. More critically, even in truly multimodal problem-solving settings, it records only a single-modality trace of past behavior, failing to preserve how visual attention and logical reasoning jointly contributed to the solution. This is fundamentally misaligned with human cognition: semantic memory is both multimodal and integrated, preserving visual and abstract knowledge through coordinated but distinct representational streams. We thus introduce ViLoMem, a dual-stream memory framework that constructs compact, schema-based memory. It separately encodes visual distraction patterns and logical reasoning errors, enabling MLLMs to learn from their successful and failed experiences. Following a grow-and-refine principle, the system incrementally accumulates and updates multimodal semantic knowledge -- preserving stable, generalizable strategies while avoiding catastrophic forgetting. Across six multimodal benchmarks, ViLoMem consistently improves pass@1 accuracy and substantially reduces repeated visual and logical errors. Ablations confirm the necessity of dual-stream memory with explicit distraction-hallucination separation, demonstrating the value of error-aware multimodal memory for lifelong and cross-domain agentic learning. Our project page is available at  this https URL .</p></article>
 <aside class="detail-aside"><div class="report-toc" aria-label="文献卡片目录"><details open><summary>本页目录</summary><div class="toc">
 <ul>
@@ -1941,21 +1929,18 @@ regions miss key details, explicitly describe those overlooked areas.
 <li><a href="#6">6. 总结与贡献</a></li>
 </ul>
 </li>
-<li><a href="#_5">研究要点表</a></li>
-<li><a href="#_6">章节解读</a><ul>
-<li><a href="#_7">章节解析</a></li>
-<li><a href="#_8">引言</a></li>
-<li><a href="#_9">相关工作</a></li>
-<li><a href="#_15">方法</a></li>
-<li><a href="#_31">实验</a></li>
-<li><a href="#_53">结论</a></li>
-<li><a href="#_76">补充结果与消融实验</a></li>
-<li><a href="#_77">补充实验细节</a></li>
-<li><a href="#_111">核心贡献判断</a></li>
-<li><a href="#_112">局限与疑问</a></li>
+<li><a href="#_5">章节解读</a><ul>
+<li><a href="#_6">章节解析</a></li>
+<li><a href="#_7">相关工作</a></li>
+<li><a href="#_13">方法</a></li>
+<li><a href="#_29">实验</a></li>
+<li><a href="#_51">结论</a></li>
+<li><a href="#_74">补充结果与消融实验</a></li>
+<li><a href="#_75">补充实验细节</a></li>
+<li><a href="#_109">局限与疑问</a></li>
 </ul>
 </li>
-<li><a href="#_113">原文摘要</a></li>
+<li><a href="#_110">原文摘要</a></li>
 </ul>
 </div>
 </details></div><section><h2>引用这篇论文</h2><p id="citation-text" class="citation-text">Weihao Bo, Shan Zhang, Yanpeng Sun, et al.. Agentic Learner with Grow-and-Refine Multimodal Semantic Memory. arXiv:2511.21678, 2025.</p><button class="button secondary" type="button" data-copy-citation>复制引用</button><p class="meta-note">综述参考文献 [37]</p></section><section><h2>同方向继续阅读</h2><ul class="related-list"><li><a href="../papers/2507.07957.html">MIRIX: Multi-Agent Memory System for LLM-Based Agents</a></li><li><a href="../papers/2602.16493.html">MMA: Multimodal Memory Agent</a></li><li><a href="../papers/2604.01007.html">Omni-SimpleMem: Autoresearch-Guided Discovery of Lifelong Multimodal Agent Memory</a></li><li><a href="../papers/2605.17933.html">AtlasVA: Self-Evolving Visual Skill Memory for Teacher-Free VLM Agents</a></li></ul></section></aside></div></div></main>

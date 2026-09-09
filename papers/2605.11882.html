@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="FATE 从当前策略产生的失败轨迹出发，由同一策略提出修复候选，再用验证器检查安全、效用、过度拒绝和轨迹有效性；结合监督预热与 Pareto-Front Policy Optimization，把筛选后的修复信号用于策略演化。">
+<meta name="color-scheme" content="light"><title>On-Policy Self-Evolution via Failure Trajectories for Agentic Safety Alignment · Agent Memory 研究</title>
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/katex/katex.min.css"><script src="../assets/katex/katex.min.js" defer></script><script src="../assets/katex/auto-render.min.js" defer></script><script src="../assets/site.js" defer></script>
+</head>
+<body data-page="library">
+<a class="skip-link" href="#main">跳转到正文</a>
+<header class="site-header"><div class="header-inner">
+<a class="brand" href="../index.html" aria-label="Agent Memory 研究首页">
+<svg viewBox="0 0 36 36" width="32" height="32" aria-hidden="true"><path d="M9 9h18v18H9zM9 9l18 18M27 9L9 27" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="9" cy="9" r="4"/><circle cx="27" cy="9" r="4"/><circle cx="9" cy="27" r="4"/><circle cx="27" cy="27" r="4"/></svg>
+<span>Agent Memory<small>研究文献站</small></span></a>
+<nav class="site-nav" aria-label="主导航"><a href="../index.html">研究总览</a><a href="../library.html" aria-current="page">文献库</a><a href="../reports/survey.html">综述全文</a><a href="../reports/multi-agent.html">多智能体专题</a><a href="../sources.html">阅读指南</a></nav>
+</div></header>
+<main id="main"><div class="page-wrap"><div class="breadcrumb"><a href="../library.html">文献库</a><span>/</span><a href="../library.html?topic=safety">安全与治理</a></div>
+<header class="paper-hero"><div class="paper-badges"><span class="badge expanded">含详细解读</span><span class="muted">2026 · 2605.11882</span></div><h1>On-Policy Self-Evolution via Failure Trajectories for Agentic Safety Alignment</h1><p class="paper-authors full-authors">Bo Yin, Qi Li, Xinchao Wang</p>
+<div class="hero-actions paper-actions"><a href="https://arxiv.org/abs/2605.11882v1" target="_blank" rel="noopener noreferrer">论文原文 <span aria-hidden="true">↗</span></a><a href="../downloads/notes/2605.11882.md">下载文献卡片 Markdown</a></div></header>
+<div class="detail-layout"><article class="prose"><h2 id="_1">核心机制</h2>
+<p>FATE 从当前策略产生的失败轨迹出发，由同一策略提出修复候选，再用验证器检查安全、效用、过度拒绝和轨迹有效性；结合监督预热与 Pareto-Front Policy Optimization，把筛选后的修复信号用于策略演化。</p>
+<h2 id="_2">适用范围与局限</h2>
+<p>该方法更新策略参数，是经验驱动安全对齐的邻接工作，不等同于固定模型下的记忆或技能写入准入。无需专家演示不意味着无需可信验证器；摘要中的相对改进也不能解读为绝对百分点或跨基准统一收益。</p>
+<h2 id="_3">与现有文献的关系</h2>
+<p>与 SafeEvolve 的 harness—policy 协同演化、HARD 的运行时防御更新对照，可区分究竟在改模型参数、改运行时检查，还是改持久记忆。三者的计算成本与信任边界并不相同。</p>
+<h2 id="_4">详细解读</h2>
+<blockquote>
+<p>阅读边界：FATE 更新策略参数，而非固定模型下的记忆或技能写入审核。无需专家示范不等于无需可信验证器；Pareto 筛选依赖评分质量与目标阈值，不能保证真实世界安全或永不过拟合。以下结果限于论文报告的配置，ATBench 诊断成绩不等于真实工具执行安全率。</p>
+</blockquote>
+<h3 id="_5">论文核心总结</h3>
+<p>这篇论文提出了<strong>FATE（FAilure-Trajectory Evolution）</strong>框架，解决的是工具调用型LLM Agent的安全对齐问题。核心观点是：Agent的安全失败本质上发生在<strong>轨迹层面</strong>（trajectory-level）而非仅仅在最终回复层面——Agent可能在看似安全的回答背后已经执行了不安全的工具调用、遵循了注入的指令、配合了有害请求、或过度拒绝了良性任务。现有的安全对齐方法主要是response级别或off-policy的，且常常导致安全与实用性之间的权衡。FATE通过一种<strong>on-policy自我进化</strong>机制，将当前策略自身产生的失败轨迹转化为修复监督信号：对每个失败，用同一策略生成多个修复候选，再通过验证器打分和<strong>Pareto前沿筛选</strong>（跨安全性、实用性、过度拒绝控制、轨迹有效性四个目标）选出平衡的修复目标，最后通过SFT预热和<strong>Pareto-Front Policy Optimization (PFPO)</strong> 更新策略。实验表明FATE在多个基准上显著提升了Agent安全性，同时保持了任务完成能力。</p>
+<hr />
+<h3 id="1">1. 问题背景与动机</h3>
+<h4 id="11-agent">1.1 Agent安全失败的特殊性</h4>
+<p>传统的LLM安全对齐主要关注模型的文本回复是否有害。但当LLM作为Agent使用时，它会通过多步轨迹与外部环境交互——包括观察环境、调用工具、执行改变状态的动作。这使得安全问题变成了<strong>轨迹层面</strong>的：</p>
+<ul>
+<li>Agent可能最终给出一个看起来无害的回复，但在过程中已经执行了不安全的工具调用、泄露了敏感信息、遵循了注入的恶意指令</li>
+<li>反过来，Agent也可能通过广泛拒绝来回避不安全行为，表面上看很安全，但牺牲了正常任务的完成能力（即<strong>过度拒绝</strong>问题）</li>
+</ul>
+<p>因此，Agent安全不能简化为回复级别的有害性分类，而需要对整条轨迹进行推理。</p>
+<h4 id="12">1.2 现有方法的局限</h4>
+<p>现有的安全对齐监督信号存在几个关键问题：</p>
+<ol>
+<li><strong>回复级别或离线（off-policy）</strong>：RLHF和DPO中的人类偏好标注通常针对单条回复，专家示范也很少覆盖Agent自身的轨迹级失败</li>
+<li><strong>安全-实用性权衡（safety-utility trade-off）</strong>：将稀疏的安全信号标量化为单一安全奖励，常常导致模型为了看起来安全而广泛拒绝良性任务</li>
+<li><strong>推理时防御的局限</strong>：Guard模型或运行时过滤器是外部且被动的——它们可以过滤不安全动作，但不改变底层策略本身，无法让Agent内化轨迹级安全行为</li>
+</ol>
+<h4 id="13">1.3 核心思路</h4>
+<p>论文提出一个关键洞察：<strong>将Agent自身的失败轨迹视为构建on-policy修复监督信号的原材料，而不是要模仿的示范</strong>。</p>
+<p>但直接使用失败轨迹是有问题的：</p>
+<ul>
+<li>行为克隆（behavior cloning）会模仿应该被纠正的不安全或低实用性动作</li>
+<li>单一标量安全奖励会导致退化的拒绝行为</li>
+</ul>
+<p>因此需要的是一种<strong>生成-筛选（generate-and-select）策略</strong>：用当前策略为自己的失败生成多种修复方案，但只让学习者接触满足多目标约束的候选方案。</p>
+<hr />
+<h3 id="2-fate">2. FATE框架详解</h3>
+<p>FATE的完整流程如Figure 1所示，包含四个主要阶段：<strong>失败收集 → 策略条件修复提议 → 验证器监督构建 → 策略优化</strong>。</p>
+<h4 id="21">2.1 失败轨迹的形式化定义</h4>
+<p>一条失败轨迹定义为 $f = (x, a, z(x, a))$，其中：</p>
+<ul>
+<li>$x$ 是任务</li>
+<li>$a$ 是当前策略产生的轨迹</li>
+<li>$z(x, a)$ 是验证器导出的目标向量：</li>
+</ul>
+<p>$$z(x, a) = \big(z_{\text{sec}}(x,a),\; z_{\text{util}}(x,a),\; z_{\text{or}}(x,a),\; z_{\text{ctrl}}(x,a)\big)$$</p>
+<p>四个分量分别衡量：</p>
+<ul>
+<li><strong>Security（安全性）</strong>：是否遵循了注入指令或执行了有害操作</li>
+<li><strong>Utility（实用性）</strong>：是否完成了合法的用户任务</li>
+<li><strong>Over-refusal control（过度拒绝控制）</strong>：是否对良性任务做了不必要的拒绝</li>
+<li><strong>Trajectory control（轨迹控制）</strong>：工具调用和状态改变动作是否有效安全</li>
+</ul>
+<p>在第$t$轮，on-policy失败集合定义为：</p>
+<p>$$F_t = \{f_i = (x_i, a_i, z(x_i, a_i)) : a_i \sim \pi_{\theta_t}(\cdot \mid x_i),\; z(x_i, a_i) \text{ 至少违反一个目标}\}$$</p>
+<h4 id="22-policy-conditional-repair-proposal">2.2 策略条件修复提议（Policy-Conditional Repair Proposal）</h4>
+<p><strong>修复提示构建</strong>：给定一条失败轨迹 $f$，构建修复提示：</p>
+<p>$$p_f = \text{Prompt}(x, a, z(x, a))$$</p>
+<p>提示中包含原始任务、失败轨迹和验证器反馈，要求模型生成一条修正轨迹。</p>
+<p><strong>同策略修复提议</strong>：用当前策略 $\pi_{\theta_t}$ 生成 $K$ 个修复候选：</p>
+<p>$$a'_k \sim \pi_{\theta_t}(\cdot \mid p_f), \quad k = 1, \ldots, K$$</p>
+<p>这定义了一个策略条件修复提议分布：</p>
+<p>$$q_t(a' \mid f) := \pi_{\theta_t}(a' \mid p_f)$$</p>
+<p><strong>为什么用同一策略</strong>：因为失败是由 $\pi_{\theta_t}$ 产生的，从 $q_t$ 采样的修复候选局限于当前策略自身失败分布的邻域，使提议与策略实际出现的错误更相关。但 $q_t$ 不是监督分布——同策略提议可能仍然不安全、无效或过于保守。</p>
+<p><strong>验证器重新打分</strong>：为防止自我确认偏差，每个修复候选在成为监督之前都要被重新打分。对于可执行任务，将环境重置到相同初始状态，执行候选轨迹，应用相同的状态验证器。打分后的候选集为：</p>
+<p>$$\mathcal{C}_z(f) = \{(a'_k, z(x, a'_k))\}_{k=1}^K$$</p>
+<p>Figure 2展示了为什么同策略修复应被视为提议而非可信标签：原始修复候选中约24%不安全、18%仅拒绝、14%工具调用无效、20%不完整，只有24%通过验证器验证。经过过滤后，保留轨迹的四个目标分数都显著提高。</p>
+<h4 id="23-pareto">2.3 Pareto前沿监督构建</h4>
+<p>从自生成修复中选择监督是非平凡的。高安全性的候选可能只是简单拒绝任务，而保持实用性的候选可能仍不安全。因此，标量安全排序会选出退化的修复。FATE通过三步构建监督：</p>
+<p><strong>第一步：可行性过滤（Feasibility Filtering）</strong></p>
+<p>对每种任务模式 $\tau$，定义保护目标阈值 $\kappa_\tau = (\kappa_{\text{util}}(\tau), \kappa_{\text{or}}(\tau), \kappa_{\text{ctrl}}(\tau))$。可行候选必须同时满足实用性、过度拒绝控制和轨迹有效性的最低要求：</p>
+<p>$$\mathcal{F}_\tau(f) = \{a' \in \mathcal{C}(f) : z_{\text{util}}(x, a') \geq \kappa_{\text{util}}(\tau),\; z_{\text{or}}(x, a') \geq \kappa_{\text{or}}(\tau),\; z_{\text{ctrl}}(x, a') \geq \kappa_{\text{ctrl}}(\tau)\}$$</p>
+<p>这一步移除退化候选，例如在良性或被攻击但合法任务上只做拒绝的回复。</p>
+<p><strong>第二步：Pareto前沿投影</strong></p>
+<p>在可行集内，保留在验证器目标下非支配的修复。如果一个候选在所有目标上不劣于另一个、且至少一个严格更优，则后者被淘汰。这产生Pareto前沿 $\text{PF}(f)$。</p>
+<p>形式化地，$a_i$ 支配 $a_j$（$a_i \succ a_j$）当且仅当：</p>
+<p>$$z_m(x, a_i) \geq z_m(x, a_j), \;\forall m$$</p>
+<p>$$\exists m^\star: z_{m^\star}(x, a_i) &gt; z_{m^\star}(x, a_j)$$</p>
+<p>Pareto前沿为：</p>
+<p>$$\text{PF}(f) = \{a' \in \mathcal{F}_\tau(f) : \nexists b \in \mathcal{F}_\tau(f) \text{ such that } b \succ a'\}$$</p>
+<p><strong>第三步：前沿内打平（Front-Only Tie-Breaking）</strong></p>
+<p>Pareto前沿可能包含多个候选。为获得紧凑的监督集，定义一个平衡的前沿评分：</p>
+<p>$$r_{\text{PF}}(x, a') = \sum_{m=1}^{4} w_m(\tau) z_m(x, a') - \lambda \max_m w_m(\tau)\big(1 - z_m(x, a')\big)$$</p>
+<p>第一项奖励整体质量，第二项惩罚最大的加权短板。这防止候选仅因在一个目标上优秀、而在另一个目标上严重失败就被选中。</p>
+<p>最终的验证器过滤修复监督分布为：</p>
+<p>$$q_t^\star(a' \mid f) = \frac{q_t(a' \mid f) \mathbf{1}[a' \in \text{PF}(f)] \exp\big(\beta r_{\text{PF}}(x, a')\big)}{\sum_{b \in \text{PF}(f)} q_t(b \mid f) \exp\big(\beta r_{\text{PF}}(x, b)\big)}$$</p>
+<p>实际操作中，从 $q_t^\star$ 采样或选取其top候选，形成修复重放缓冲区：</p>
+<p>$$R_t = \{(p_f, a^\star, z(x, a^\star)) : f \in F_t,\; a^\star \sim q_t^\star(\cdot \mid f)\}$$</p>
+<p>论文在附录D中证明了 $q_t^\star$ 可以被理解为on-policy提议分布 $q_t$ 在Pareto前沿支撑上的<strong>KL正则化投影</strong>：</p>
+<p>$$q_t^\star = \arg\max_{q \in \mathcal{P}_{\text{PF}(f)}} \left\{\mathbb{E}_{a' \sim q}[r_{\text{PF}}(x, a')] - \frac{1}{\beta}\text{KL}(q \| q_t(\cdot \mid f))\right\}$$</p>
+<h4 id="24-sft-pfpo">2.4 策略优化：SFT + PFPO两阶段</h4>
+<p><strong>第一阶段：SFT（监督微调）作为投影到修复监督的手段</strong></p>
+<p>SFT阶段将策略投影向验证器过滤的修复分布：</p>
+<p>$$\mathcal{L}_{\text{SFT}}(\theta) = -\mathbb{E}_{(p_f, a^\star) \sim R_t} \log \pi_\theta(a^\star \mid p_f)$$</p>
+<p>注意：提示token被mask掉，损失只在接受的修复轨迹上计算。SFT不模仿外部教师，而是内化由策略自身失败诱导、由验证器Pareto标准选出的修复轨迹。</p>
+<p><strong>第二阶段：PFPO（Pareto-Front Policy Optimization）</strong></p>
+<p>SFT从固定重放目标学习，但不显式优化新采样修复之间的相对偏好。PFPO解决这个问题。</p>
+<p>对每个修复提示 $p_f$，策略采样 $G$ 个完成：</p>
+<p>$$a_1, \ldots, a_G \sim \pi_\theta(\cdot \mid p_f)$$</p>
+<p>每个完成重新打分得到 $r_{\text{PF}}(x, a_i)$，计算组内相对优势：</p>
+<p>$$A_i^{\text{PF}} = r_{\text{PF}}(x, a_i) - \frac{1}{G}\sum_{j=1}^G r_{\text{PF}}(x, a_j)$$</p>
+<p>策略用裁剪目标优化（类似PPO/GRPO风格）：</p>
+<p>$$\mathcal{L}_{\text{PFPO}}(\theta) = -\mathbb{E}\left[\min\big(\rho_i A_i^{\text{PF}},\; \text{clip}(\rho_i, 1-\epsilon, 1+\epsilon) A_i^{\text{PF}}\big) - \beta_{\text{KL}} \text{KL}(\pi_\theta \| \pi_{\text{ref}})\right]$$</p>
+<p>其中 $\rho_i = \pi_\theta(a_i \mid p_f) / \pi_{\theta_{\text{old}}}(a_i \mid p_f)$。</p>
+<p>PFPO的关键区别在于：它使用验证器导出的多目标Pareto奖励，而非单一安全奖励。这意味着仅因为拒绝良性任务而"安全"的完成会获得低优势值——一个有用的完成必须在构建 $q_t^\star$ 时使用的同一组验证器目标下表现良好。</p>
+<h4 id="25">2.5 迭代自我进化</h4>
+<p>因为FATE是on-policy的，监督分布与当前策略耦合，而非固定不变。SFT和PFPO后，更新的策略 $\pi_{\theta_{t+1}}$ 产生新的失败分布和新的修复提议分布：</p>
+<p>$$d_{\text{fail}}^{\pi_{\theta_{t+1}}} \neq d_{\text{fail}}^{\pi_{\theta_t}}, \quad q_{t+1}(a' \mid f) \neq q_t(a' \mid f)$$</p>
+<p>FATE重复失败挖掘、修复提议、Pareto前沿监督构建和策略优化多轮，使策略能够暴露和修复新的失败模式，以降低只针对初始策略 $\pi_{\theta_0}$ 失败的局限，但不保证消除过拟合。</p>
+<hr />
+<h3 id="3">3. 实验设置</h3>
+<h4 id="31">3.1 评估基准</h4>
+<ul>
+<li><strong>AgentDojo</strong>：可执行工具使用环境，主要风险是间接提示注入（indirect prompt injection）。指标包括攻击成功率（ASR↓）、攻击下任务成功率（TSR↑）、广泛拒绝率（BRR↓）</li>
+<li><strong>AgentHarm</strong>：可执行Agent任务，主要风险是有害合规。指标包括有害合规率（HCR↓）、有效拒绝率（VRR↑）、综合安全分数（SafeScore↑）</li>
+<li><strong>ATBench</strong>：外部轨迹安全诊断基准（不用于训练），测试泛化能力</li>
+</ul>
+<h4 id="32">3.2 实验协议</h4>
+<p>严格划分：自我进化仅在开发集 $\mathcal{B}_{\text{dev}}$ 上进行，所有报告结果在从未用于训练的测试集 $\mathcal{B}_{\text{test}}$ 上。策略更新使用LoRA。</p>
+<hr />
+<h3 id="4">4. 实验结果</h3>
+<h4 id="41-table-1">4.1 跨模型家族结果（Table 1）</h4>
+<p>在Qwen3-8B、Llama-3.1-8B、Ministral-3-8B、Gemma-3-12B、Phi-4-reasoning五个骨干模型上，经过2轮自我进化后：</p>
+<ul>
+<li>AgentDojo上：ASR平均下降约25个百分点（如Qwen3-8B从0.812降到0.540），TSR平均提升约26个百分点</li>
+<li>AgentHarm上：HCR平均下降约50-59个百分点，VRR平均提升约53-65个百分点</li>
+<li>BRR也有所下降，说明未陷入过度拒绝</li>
+</ul>
+<p>论文所测的这些模型家族均有改善；这不构成对任意模型的一致有效性保证。</p>
+<h4 id="42-table-2">4.2 模型规模缩放研究（Table 2）</h4>
+<p>在Qwen3家族（0.6B到32B）上测试，FATE在所有6个规模下都有改进。改进幅度并非完全单调：小模型受益于失败轨迹监督但受容量限制，大模型通常能达到更好的最终安全-实用性权衡。这表明FATE补充而非仅替代骨干模型的缩放。</p>
+<h4 id="43-figure-3">4.3 迭代自我进化效果（Figure 3）</h4>
+<p>以Qwen3-8B为例，经过5轮进化：</p>
+<ul>
+<li>ASR从81.2%逐步降到50.8%</li>
+<li>TSR从13.2%逐步升到45.1%</li>
+<li>HCR从71.9%降到9.0%</li>
+<li>VRR从15.6%升到85.6%</li>
+</ul>
+<p>改进在早期轮次最显著，后续轮次仍有稳定但边际递减的提升。</p>
+<h4 id="44-table-3">4.4 与基线方法对比（Table 3）</h4>
+<p>与ReAct、Reflexion（推理时方法）和Tool Filter、PI Detector（运行时防御）对比：</p>
+<ul>
+<li>FATE在ASR上最低（0.540 vs 次优0.552），TSR最高（0.392 vs 次优0.348）</li>
+<li>在AgentHarm上，FATE的HCR仅0.125，远优于Reflexion的0.281</li>
+</ul>
+<h4 id="45-table-4">4.5 外部泛化能力（Table 4）</h4>
+<p>在从未用于训练的ATBench上，Qwen3-8B+FATE在粗粒度分类（ATBench-C）达到77.8%准确率和79.5% F1，超过了GPT-5.4、Gemini-3等闭源模型。在细粒度诊断（ATBench-F）上也达到最佳，说明FATE学到的轨迹级安全线索可以迁移到自我进化时未见过的环境。</p>
+<h4 id="46-table-5">4.6 消融实验（Table 5）</h4>
+<ul>
+<li>移除验证器重新打分：ASR升至0.621（vs 0.540），确认同策略修复不能直接作为标签</li>
+<li>移除过度拒绝目标：HCR改善但TSR下降</li>
+<li>移除Pareto前沿选择：各指标全面下降</li>
+<li>移除PFPO（仅SFT）：安全改善但不如完整版</li>
+<li>SFT+仅安全GRPO：HCR低但TSR也低，说明单目标优化导致实用性退化</li>
+</ul>
+<hr />
+<h3 id="5">5. 关键技术洞察总结</h3>
+<ol>
+<li><strong>失败轨迹作为原材料而非模仿对象</strong>：FATE不直接模仿失败轨迹，也不依赖外部专家修复，而是将失败作为定位错误的上下文</li>
+<li><strong>On-policy设计的重要性</strong>：修复候选由产生失败的同一策略生成，使修复提议与当前策略的实际错误分布对齐；同时策略进化后，失败分布和修复分布也随之更新</li>
+<li><strong>多目标Pareto优化避免安全-实用性退化</strong>：不只依赖单一安全分数，而是先做可行性过滤和 Pareto 前沿选择，再以标量平衡评分处理前沿内候选；约束成立与否仍依赖验证器、阈值和候选质量</li>
+<li><strong>分离提议与监督</strong>：当前策略定义提议分布 $q_t$，验证器和Pareto筛选定义实际监督分布 $q_t^\star$，两者明确分离</li>
+</ol>
+<hr />
+<h3 id="6">6. 局限性</h3>
+<ul>
+<li>依赖验证器质量：如果验证器打分有噪声或遗漏微妙的不安全行为，修复监督可能继承这些错误</li>
+<li>弱策略可能无法为复杂失败生成高质量修复</li>
+<li>增加候选数量会增加验证器调用和训练成本</li>
+<li>实验聚焦于AgentDojo、AgentHarm和ATBench，覆盖的Agent安全场景仍有限；真实世界Agent可能涉及更长时间跨度、更丰富工具、人在环决策等更复杂的安全约束</li>
+</ul>
+<h2 id="_6">原文摘要</h2>
+<p>Tool-using LLM agents fail through trajectories rather than only final responses, as they may execute unsafe tool calls, follow injected instructions, comply with harmful requests, or over-refuse benign tasks despite producing a seemingly safe answer. Existing safety-alignment signals are largely response-level or off-policy, and often incur a safety-utility trade-off: improving agent safety comes at the cost of degraded task performance. Such sparse and single-objective rewards severely limit real-world usability. To bridge this gap, we propose FATE, an on-policy self-evolving framework that transforms verifier-scored failures into repair supervision without expert demonstrations. For each failure, the same policy proposes repair candidates, which are then re-scored by verifiers and filtered across security, utility, over-refusal control, and trajectory validity. This dense trajectory-level information is then used as a supervision signal for agent self-evolution. During this process, we further introduce Pareto-Front Policy Optimization (PFPO), combining supervised warmup with Pareto-aware policy optimization to preserve safety-utility trade-offs. Experiments on AgentDojo, AgentHarm, and ATBench show that FATE improves safety across different models and scales while preserving useful behavior. Compared with strong baselines, FATE reduces attack success rate by 33.5%, harmful compliance by 82.6%, and improves external trajectory-safety diagnosis by 6.5%. These results suggest that failed trajectories can provide structured repair supervision for safer self-evolving agents.</p></article>
+<aside class="detail-aside"><div class="report-toc" aria-label="文献卡片目录"><details open><summary>本页目录</summary><div class="toc">
+<ul>
+<li><a href="#_1">核心机制</a></li>
+<li><a href="#_2">适用范围与局限</a></li>
+<li><a href="#_3">与现有文献的关系</a></li>
+<li><a href="#_4">详细解读</a><ul>
+<li><a href="#_5">论文核心总结</a></li>
+<li><a href="#1">1. 问题背景与动机</a></li>
+<li><a href="#2-fate">2. FATE框架详解</a></li>
+<li><a href="#3">3. 实验设置</a></li>
+<li><a href="#4">4. 实验结果</a></li>
+<li><a href="#5">5. 关键技术洞察总结</a></li>
+<li><a href="#6">6. 局限性</a></li>
+</ul>
+</li>
+<li><a href="#_6">原文摘要</a></li>
+</ul>
+</div>
+</details></div><section><h2>引用这篇论文</h2><p id="citation-text" class="citation-text">Bo Yin, Qi Li, Xinchao Wang. On-Policy Self-Evolution via Failure Trajectories for Agentic Safety Alignment. arXiv:2605.11882, 2026.</p><button class="button secondary" type="button" data-copy-citation>复制引用</button><p class="meta-note">延伸阅读</p></section><section><h2>同方向继续阅读</h2><ul class="related-list"><li><a href="../papers/2026.findings-acl.2091.html">On Safety Risks in Experience-Driven Self-Evolving Agents</a></li><li><a href="../papers/2503.03704.html">Memory Injection Attacks on LLM Agents via Query-Only Interaction</a></li><li><a href="../papers/2509.26354.html">Your Agent May Misevolve: Emergent Risks in Self-evolving LLM Agents</a></li><li><a href="../papers/2510.02373.html">A-MemGuard: A Proactive Defense Framework for LLM-Based Agent Memory</a></li></ul></section></aside></div></div></main>
+<footer class="site-footer"><div><strong>Agent Memory 研究</strong><p>从保存历史，到有依据地更新长期状态。</p></div>
+<div><span>内容更新 · 2026-09-08</span><p>理解方法，比较条件，关注长期影响。</p><a href="../sources.html">阅读指南</a></div></footer>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body></html>
