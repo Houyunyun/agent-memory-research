@@ -17,19 +17,291 @@
 <nav class="site-nav" aria-label="主导航"><a href="../index.html">研究总览</a><a href="../library.html" aria-current="page">文献库</a><a href="../reports/survey.html">综述全文</a><a href="../reports/multi-agent.html">多智能体专题</a><a href="../sources.html">阅读指南</a></nav>
 </div></header>
 <main id="main"><div class="page-wrap"><div class="breadcrumb"><a href="../library.html">文献库</a><span>/</span><a href="../library.html?topic=foundations">基础与综述</a></div>
-<header class="paper-hero"><div class="paper-badges"><span class="muted">2026 · 2602.06052</span></div><h1>A Survey of Agent Memory in the Second Half: Towards Self-Evolving and Long-Horizon Agents</h1><p class="paper-authors full-authors">Wei-Chieh Huang, Weizhi Zhang, Yueqing Liang, Yuanchen Bei, Yankai Chen, Tao Feng, Xinyu Pan, Zhen Tan, Yu Wang, Tianxin Wei, Shanglin Wu, Ruiyao Xu, Liangwei Yang, Rui Yang, Wooseong Yang, Chin-Yuan Yeh, Hanrong Zhang, Haozhen Zhang, Siqi Zhu, Henry Peng Zou, Wanjia Zhao, Song Wang, Wujiang Xu, Zixuan Ke, Zheng Hui, Dawei Li, Yaozu Wu, Langzhou He, Chen Wang, Xiongxiao Xu, Baixiang Huang, Juntao Tan, Shelby Heinecke, Huan Wang, Caiming Xiong, Ahmed A. Metwally, Jun Yan, Chen-Yu Lee, Hanqing Zeng, Yinglong Xia, Xiaokai Wei, Ali Payani, Yu Wang, Haitong Ma, Wenya Wang, Chenguang Wang, Yu Zhang, Xin Eric Wang, Yongfeng Zhang, Jiaxuan You, Hanghang Tong, Xiao Luo, Xue Liu, Yizhou Sun, Wei Wang, Julian McAuley, James Zou, Jiawei Han, Philip S. Yu, Kai Shu</p>
+<header class="paper-hero"><div class="paper-badges"><span class="badge expanded">含详细解读</span><span class="muted">2026 · 2602.06052</span></div><h1>A Survey of Agent Memory in the Second Half: Towards Self-Evolving and Long-Horizon Agents</h1><p class="paper-authors full-authors">Wei-Chieh Huang, Weizhi Zhang, Yueqing Liang, Yuanchen Bei, Yankai Chen, Tao Feng, Xinyu Pan, Zhen Tan, Yu Wang, Tianxin Wei, Shanglin Wu, Ruiyao Xu, Liangwei Yang, Rui Yang, Wooseong Yang, Chin-Yuan Yeh, Hanrong Zhang, Haozhen Zhang, Siqi Zhu, Henry Peng Zou, Wanjia Zhao, Song Wang, Wujiang Xu, Zixuan Ke, Zheng Hui, Dawei Li, Yaozu Wu, Langzhou He, Chen Wang, Xiongxiao Xu, Baixiang Huang, Juntao Tan, Shelby Heinecke, Huan Wang, Caiming Xiong, Ahmed A. Metwally, Jun Yan, Chen-Yu Lee, Hanqing Zeng, Yinglong Xia, Xiaokai Wei, Ali Payani, Yu Wang, Haitong Ma, Wenya Wang, Chenguang Wang, Yu Zhang, Xin Eric Wang, Yongfeng Zhang, Jiaxuan You, Hanghang Tong, Xiao Luo, Xue Liu, Yizhou Sun, Wei Wang, Julian McAuley, James Zou, Jiawei Han, Philip S. Yu, Kai Shu</p>
 <div class="hero-actions paper-actions"><a href="https://arxiv.org/abs/2602.06052" target="_blank" rel="noopener noreferrer">论文原文 <span aria-hidden="true">↗</span></a><a href="../downloads/notes/2602.06052.md">下载文献卡片 Markdown</a></div></header>
 <div class="detail-layout"><article class="prose"><h2 id="_1">核心机制</h2>
 <p>按载体、认知机制和记忆主体梳理长期自进化 Agent</p>
 <h2 id="_2">适用范围与局限</h2>
 <p>二手综述用于定位，不替代具体方法的一手证据</p>
-<h2 id="_3">原文摘要</h2>
+<h2 id="_3">详细解读</h2>
+<blockquote>
+<p>阅读边界：这是综述的分类与趋势归纳，不是对所列方法的统一实验验证。可学习记忆管理、任务技能学习和安全准入机制学习并非同一问题；具体方法的有效性、隐私与安全主张仍需回到一手论文及其适用条件。</p>
+</blockquote>
+<p>本文系统综述了基础智能体记忆（Foundation Agent Memory）的研究，提出一个统一的三维分类框架：记忆基底（内部参数化状态与外部检索增强存储）、认知机制（感觉、工作、情景、语义、程序性记忆）和记忆主体（用户中心与智能体中心）。论文强调，随着AI进入以真实世界效用为目标的“下半场”，记忆已从被动存储演变为智能体自我演化的核心载体：短期记忆决定哪些经验被感知和抽象，长期记忆则将经验巩固为可复用的知识与技能，形成持续学习闭环。文章进一步分析了单智能体与多智能体拓扑下的记忆操作，梳理了基于提示、微调和强化学习的记忆策略学习，并讨论了记忆在上下文受限与真实环境中的扩展问题、评估基准与指标，最后提出六个开放挑战。</p>
+<p>下文按照论文结构详细讲解。</p>
+<h3 id="1">1. 引言：为什么记忆成为核心问题</h3>
+<p>论文开篇指出AI研究正经历范式转移：从追求模型架构与基准分数，转向重视问题定义与严格真实世界评估。这标志着AI发展“上半场”的结束。上半场由训练方法、规模扩展和架构创新驱动，LLM在MMLU、MATH等标准基准上可超过90%准确率，但基准表现与真实世界效用之间存在显著差距。现有评估协议大多简化假设、使用静态规则和短程孤立任务，而真实应用（如具身智能、GUI自动化、智能体编程、深度研究、个性化医疗、人机协作）需要长期、动态、用户依赖的交互。</p>
+<p>在这样的环境中，上下文窗口有限但交互上下文却爆炸式增长，静态一次性能力不足。智能体必须跨交互地累积、保留并选择性复用信息，因此记忆成为弥合基准性能与真实环境差距的关键方案。记忆架构正从静态、预定义的简单机制（如Hao et al., 2023; Hu et al., 2023）向自适应、自演化、灵活单元（如Liu et al., 2025g,f）转变，形成一个闭环：工作记忆筛选进入活跃上下文的内容，其管理策略越来越通过强化学习端到端训练；被保留的经验积累为情景记录，通过反思和巩固蒸馏为语义事实与程序性技能；技能进一步外显化为可组合、可共享的构件，由现代智能体框架通过上下文工程和标准化工具中介协议暴露。因此，记忆不仅是智能体历史的接口，更是智能体自我演化的根基。</p>
+<p>论文指出已有综述的不足：早期工作常按任务应用或管理策略组织，或采用神经科学类比投影，但缺乏对底层记忆基底和记忆所服务主体的系统刻画；近期工作（Hu et al., 2025d）按形式、功能和时序动态组织，但仍主要关注智能体中心任务，未充分覆盖用户导向的设计与部署。本综述的动机正是弥合RAG、长上下文建模、认知记忆架构、个性化、持续学习、反思和智能体评估等方向的碎片化现状。</p>
+<p>论文的三个贡献：</p>
+<ol>
+<li>提出连接基底、机制和主体的三维分类法；</li>
+<li>从系统设计角度分析单/多智能体拓扑下记忆的实例化、操作与评估；</li>
+<li>将记忆定位为“下半场”AI真实世界效用与智能体自我演化的核心机制，并提出六个开放挑战。</li>
+</ol>
+<h3 id="2">2. 背景</h3>
+<h4 id="21">2.1 大语言模型与基础智能体</h4>
+<p>基础智能体（foundation agent）是由基础模型（LLM、VLM或世界模型）驱动的自主或半自主系统，增强感知、推理、规划、工具使用和记忆管理能力。与传统一次性聊天机器人不同，智能体运行在完整循环中：解读指令、选择动作、观察结果、更新内部状态或记忆。这种迭代交互特别适合长期、动态问题求解。新兴产品如Deep Research和Manus已体现这一趋势。</p>
+<p>智能体的核心能力包括：规划（任务分解与决策）、工具使用、多模态感知，以及跨越短期上下文和长期视野的记忆。记忆尤为重要，因为上下文窗口有限且环境随时间演变。许多智能体依赖外部记忆存储，结合摘要、反思或巩固过程将经验压缩为可复用知识。越来越多工作将基础智能体视为在部署时从自身执行经验中自我演化的系统，而非仅靠离线训练。记忆是实现这种自我演化的基底：没有记录、巩固和复用经验的机制，每个片段都不会改变智能体，长期交互退化为孤立的一次性任务。</p>
+<p>多智能体系统通过为多个智能体分配专门角色和记忆进行通信与协调，扩展该范式。当前基础智能体已被探索用于工作流自动化、辅导、网页与GUI交互、具身控制、早期科学辅助等。</p>
+<p>仍需解决的挑战：长期可靠性（防止误差复合、行为循环和不可靠重规划）、评估（从静态QA转向动态交互能力）、对齐与安全（自主性和工具访问扩大时的可控性）。</p>
+<h4 id="22">2.2 记忆</h4>
+<p>记忆一般指系统随时间保留、组织并利用信息的能力。在LLM基础智能体语境中，记忆用于解释智能体如何超越单轮上下文，支持长期交互、行为一致性和经验累积。</p>
+<p>论文借鉴人类认知模型：短期记忆支持临时保留与处理；感觉记忆短暂缓冲原始感知；工作记忆在严格容量限制下支撑在线信息操纵、推理和控制；长期记忆包含情景记忆（特定时间与情境中的具体经验）、语义记忆（抽象事实与概念知识）和程序记忆（技能、习惯与动作策略，往往通过执行隐式表达）。这些子系统并非孤立运作：短期系统决定哪些经验被感知、选择和抽象，长期系统累积经验并巩固为稳定知识与技能，二者的交互构成行为随经验改善的循环。论文将这一系统观点用于基础智能体：智能体记忆是一个集成层次体系，其操作（从选择保留到巩固与技能形成）本身可以被设计、优化，并越来越多地从智能体自身交互中学习。</p>
+<h3 id="3">3. 基础智能体记忆的分类法</h3>
+<p>论文以218篇2023 Q1至2025 Q4的论文作为趋势统计的主体样本，通过Google Scholar检索记忆关键词并人工筛选顶会顶刊；修订版正文还讨论2026年的方法，因此统计图的时间范围不能理解为全部引用的统一截止时间。图3显示2025年研究产出急剧加速，尤其Q4增长最陡，表明对更智能记忆设计的需求日益增长。</p>
+<p>分类法由三个概念上可交叉使用的维度组成；这里的“正交”不表示已经证明统计独立：</p>
+<ul>
+<li>记忆基底（§3.1）：记忆以何种形式表示；</li>
+<li>记忆认知机制（§3.2）：记忆在流程中扮演何种功能角色；</li>
+<li>记忆主体（§3.3）：记忆为谁捕获和支持信息。</li>
+</ul>
+<h4 id="31">3.1 记忆基底</h4>
+<p>基底分为外部记忆和内部记忆。</p>
+<h5 id="311">3.1.1 外部记忆</h5>
+<p>外部记忆指存储在模型参数或状态之外，智能体可通过检索和更新操作显式读写的记忆。通常实现为向量索引、文本记录、结构化存储和层次存储。其优势：可扩展、易更新、跨会话保留；无需昂贵重训练；保留原始形式，有助于减少幻觉或知识截止。劣势：检索延迟、检索不可靠（相似度或排序算法不佳时引入噪声）、随规模增长导致存储与索引成本上升。因此良好的外部记忆需要摘要、选择性保留、遗忘、去重和定期修剪等管理机制。</p>
+<ul>
+<li><strong>向量索引</strong>：将记忆项或查询嵌入共享向量空间，用近似最近邻搜索取top-k项，作为上下文拼接到提示中。主流实现是RAG框架中的向量数据库。检索质量依赖嵌入质量和索引算法（HNSW、IVF、PQ等）。</li>
+<li><strong>文本记录</strong>：将长期记忆视为显式文本文档而非嵌入或图谱，例如维护持久核心摘要加语义/情景列表。语义列表存储离散事实，可插入、更新、删除；情景列表是按时间戳排序的事件账簿。可读性强、易于集成，但需要精细摘要和修剪。</li>
+<li><strong>结构化存储</strong>：使用显式模式并通过符号查询或遍历检索。按拓扑分为关系表（SQL）、图记忆（知识图谱）和树记忆（层次聚合摘要）。能捕捉顺序关系和关系，支持多级抽象和灵活控制。</li>
+<li><strong>层次存储</strong>：将记忆分为多个专用存储单元，如核心记忆、情景记忆、语义记忆、程序记忆、资源记忆和知识库，每个模块采用适合内容的数据结构，由元记忆管理器协调。模块化、关注点分离、可扩展，但架构复杂性和一致性维护要求高。</li>
+</ul>
+<h5 id="312">3.1.2 内部记忆</h5>
+<p>内部记忆指直接存储在模型架构内的信息，包括参数中的持久知识（参数记忆）和推理时的工作状态。</p>
+<ul>
+<li><strong>权重记忆</strong>：通过预训练、后训练或定向参数编辑将知识或经验嵌入神经网络参数。优势：无需外部检索即可高效回忆。更新策略分为持续学习（增量更新避免灾难性遗忘）、模型编辑（定位并调整特定事实关联的参数）和蒸馏（将上下文知识压缩进参数）。权重修改计算成本高，可能干扰或扭曲已有知识。</li>
+<li><strong>潜在状态记忆</strong>：在跨步骤或分段中传递并复用中间隐藏状态。隐藏状态结合固定参数与当前提示，形成驱动下一token预测的工作状态。在常见服务实现中通常请求结束即丢弃，但是否跨请求保留取决于缓存、检查点和状态管理设计。优势是支持会话内连贯推理，但资源成本随模型深度、批大小和精度扩展。研究包括隐藏表示重建、压缩隐状态缓存、生成机器原生潜在token、结构调制隐藏状态转移等。</li>
+<li><strong>KV缓存</strong>：Transformer推理中的瞬态记忆，通过缓存每层注意力键值对加速自回归解码。不缓存则每步需重新计算所有先前token的K/V，开销巨大。KV缓存可显著加速长序列生成，但内存占用高。近期研究提出压缩方法：识别并动态驱逐对注意力贡献小的token；聚类重要特征；按层重要性自适应分配缓存预算等。</li>
+</ul>
+<h5 id="313">3.1.3 基底之间的权衡</h5>
+<p>论文用表1从检索延迟、存储成本、更新灵活性、上下文窗口开销、跨会话持久性、可扩展性、遗忘风险和检索精度八个维度对比内部与外部记忆。关键结论：</p>
+<ul>
+<li>内部权重记忆访问快、与推理集成紧密，但更新昂贵、易灾难性遗忘，适合稳定通用知识，不适合快速变化的用户特定信息。</li>
+<li>潜在状态和KV缓存常用于短期推理状态，跨会话保留需要额外设计；它们消耗设备内存，不能与可见文本的上下文预算简单等同。</li>
+<li>外部记忆可扩展、灵活编辑、跨会话持久，但检索延迟且对索引和检索质量敏感，管理不当会引入噪声。</li>
+<li>有效系统设计越来越多采用混合架构：内部参数记忆存固有知识，潜在记忆用于快速短期推理，外部记忆用于可扩展经验存储。这反映了从静态知识存储向动态自适应方法的转变。</li>
+</ul>
+<h4 id="32">3.2 记忆认知机制</h4>
+<p>论文借鉴人类认知心理学，选取五种对LLM智能体特别相关的基本认知记忆系统：感觉、工作、情景、语义、程序。表2将每种机制映射到功能角色、核心研究方向和智能体级实现示例。作者以这五类组织认知功能，但这不是经证明唯一或最小完备的工程架构；其他记忆构造如自传体记忆或前瞻记忆可视为组合或抽象。短期系统（感觉和工作）筛选经验，长期系统（情景、语义、程序）累积并巩固，形成自我演化循环。</p>
+<h5 id="321">3.2.1 感觉记忆</h5>
+<p>指对传入感知信号的暂时保留，使注意力和选择机制在更高层处理前得以运作。在文本输入中常被忽略，因为感知已坍缩为符号表示。在多模态或具身智能体中，类似机制表现为短期感知缓冲区（视觉、听觉、交互嵌入缓存）。例如HMT、LightMem、M2PA显式地将感觉记忆建模为初始缓冲，在压缩或巩固前保留最新、经过极少处理的输入。流式与具身智能体中，SAM2、ReSurgSAM2维持短期感知队列，ReKV和V-Rex利用流式KV缓存或记忆队列保留最近token或视觉表示。这些机制虽很少被称为感觉记忆，但功能类似。随着智能体部署于多模态、具身和机器人环境，感觉记忆将更受重视，需在实时和内存约束下处理连续高带宽感官流。</p>
+<h5 id="322">3.2.2 工作记忆</h5>
+<p>指对当前任务相关状态的临时存储与主动操作，支持在严格在线容量限制下进行多步推理和行动。在不保留会话状态或更新参数的调用方式下，基础模型不会自动跨独立请求持续记住经验；工作记忆提供显式携带和更新状态的机制。工作记忆在基础智能体中常通过活跃上下文实例化，包括提示上下文、中间推理轨迹、工具输出和KV缓存等。研究方法分两类：</p>
+<ul>
+<li>写入前表示塑造：压缩、折叠、抽象化交互历史以推迟或避免上下文饱和。例如Labate et al.（2025）用轻量引用替换大型中间输出；Kang et al.（2025c）、Wu et al.（2025d）、Sun et al.（2025b）等定期摘要或折叠已完成推理段以保持紧凑。</li>
+<li>写入后在线状态维护与自我演化管理：在固定预算下持续维护、更新或驱逐状态。系统层管理KV缓存与调度；智能体层则越来越多通过强化学习端到端学习“该保留、巩固还是丢弃什么”作为推理循环的一部分。另一方向将工作上下文本身视为可演化基底，跨任务持续蒸馏执行经验，或暴露运行时记忆状态让智能体自主归档和恢复上下文。</li>
+</ul>
+<p>工作记忆是自我演化的关口：短期状态必须经过它才能被巩固进情景、语义或程序记忆，因此该阶段的选择与抽象决定智能体后续可从哪些经验学习。长期进展取决于有原则且日益自我演化的状态选择与转换，而非无限扩展上下文。</p>
+<h5 id="323">3.2.3 情景记忆</h5>
+<p>指对智能体跨会话交互经验的持久存储，记录特定时间与环境上下文中的具体事件，通常组织为交互轨迹、动作序列和相关反馈。其作用：保留历史交互上下文与结果，支持背景重建和跨会话连续性，使智能体在动态环境中基于先前情境保持一致行为。</p>
+<p>实现上，情景记忆通常是一个显式经验仓库，跨会话积累交互历史。研究分两派：</p>
+<ul>
+<li>片段记录：如何将历史交互组织为连贯情景记录。例如Rajesh et al.（2025）强调选择性片段写入和结构化组织；Yeo et al.（2025a）在长视频理解中按时间与因果关系组织事件；Anokhin et al.（2024）将情景观察与语义锚点连接，支持规划时的回忆。</li>
+<li>检索与反思：如何在决策时触发、选择并使用片段。例如Yeo et al.（2025b）将情景检索形式化为自适应选择过程；Latimer et al.（2025）定义显式召回与反思操作；Li et al.（2025f）通过当前执行状态匹配过去轨迹的抽象表征来检索经验；Sarin et al.（2025）利用会话级上下文和用户状态线索触发跨会话情景检索；Alqithami（2025）研究固定预算下保留策略如何决定哪些片段仍可检索。</li>
+</ul>
+<p>从自我演化视角，情景记忆是经验基底：积累的片段不仅被检索来指导单个决策，还通过反思和巩固蒸馏为语义事实和程序性技能。开放问题包括如何定义片段边界、调节情景回忆对推理的影响、随规模增长管理长期保留。</p>
+<h5 id="324">3.2.4 语义记忆</h5>
+<p>指对抽象事实、一般概念和结构化知识的存储，为智能体提供去情境化的稳定信息，可在不同情境和目标间复用。其内容通常由情景记忆中反复出现的事实蒸馏和去情境化而来。语义记忆为复杂推理提供类似百科或技术手册的可靠事实基础。在长期智能体环境中，语义记忆不是静态的，需不断访问、修订和控制。</p>
+<p>研究分两类：</p>
+<ul>
+<li>知识归纳与组织：从交互、文档或外部证据蒸馏稳定知识并以可靠形式存储。方法包括层次化模式、记忆图谱、实体中心结构、神经记忆模块或辅助参数。</li>
+<li>知识激活、验证与更新：将语义访问视为决策时的控制过程，选择性选择、检查适用性并应用；强调长期语义可靠性，引入偏好漂移检测、保留/遗忘策略和持续知识编辑。</li>
+</ul>
+<p>语义记忆与工作记忆、情景记忆互补，提供稳定但可修订的知识基底，是经验蒸馏为稳定规律与事实的主要场所。研究正从简单文档存储向自我演化的语义网络发展。</p>
+<h5 id="325">3.2.5 程序性记忆</h5>
+<p>指对如何执行任务的记忆，编码操作技能、执行策略和特定场景的自动化例程。它将复杂动作序列抽象为可复用模式，使智能体高效连贯地完成任务。程序性记忆通常体现在执行层，其知识可来自先前执行的蒸馏、优化学习或跨智能体共享。</p>
+<p>实现方式呈现从显式非参数模板到隐式参数化神经策略的演化：</p>
+<ul>
+<li>经验蒸馏与元认知控制：将历史轨迹转换为可复用方案，例如From Experience to Strategy，Adapting Like Humans。</li>
+<li>学习优化与策略精炼：将技能内化为参数权重，如Retroformer、BREW。</li>
+<li>多智能体协调与共享实践：在协作环境中建立共同操作规范，如Smarter Together、MetaGPT、MIRIX。</li>
+<li>工作流外显化与自动化：将复杂操作转换为显式自动化模板，如Agent Workflow Memory、LEGOMem。</li>
+<li>自我演化机制：MemGen和ReasoningBank累积推理轨迹以支持长期程序性演化；CoEvoSkills将技能生成器与代理验证器协同演化；其流程仍依赖隐藏真实测试 oracle 的反馈，不能解读为无需外部正确性信号。</li>
+</ul>
+<p>近期显著发展：程序性记忆被重塑为显式、可共享的技能。早期技能库（如Voyager）展示智能体可积累已验证、可复用的程序作为增长的行为库；现在已演变为更广泛的生态系统，技能被打包为指令、代码和资源的可组合束，智能体按需加载。这种外显化将程序性记忆从私有智能体状态转变为可移植、可读、版本化的基础设施。技能库本身成为演化对象：智能体从自身执行轨迹中修复技能，自主维护技能库健康，并学习在长视野中诱导和演化记忆技能。</p>
+<p>两个警示：自生成技能仍不如人工策展技能，完全自主技能归纳仍是开放挑战；技能作为共享产物引入新的安全与治理风险，社区贡献技能中相当比例存在漏洞。</p>
+<p>总体而言，程序性记忆正经历从显式非参数检索到隐式参数化神经策略的关键转变，同时外部化技能生态快速发展，自主诱导、演化与安全治理技能是自我演化智能体的核心挑战。</p>
+<h4 id="33">3.3 记忆主体</h4>
+<p>记忆主体维度刻画记忆主要建模和服务谁，与基底和认知机制正交。图5展示主体与认知机制的关联：工作、程序和感觉记忆以智能体中心为主；语义和情景记忆在用户与智能体两类设置中均出现。用户中心与智能体中心是概念取向，并非互斥。实际系统可同时维护用户偏好和可复用任务策略，但当前基准很少同时要求两者。</p>
+<h5 id="331">3.3.1 用户中心记忆</h5>
+<p>指用户特定事实与偏好的抽象，包括传记数据、历史交互、表达偏好，可跨会话和领域演化，用于对齐用户以实现连贯交互和助手任务执行。是LLM智能体在用户相关任务（尤其长期个性化）中的基础组件。在心理咨询、推荐系统、个人医疗等领域尤为关键。</p>
+<p>论文按目标归纳四个关键方向：</p>
+<ul>
+<li><strong>长期对话中的记忆管理</strong>：对话系统是常见场景，但有限上下文无法容纳所有历史对话。有效用户记忆需相关上下文检索、更新、摘要和遗忘机制。真实系统如MemGPT形式化记忆层次管理长期会话状态；OpenAI ChatGPT记忆功能实现持久记忆并允许用户控制存储或遗忘。核心挑战是确定长期交互中哪些信息应保留、更新或遗忘，包括持久偏好、演化目标、重大生活事件和敏感约束。</li>
+<li><strong>持久用户模拟</strong>：高保真用户模拟器对在线平台训练与评估至关重要，可提供可扩展、可复现、受控环境并减少真实用户实验成本，但模拟数据和模型本身仍需隐私审查，不能自动视为隐私保护保证。用户中心记忆支持纵向一致性和细粒度偏好演化，模拟器需模拟用户状态、偏好和行为如何随累积经验和智能体干预演变。</li>
+<li><strong>长期个性化</strong>：与对话系统主要捕获对话内偏好不同，长期个性化聚焦于优化特定用户在数天到数年内的体验。智能体需维护显式用户档案或持久个人知识库，持续调和历史证据与新观察，区分持久偏好与临时状态，并在用户目标或行为变化时修订记忆。早期工作利用情景记忆或LoRA模块，近期框架强调高效记忆机制实现持续、记忆驱动的适应。</li>
+<li><strong>隐私保护记忆</strong>：持久用户记忆带来隐私、安全和数据治理需求。近期研究显示LLM智能体记忆模块易受定向提取攻击，多智能体环境中隐私风险因异构角色和动态协作而加剧。自我演化智能体需反复检索、更新、巩固和潜在地共享记忆，因此必须支持选择性保留、安全存储、用户控制删除和透明审计，并让用户控制其演化档案的推断与更新。实际保障常结合差分隐私、加密检索和显式保留/访问控制策略。</li>
+</ul>
+<h5 id="332">3.3.2 智能体中心记忆</h5>
+<p>指智能体通过自身任务执行历史或环境交互累积的蒸馏知识、技能和操作任务先验，用于支持长上下文、长视野和长运行任务。与用户中心记忆不同，智能体中心记忆编码更具普遍性的经验教训，不绑定单个用户。体现智能体如何“从经验和环境学习”，保留重要事实、策略和世界知识以改进未来表现。</p>
+<p>论文对智能体中心记忆的讨论与第3.2节认知机制中的情景、语义、程序记忆重叠较多，但重点在于“主体”视角：记忆服务于智能体自身的能力提升。具体研究方向如Jarvis-1、Buffer of Thoughts、AWM、HippoRAG2等，覆盖长期任务执行、世界建模、持续经验积累。相关操作和学习策略将在第4、5节展开。</p>
+<h3 id="4">4. 记忆操作机制</h3>
+<p>论文从系统视角分析记忆在单智能体与多智能体拓扑下的操作。</p>
+<h4 id="41">4.1 单智能体系统中的记忆操作</h4>
+<p>单智能体系统通常包含四种基本操作：<strong>写入</strong>（决定何时存储新信息及存储形式）、<strong>读取</strong>（检索相关信息）、<strong>更新</strong>（修改或修复已有记忆）、<strong>遗忘</strong>（移除过时或低价值信息）。近年来，这些操作从固定规则转向可学习的策略。代表性工作包括：</p>
+<ul>
+<li>写入策略：如Mem0、Zep采用分层写入和选择性抽取；Memento引入阶段化记忆更新；</li>
+<li>读取策略：如LD-Agent引入分层检索；M3-Agent多阶段记忆推理；</li>
+<li>更新/遗忘：如Memory3将记忆显式分为低层与高层，分别存储具体信息与抽象知识；D-SMART通过敏感性分析决定删除；SUPO利用LLM摘要整合过往记忆，避免累积过时信息。</li>
+</ul>
+<p>不少工作将记忆操作本身视为动作空间的一部分，例如Memory As Action将记忆管理动作（如打开/关闭记忆、写入/清除）纳入智能体决策，使记忆操作与任务执行协同优化。</p>
+<h4 id="42">4.2 多智能体系统中的记忆操作</h4>
+<p>多智能体系统更复杂，记忆操作涉及跨智能体通信、共享与协作。常见形态：</p>
+<ul>
+<li><strong>角色专用记忆</strong>：每个智能体维护自身角色相关的记忆，如ChatDev中不同角色（产品经理、程序员、测试员）拥有各自任务历史；</li>
+<li><strong>共享记忆池</strong>：集中式存储供多个智能体读写，如Collaborative Memory、TradingGPT，支持跨智能体知识共享；</li>
+<li><strong>分布式记忆路由</strong>：智能体根据任务动态选择读取或写入哪个智能体的记忆，如ERCM、EMIAF；</li>
+<li><strong>记忆对齐与合并</strong>：多智能体协作中需解决记忆冗余、冲突与不一致问题，如MetAgents通过辩论和投票更新共享记忆，GameGPT利用经验共享提升团队表现。</li>
+</ul>
+<p>多智能体记忆的关键挑战包括：记忆隐私与权限控制、一致性与共识、通信开销、以及从多智能体交互中蒸馏群体级知识。</p>
+<h3 id="5">5. 记忆演化与优化策略</h3>
+<p>论文强调记忆管理本身正成为可训练、自我演化的能力，涵盖从强化学习上下文策展、决策时经验巩固，到通过智能体框架、上下文工程和标准化工具中介协议出现的显式、可移植、可共享技能生态系统。</p>
+<h4 id="51">5.1 提示驱动的记忆演化与优化</h4>
+<p>早期工作依赖提示工程和外部规则设计记忆行为。例如Reflexion让智能体通过自然语言反思过去的失败；Generative Agents设计反思树和记忆流；MemGPT将记忆分页并让模型决定何时换页；MemoRAG用生成式记忆形成任务感知检索。这类方法灵活易懂，但通常依赖手工设计的提示和流程，难以适应复杂长程任务，策略表达能力和泛化性有限。</p>
+<h4 id="52">5.2 参数化记忆策略的微调</h4>
+<p>将记忆策略参数化并通过微调学习。例如LONGMEM使用记忆增强的适配器将长期记忆注入模型；Character-LLM通过角色扮演数据微调让模型学习个性化记忆表达；TIM引入记忆标记通过微调存储长期信息；PHM将层次化记忆编码进参数空间。微调方法能更好地将记忆与模型行为融合，但需要标注数据，存在灾难性遗忘风险，且更新成本较高。</p>
+<h4 id="53">5.3 记忆策略的强化学习</h4>
+<p>近来越来越多工作将记忆管理视为可通过强化学习优化的策略，使智能体从自身经验中学习如何管理记忆。代表性工作包括：</p>
+<ul>
+<li>Retroformer利用策略梯度优化回顾/反思模块，进而影响后续行为；不宜缩减为只优化回忆时机；</li>
+<li>MemAgent训练智能体在任务执行中决定何时写入、读取和遗忘；</li>
+<li>RMM学习记忆读写策略以最大化任务成功率；</li>
+<li>Memory-R1在推理模型基础上将记忆策略作为可优化的动作；</li>
+<li>Resum利用GRPO训练压缩策略；</li>
+<li>RLMLR训练智能体决定何时使用长期记忆；</li>
+<li>Mem-α将记忆动作与任务动作统一在RL框架中。</li>
+</ul>
+<p>强化学习使记忆策略可以端到端适应任务需求，提升长程任务表现，但训练成本高，奖励设计困难，探索空间大。</p>
+<h3 id="6">6. 规模扩展：记忆、上下文与环境</h3>
+<p>论文讨论记忆设计如何随交互跨度、环境复杂度和智能体数量扩展。</p>
+<h4 id="61">6.1 上下文受限的简单环境</h4>
+<p>在较短交互和简单环境中，上下文窗口通常足以容纳所需信息，记忆主要关注效率与成本。方法包括：</p>
+<ul>
+<li>KV缓存压缩（如ChunkKV、EpiCache）；</li>
+<li>提示压缩与摘要（如FOT、ACON）；</li>
+<li>简单的结构化记录（如文本列表、向量索引）。</li>
+</ul>
+<p>这类方法假设环境相对稳定，任务目标明确，记忆主要用于避免上下文溢出和优化推理成本。</p>
+<h4 id="62">6.2 上下文爆炸的真实世界环境</h4>
+<p>真实环境（如深度研究、智能体编程、GUI自动化）中上下文规模远超窗口容量，且环境动态变化。记忆系统必须支持：</p>
+<ul>
+<li>跨会话持久性：信息长期保留并可在不同会话中调用；</li>
+<li>选择性写入与读取：从海量轨迹中识别关键信息，避免噪声累积；</li>
+<li>层次化组织：将原始经验蒸馏为多级抽象（如核心记忆、情景记忆、语义记忆、程序记忆），支持不同粒度的检索与推理；</li>
+<li>自适应更新：根据新证据修订已有知识，区分短期临时状态与长期稳定偏好；</li>
+<li>共享与协作：在多智能体和多用户环境中安全地共享记忆。</li>
+</ul>
+<p>论文指出，真实环境中的记忆系统必须解决“记忆无限增长”与“效用有限”之间的矛盾，需要更智能的遗忘和巩固机制，以及可学习的记忆策略。</p>
+<h3 id="7">7. 评估</h3>
+<p>评估记忆效用的基准与指标对于衡量记忆系统在长期任务中的价值至关重要。</p>
+<h4 id="71">7.1 指标</h4>
+<p>论文将评估指标分为三类：</p>
+<ul>
+<li><strong>基于准确率</strong>：衡量记忆系统在问答、事实检索、个性化推荐等任务上的准确度。常用基准如DuLeMon、LoCoMo、PerLTQA、LongMemEval、HaluMem等，关注长期对话中记忆召回与利用的正确性。</li>
+<li><strong>基于相似度</strong>：衡量生成响应与参考响应之间的语义相似度，如MADial-Bench、LoCoMo、DuLeMon、MemoryAgentBench等，度量个性化和对话一致性。</li>
+<li><strong>LLM-as-a-Judge</strong>：利用LLM作为评判者对记忆质量进行主观评估，如LongMemEval、MemTrack、PrefEval、ConvoMem、LiveResearchBench等。这类指标更灵活，可评估连贯性、个性化程度、事实一致性等难以自动计算的维度。</li>
+</ul>
+<h4 id="72">7.2 基准</h4>
+<p>论文列举了一系列记忆相关基准，覆盖不同场景：</p>
+<ul>
+<li>对话记忆：DuLeMon、LoCoMo、MADial-Bench、MemoryBank；</li>
+<li>长程任务：LongMemEval、LiveResearchBench、HotpotQA、HLE；</li>
+<li>个性化：PerLTQA、PrefEval、PersonaMem、PersonaMem-v2；</li>
+<li>记忆可靠性：HaluMem关注记忆抽取、更新与使用中的幻觉和错误。</li>
+</ul>
+<p>未来基准需要更真实的多会话、多用户、动态环境，以及同时测试用户中心与智能体中心记忆。</p>
+<h3 id="8">8. 应用</h3>
+<p>记忆在基础智能体中有广泛的应用场景，论文按主要应用方向进行了梳理（对应图2中的“Memory Management in Dialogues”、“Long-Horizon Tasks”、“Persistent User Simulation”、“Domain-Specific LongTail Solutions”、“Long-Term Personalization”、“Cross-Task Knowledge Transfer”、“Privacy-Preserving Memory”、“Strategy and Skill Learning”等）。具体实例包括：</p>
+<ul>
+<li><strong>对话与助手</strong>：MemGPT、ChatDev、MemoChat等长期对话系统；</li>
+<li><strong>个性化推荐</strong>：RecMind、InteRecAgent、MemoCRS；</li>
+<li><strong>游戏与模拟</strong>：Generative Agents、GameGPT、JARVIS-1；</li>
+<li><strong>科学研究</strong>：ChemDFM、QuantAgent、DeepAgent；</li>
+<li><strong>具身智能</strong>：Voyager、ViLoMem、MG-Nav；</li>
+<li><strong>领域专用</strong>：FinMem（金融）、TradingGPT（交易）、WarAgent（外交模拟）；</li>
+<li><strong>工作流自动化</strong>：AutoAgents、FlowAgent、Agent Workflow Memory。</li>
+</ul>
+<p>这些应用展示了记忆在维持上下文一致性、个人化服务、跨任务知识复用、策略与技能学习等方面的关键作用。</p>
+<h3 id="9">9. 未来方向</h3>
+<p>论文提出六个开放挑战：</p>
+<ol>
+<li><strong>持续学习与自我演化智能体的记忆</strong>：如何设计能稳定累积经验、避免遗忘并在部署时持续改进的记忆系统。需要解决经验选择、巩固时机、知识蒸馏与技能形成之间的协同问题。</li>
+<li><strong>多人-智能体记忆组织</strong>：在多人、多智能体协作环境中，记忆必须处理访问控制、隐私、一致性、冲突解决和群体知识蒸馏。需要新的组织模型和协议。</li>
+<li><strong>记忆基础设施与效率</strong>：大规模记忆存储、检索和更新的工程问题，包括混合存储架构、索引优化、分布式记忆、压缩与缓存策略。</li>
+<li><strong>终身个性化与可信记忆</strong>：记忆系统必须可信，抵御提取攻击、幻觉和偏差，支持可解释性、可审计性和用户控制。需要研究隐私保护下的个性化、记忆遗忘权、事实校验和可靠性度量。</li>
+<li><strong>多模态、具身与世界模型智能体的记忆</strong>：记忆应处理连续多模态流、空间、时间与物理交互，支持世界模型构建与更新。感觉记忆、程序性记忆和技能库在多模态环境中的协同将更加关键。</li>
+<li><strong>真实世界基准与评估</strong>：需要开发更能反映长期、动态、用户依赖场景的基准，同时测量用户中心与智能体中心记忆，结合自动化与人工评估，推动记忆系统从实验室走向真实部署。</li>
+</ol>
+<h3 id="10">10. 结论</h3>
+<p>论文总结：基础智能体记忆已从静态存储演化为自我演化智能体的核心机制。三维分类法（基底、机制、主体）为系统设计提供了统一视角；记忆操作和学习策略正从手工规则转向强化学习优化；外部化技能生态使程序性知识可移植共享。记忆不再是辅助组件，而是连接短期经验筛选与长期知识巩固的闭环基础，支撑智能体在真实世界长期任务中的持续适应与改进。未来研究需在持续学习、多主体协作、效率、可信度、多模态和真实评估等方向上深入，以充分释放基础智能体在“下半场”AI发展中的潜力。</p>
+<h2 id="_4">研究要点表</h2>
+<div class="table-scroll"><table class="key-value">
+<thead>
+<tr>
+<th>维度</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>论文标题</td>
+<td>A Survey of Agent Memory in the Second Half: Towards Self-Evolving and Long-Horizon Agents</td>
+</tr>
+<tr>
+<td>作者</td>
+<td>Wei-Chieh Huang, Weizhi Zhang, Yueqing Liang 等</td>
+</tr>
+<tr>
+<td>发表年份</td>
+<td>2026年；arXiv 官方页面注明已被 Transactions on Machine Learning Research 接收，并获 Survey Certification</td>
+</tr>
+<tr>
+<td>研究问题</td>
+<td>在AI“下半场”真实长时域、动态、用户依赖环境中，基础智能体面临上下文爆炸与持续信息管理挑战，记忆成为弥合基准性能与实际效用差距的关键。论文旨在系统综述基础智能体记忆的设计与实现，建立统一分类框架并分析记忆如何支持智能体自我进化与长时域任务。</td>
+</tr>
+<tr>
+<td>研究方法</td>
+<td>采用文献综述方法，以2023 Q1至2025 Q4的218篇相关论文作主体趋势统计，修订正文另讨论2026年工作；提出三个概念上可交叉使用的维度（记忆基质、认知机制、记忆主体）的分类体系，并分析单/多智能体操作机制、记忆优化策略（提示、微调、强化学习）、评估基准与应用场景。</td>
+</tr>
+<tr>
+<td>主要发现</td>
+<td>记忆研究在2025年爆发式增长；记忆正从静态存储演化为可训练、自我进化的能力，工作记忆、情景记忆、语义记忆和程序记忆构成闭环；外部记忆与内部记忆各有权衡，混合架构成为趋势；多智能体记忆共享与可学习记忆策略兴起；评估从静态QA转向动态长时域场景。论文还指出六大开放挑战，如持续学习、多人类-智能体记忆组织、基础设施效率等。</td>
+</tr>
+<tr>
+<td>创新点</td>
+<td>提出连接记忆基质、认知机制和记忆主体的三维统一分类法，弥补了以往综述割裂各子领域的不足；将记忆定位为AI“下半场”实现实际效用和智能体自我进化的核心基质，强调记忆管理本身成为可训练能力；系统梳理了单/多智能体拓扑下的记忆操作与优化策略，并展望了显式、可移植、可共享的智能体技能生态。</td>
+</tr>
+<tr>
+<td>局限性</td>
+<td>本文为综述性研究，未提出新的记忆模型或实验验证；主体趋势统计截至2025年Q4，不等于修订版全部引文均止于该日期；样本筛选仍可能遗漏工作；三维分类维度在部分论文中存在重叠，人工归类可能引入主观偏差；对不同记忆系统的量化比较和统一理论框架尚未深入。</td>
+</tr>
+<tr>
+<td>与本研究的关联</td>
+<td>未提及</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="_5">原文摘要</h2>
 <p>Research in artificial intelligence is shifting from model innovations and benchmark scores towards problem definition and rigorous real-world evaluation. As the field enters the "second half," the central challenge becomes real utility in long-horizon, dynamic, and user-dependent settings such as agentic coding, deep research, and computer use, where LLM-based agents face context explosion beyond fixed context windows and must continuously accumulate, manage, and selectively reuse information across extended interactions. Memory, with hundreds of papers released in 2025, therefore emerges as the critical solution to fill this utility gap. Beyond passive storage, memory is increasingly the substrate through which agents self-evolve: short-term memory gates which experiences are perceived and abstracted during execution, while long-term memory consolidates them into reusable knowledge and skills, forming the loop through which agents improve from their own experience. In this survey, we provide a unified view of foundation agent memory along three dimensions: memory substrate (internal parametric state and external retrieval-augmented stores), cognitive mechanism (sensory, working, episodic, semantic, and procedural), and memory subject (user-centric personalization and agent-centric experience). We then analyze how memory is operated under single- and multi-agent topologies and highlight learning policies over memory operations, showing how memory management itself is becoming a trainable capability spanning reinforcement-learned context curation, experience consolidation at decision time, and the emerging ecosystem of portable, shareable agent skills. Finally, we review evaluation benchmarks and metrics for memory utility, and outline open challenges and future directions.</p></article>
 <aside class="detail-aside"><div class="report-toc" aria-label="文献卡片目录"><details open><summary>本页目录</summary><div class="toc">
 <ul>
 <li><a href="#_1">核心机制</a></li>
 <li><a href="#_2">适用范围与局限</a></li>
-<li><a href="#_3">原文摘要</a></li>
+<li><a href="#_3">详细解读</a><ul>
+<li><a href="#1">1. 引言：为什么记忆成为核心问题</a></li>
+<li><a href="#2">2. 背景</a></li>
+<li><a href="#3">3. 基础智能体记忆的分类法</a></li>
+<li><a href="#4">4. 记忆操作机制</a></li>
+<li><a href="#5">5. 记忆演化与优化策略</a></li>
+<li><a href="#6">6. 规模扩展：记忆、上下文与环境</a></li>
+<li><a href="#7">7. 评估</a></li>
+<li><a href="#8">8. 应用</a></li>
+<li><a href="#9">9. 未来方向</a></li>
+<li><a href="#10">10. 结论</a></li>
+</ul>
+</li>
+<li><a href="#_4">研究要点表</a></li>
+<li><a href="#_5">原文摘要</a></li>
 </ul>
 </div>
 </details></div><section><h2>引用这篇论文</h2><p id="citation-text" class="citation-text">Wei-Chieh Huang, Weizhi Zhang, Yueqing Liang, et al.. A Survey of Agent Memory in the Second Half: Towards Self-Evolving and Long-Horizon Agents. arXiv:2602.06052, 2026.</p><button class="button secondary" type="button" data-copy-citation>复制引用</button><p class="meta-note">综述参考文献 [2]</p></section><section><h2>同方向继续阅读</h2><ul class="related-list"><li><a href="../papers/2005.11401.html">Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks</a></li><li><a href="../papers/2309.02427.html">Cognitive Architectures for Language Agents</a></li><li><a href="../papers/2512.13564.html">Memory in the Age of AI Agents</a></li><li><a href="../papers/2604.08224.html">Externalization in LLM Agents: A Unified Review of Memory, Skills, Protocols and Harness Engineering</a></li></ul></section></aside></div></div></main>
